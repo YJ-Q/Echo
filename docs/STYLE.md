@@ -1,88 +1,271 @@
 # Echo Desktop Style Guide
 
-This guide defines the visual direction for Echo's desktop MVP.
+本文件用于约束 Echo 桌面端的视觉风格、布局规则、交互复杂度和任务化设计原则。
 
-The chosen direction is the light-dominant grayscale variant: a quiet white main canvas, black navigation rail, gray structure, and cool blue active states. It keeps a slight retro digital feeling through dotted texture, thin borders, compact controls, and precise spacing, but the product should remain readable and calm for daily use.
+Echo 的目标不是做成一个复杂工作台，而是一个低负担、高明确性、具有持续推进感的桌面产品。
 
-## Design Principles
+## 1. 设计目标
 
-- Echo should feel like a focused desktop companion, not a chatbot window.
-- Follow Apple-style interface discipline: clear hierarchy, strong alignment, restrained surfaces, native-feeling controls, and generous breathing room around important content.
-- The interface should make the next small action obvious without becoming a task manager.
-- Use contrast, spacing, hierarchy, and motion instead of decoration.
-- Keep the visual system mostly black, white, and gray, with blue reserved for active, selected, or actionable states.
-- Prefer dense but breathable layouts over large hero-style surfaces. Detail belongs in secondary panels, not in the first visual layer.
-- The UI should feel stable, quiet, and long-lived.
-- Use native UI primitives as the base layer wherever possible, then apply Echo styling through tokens.
-- Do not use emoji in the interface. When a symbol is needed, use an icon from the approved icon library.
+Echo 需要同时满足以下目标：
 
-## Visual Direction
+- 简单好用
+- 功能明确
+- 减少冗余
+- 可持续推进
+- 具备轻游戏化的任务驱动感
+- 能直接映射真实前后端能力
 
-Echo should combine three qualities:
+Echo 不是：
 
-- Apple-like structure: balanced layout, careful spacing, precise alignment, and readable typography.
-- Desktop productivity clarity: information density is useful, but the page must never feel crowded.
-- Subtle digital memory texture: dotted surfaces, mono metadata, and thin dividers are accents, not the main event.
+- 聊天网页
+- 重型任务管理器
+- 分析大屏
+- 花哨的游戏界面
 
-The visual priority is:
+Echo 应该像一个安静、克制、可靠的桌面陪伴式执行界面。
 
-1. Readability
-2. Clear next action
-3. Spatial balance
-4. Direct visual signals
-5. Quiet personality
-6. Decorative texture
+## 2. 总体原则
 
-## Information Density
+### 2.1 简单优先
 
-Echo should not explain everything with text. Prefer compact visual instruments supported by short labels.
+- 一个页面只服务一个核心目标
+- 一个区域只表达一种主要信息
+- 一个时刻只鼓励一个主动作
 
-Rules:
+### 2.2 默认收敛
 
-- Each status panel should contain one primary visual signal and one short explanatory line.
-- Replace repeated descriptive text with bars, waveforms, step segments, counters, or compact grids.
-- Keep body copy short. A panel should rarely need more than two text lines after its title.
-- Use text to clarify state meaning, not to duplicate what the visual already shows.
-- The right workspace should feel like an instrument panel, not a report.
-- Conversation text may stay natural, but status panels should be concise and highly scannable.
+- 默认只显示必要内容
+- 历史、解释、详情进入次层或详情层
+- 不在主页面堆叠大量辅助信息
 
-## Layout
+### 2.3 图形优先于长文本
 
-Desktop uses a fixed three-column structure:
+- 能用波形、进度条、分段条、趋势线、网格表达的，不写成长段说明
+- 文本负责命名、澄清、反馈，不负责重复视觉信号
 
-- Left navigation rail
-- Center Echo conversation stream
-- Right status workspace
+### 2.4 苹果式秩序
 
-Recommended desktop frame:
+- 布局平衡
+- 对齐严格
+- 留白克制
+- 原生控件感强
+- 层级清晰
 
-- Minimum width: `1280px`
-- Ideal width: `1440px` to `1728px`
-- Minimum height: `800px`
+### 2.5 任务驱动感
 
-Column sizing:
+Echo 可以借用游戏任务系统的设计理念，但视觉仍保持克制、桌面化。
 
-- Left navigation: `72px` collapsed, `220px` expanded if labels are needed
-- Center conversation: flexible, minimum `560px`
-- Right workspace: `340px` to `400px`
-- Outer app padding: `16px`
-- Column gap: `12px`
+借用的不是“游戏皮肤”，而是：
 
-The center conversation area owns the visual focus. The right workspace should feel persistent and useful, but secondary.
+- 明确目标
+- 明确步骤
+- 明确完成条件
+- 明确进度反馈
+- 明确推进感
 
-Composition rules:
+## 3. 复杂度边界
 
-- Align all major columns to the same top and bottom edges.
-- Keep the center column visually calmer than the side panels; the conversation should not fight the right workspace.
-- Use progressive disclosure: show the current state and next action first, then expose memory, profile, and event details on expansion.
-- Avoid filling every available area. Leave quiet space around the current Echo response and the next action.
-- Major panels should form a clear vertical rhythm; avoid staggered, uneven panel heights unless the content requires it.
+### 3.1 交互层级
 
-## Color Palette
+全局只保留三层：
 
-Use a restrained grayscale base with one blue accent family.
+1. 主层：当前页面最重要内容和主动作
+2. 次层：补充模块、辅助列表、轻趋势信息
+3. 详情层：侧板、弹层、展开内容
 
-### Core
+禁止：
+
+- 四层及以上深层跳转
+- 弹层里再开弹层
+- 一个页面承载多个互相竞争的主流程
+
+### 3.2 页面数量
+
+桌面端首版只围绕五个核心页面：
+
+1. 此刻
+2. 学习
+3. 行动
+4. 反思
+5. 记忆
+
+后续如需扩展成就页、个人档案页、成长页，应视作二期内容。
+
+### 3.3 模块数量
+
+- 每个主页面最多 3 到 5 个核心模块
+- 同屏不要出现多个同等强度的视觉重点
+- 每个局部区域最多一个主按钮
+- 右侧状态卡不得无限扩展
+
+## 4. 布局规则
+
+### 4.1 全局框架
+
+全局始终保留左侧导航轨。
+
+基础框架：
+
+- 左侧：导航
+- 中间：页面主工作区
+
+右侧状态工作台不是所有页面的固定组成部分。
+
+### 4.2 三栏结构只属于主页面
+
+三栏结构只适用于 `此刻` 页面。
+
+原因：
+
+- 此刻页承担全局实时状态
+- 此刻页需要对话流与状态工作台同时存在
+- 此刻页本身就是 Echo 的主驾驶舱
+
+`此刻` 页结构：
+
+- 左侧导航
+- 中间主对话流
+- 右侧状态工作台
+
+### 4.3 其他四页不固定保留右侧状态栏
+
+`学习 / 行动 / 反思 / 记忆` 采用扩展主内容布局：
+
+- 左侧导航保留
+- 中间内容区扩展
+- 不重复挂完整右侧状态栏
+- 如有必要，只保留极少量页面内摘要模块
+
+这样可以避免：
+
+- 状态卡内容重复
+- 页面目标被冲淡
+- 五个页面看起来只是“同一页面换标题”
+
+## 5. 页面目标
+
+### 5.1 此刻
+
+目标：
+
+- 看当前状态
+- 和 Echo 继续对话
+- 接住下一步行动
+
+主动作：
+
+- 发送输入 / 继续对话
+
+### 5.2 学习
+
+目标：
+
+- 查看当前学习主题
+- 理解步骤推进
+- 推进当前步骤
+
+主动作：
+
+- 推进当前步骤
+
+### 5.3 行动
+
+目标：
+
+- 明确当前主任务
+- 查看次级任务
+- 开始或完成当前任务
+
+主动作：
+
+- 开始 / 完成当前任务
+
+### 5.4 反思
+
+目标：
+
+- 查看简短总结
+- 理解趋势和模式
+
+主动作：
+
+- 刷新总结
+
+### 5.5 记忆
+
+目标：
+
+- 查看关键召回片段
+- 理解标签与记忆分组
+
+主动作：
+
+- 查看 / 置顶关键记忆
+
+## 6. 信息密度
+
+Echo 不应依赖大段文字解释自己。
+
+规则：
+
+- 卡片内正文默认不超过两行
+- 状态区优先使用图形化表达
+- 中间对话区允许自然语言较多
+- 右侧状态区必须高度可扫描
+- 主层不承载长说明
+
+适合放在主层的文字：
+
+- 状态名称
+- 任务标题
+- 当前步骤
+- 一句说明
+- 一句反馈
+
+不适合主层的内容：
+
+- 长教程
+- 大段引导
+- 重复解释
+- 冗长空状态文案
+
+## 7. 视觉方向
+
+Echo 应同时具备以下三种质感：
+
+1. 苹果式秩序
+2. 轻桌面产品感
+3. 轻微数字纹理记忆感
+
+视觉优先级：
+
+1. 可读性
+2. 当前最重要动作
+3. 空间平衡
+4. 直接状态信号
+5. 安静气质
+6. 纹理点缀
+
+## 8. 当前已确认的主视觉结论
+
+后续所有页面图和前端实现都必须遵守以下结论：
+
+1. 使用黑、白、灰、蓝作为唯一主色系统
+2. 整体遵循苹果式克制桌面布局
+3. 左侧为黑色垂直导航轨
+4. `此刻` 页采用三栏结构
+5. `学习 / 行动 / 反思 / 记忆` 不固定保留右侧状态栏
+6. 中间区域以主流程为核心
+7. 保留 Current State 的心跳波形
+8. 保留 Focus 的可视化进度条
+9. 保留 Learning 的分段进度表现
+10. 减少文字占比，提高图形表达比例
+
+## 9. 颜色规范
+
+只允许使用黑、白、灰、蓝体系。
+
+### 9.1 Core
 
 ```css
 --color-black: #050608;
@@ -97,7 +280,7 @@ Use a restrained grayscale base with one blue accent family.
 --color-white: #ffffff;
 ```
 
-### Blue Accent
+### 9.2 Blue Accent
 
 ```css
 --color-blue: #2563eb;
@@ -107,9 +290,7 @@ Use a restrained grayscale base with one blue accent family.
 --color-blue-ink: #0f3d91;
 ```
 
-### State Signal Colors
-
-State colors should stay within the black, white, gray, and blue system. Different states are represented by blue intensity, gray contrast, rhythm, amplitude, and line style rather than unrelated hues.
+### 9.3 State Signal
 
 ```css
 --state-quiet: #7d8594;
@@ -120,36 +301,15 @@ State colors should stay within the black, white, gray, and blue system. Differe
 --state-neutral: #9ca3af;
 ```
 
-Rules:
+规则：
 
-- Avoid green/yellow/red emotion palettes in the core UI.
-- Anxious states may use sharper, higher-frequency blue waveforms instead of warning colors.
-- Quiet or neutral states should use lower-contrast gray-blue lines.
-- Distracted states should use broken or irregular gray-blue rhythm, not a new color family.
+- 状态差异优先靠蓝色强度、灰度对比、频率、振幅、线型
+- 不引入绿、黄、红作为主状态色
+- 不引入紫、米、橙、棕等新配色主题
 
-### Semantic
+## 10. 字体规范
 
-```css
---surface-app: #f2f4f7;
---surface-main: #ffffff;
---surface-subtle: #f8fafc;
---surface-inverse: #050608;
---border-subtle: #e5e8ee;
---border-strong: #c9ced8;
---text-primary: #111318;
---text-secondary: #4b5565;
---text-muted: #7d8594;
---text-inverse: #ffffff;
---accent: #2563eb;
-```
-
-Avoid purple, beige, orange, green, and decorative gradients.
-
-## Typography
-
-Use a system-first sans serif for readability, with an optional monospace layer for small metadata and retro digital details.
-
-Primary font stack:
+主字体：
 
 ```css
 font-family:
@@ -163,7 +323,7 @@ font-family:
   sans-serif;
 ```
 
-Monospace font stack:
+等宽字体：
 
 ```css
 font-family:
@@ -174,28 +334,25 @@ font-family:
   monospace;
 ```
 
-Type scale:
+字号层级：
 
-- App title: `24px / 32px`, weight `650`
-- Page title: `20px / 28px`, weight `650`
-- Section title: `14px / 20px`, weight `650`
-- Body: `14px / 22px`, weight `400`
-- Small body: `13px / 20px`, weight `400`
-- Metadata: `11px / 16px`, weight `500`, monospace optional
-- Button: `13px / 18px`, weight `600`
+- App 标题：`24px / 32px`，`650`
+- 页面标题：`20px / 28px`，`650`
+- 模块标题：`14px / 20px`，`650`
+- 正文：`14px / 22px`，`400`
+- 小正文：`13px / 20px`，`400`
+- 元信息：`11px / 16px`，`500`
+- 按钮：`13px / 18px`，`600`
 
-Rules:
+规则：
 
-- Do not scale font size with viewport width.
-- Letter spacing should be `0` for normal text.
-- Use uppercase only for tiny metadata labels.
-- Do not use oversized display text inside panels.
-- Prefer Apple-like typographic restraint: fewer sizes, clearer weights, and consistent line height.
-- Chinese text should use the same hierarchy as English text; do not compensate with larger sizes.
+- 不随 viewport 缩放字号
+- 正文字距保持 0
+- 中文与英文遵循同一层级
 
-## Spacing
+## 11. 间距规范
 
-Use a 4px token base, composed into an Apple-like 8px layout rhythm.
+采用 4px 基础与 8px 节奏体系。
 
 ```css
 --space-1: 4px;
@@ -208,303 +365,244 @@ Use a 4px token base, composed into an Apple-like 8px layout rhythm.
 --space-10: 40px;
 ```
 
-Recommended spacing:
+推荐值：
 
-- App shell padding: `16px`
-- Primary panel padding: `20px`
-- Standard panel padding: `16px`
-- Compact panel padding: `12px`
-- Gap between major columns: `12px`
-- Gap between stacked panels: `12px`
-- Gap between form controls: `8px`
-- Conversation message vertical gap: `14px`
-- Section header to content gap: `10px`
-- Page title to first section gap: `16px`
-- Dense metadata rows: `6px` to `8px`
+- 外层 padding：`16px`
+- 主面板 padding：`20px`
+- 标准卡片 padding：`16px`
+- 紧凑卡片 padding：`12px`
+- 卡片堆叠间距：`12px`
+- 控件间距：`8px`
 
-Spacing rules:
-
-- Important content needs more space around it than secondary metadata.
-- Avoid equal visual weight everywhere. The page should have primary, secondary, and tertiary zones.
-- If a panel has more than three dense rows, add either grouping, dividers, or collapse behavior.
-
-## Radius
-
-Echo should feel precise, not bubbly.
+## 12. 圆角、边框、阴影
 
 ```css
 --radius-sm: 4px;
 --radius-md: 6px;
 --radius-lg: 8px;
-```
-
-Usage:
-
-- Buttons: `6px`
-- Inputs: `6px`
-- Panels: `8px`
-- Small chips: `4px`
-- Avoid radii above `8px` unless a platform shell requires it.
-
-## Borders And Shadows
-
-Prefer borders over heavy shadows.
-
-```css
 --border-width: 1px;
 --shadow-subtle: 0 1px 2px rgba(17, 19, 24, 0.06);
 --shadow-panel: 0 12px 30px rgba(17, 19, 24, 0.08);
 ```
 
-Rules:
+规则：
 
-- Main panels use `1px` solid borders.
-- Use shadows only to separate floating overlays, popovers, and modals.
-- Avoid glowing blue shadows except for rare focused states.
+- 按钮：`6px`
+- 输入框：`6px`
+- 面板：`8px`
+- 主要依赖边框，不依赖重阴影
 
-## Texture
+## 13. 图标与原生控件
 
-The D variant uses a subtle dotted digital texture.
+- 默认图标库：`lucide-react`
+- 禁止 emoji
+- 优先使用原生或 headless 可访问组件
+- 保留清晰 focus 状态
+- 不为了“设计感”牺牲键盘可用性
 
-Recommended texture:
+## 14. 左侧导航
 
-```css
-.dotted-surface {
-  background-image: radial-gradient(rgba(37, 99, 235, 0.13) 1px, transparent 1px);
-  background-size: 16px 16px;
-}
-```
+左侧导航保持黑、窄、稳定。
 
-Rules:
+保留项：
 
-- Use dotted texture only on large background surfaces or quiet empty states.
-- Do not place texture behind dense body text.
-- Keep opacity low enough that the interface remains clean.
-- Texture is optional. If it competes with Apple-like clarity, remove it.
+- 此刻
+- 学习
+- 行动
+- 反思
+- 记忆
+- 设置 / 同步
 
-## Component Foundation
+规则：
 
-Use native UI as the foundation layer.
+- 只做切换，不做复杂说明
+- 激活态必须明显
+- 导航图标约 `20px`
+- 图标按钮约 `40px`
 
-Preferred approach:
+## 15. 此刻页结构
 
-- Start with native HTML controls for inputs, buttons, text areas, dialogs, menus, and form states.
-- Use a headless/native-oriented component library only when it improves accessibility and keyboard behavior.
-- Recommended options: Radix UI, Ariakit, React Aria, or shadcn/ui built on Radix primitives.
-- Keep Echo's visual styling in design tokens, not hard-coded per component.
+此刻页是 Echo 的主驾驶舱。
 
-Rules:
+结构：
 
-- Do not replace standard controls with custom canvas or decorative widgets.
-- Menus, popovers, dialogs, tabs, switches, checkboxes, and tooltips must support keyboard navigation.
-- Native focus behavior must remain visible and consistent.
-- Platform conventions should win over novelty when there is a conflict.
+- 顶部状态头
+- 当前状态主视觉
+- 主对话流
+- 输入区
+- 右侧状态工作台
 
-## Icons
+规则：
 
-Do not use emoji anywhere in the UI.
+- 对话流是绝对核心
+- 当前状态主视觉必须简洁明确
+- 输入区必须稳定、低摩擦
 
-Approved icon approach:
+## 16. 其他四页结构
 
-- Use `lucide-react` as the default icon library.
-- Use icon-only buttons for common actions such as send, complete, dismiss, settings, search, collapse, expand, and refresh.
-- Use text labels beside icons when the action is not immediately obvious.
-- Use tooltips for icon-only controls.
+### 学习页
 
-Icon sizing:
+更像学习推进页：
 
-- Navigation icon: `20px`
-- Inline icon: `16px`
-- Button icon: `16px` to `18px`
-- Status icon: `14px` to `16px`
+- 顶部主题和总进度
+- 中部步骤流
+- 下部当前步骤详情或提示
 
-Rules:
+### 行动页
 
-- Icons inherit current text color unless the state requires blue.
-- Do not use multi-color icons.
-- Do not use icons as decoration when they do not clarify meaning.
+更像任务执行页：
 
-## Left Navigation
+- 顶部主任务
+- 中部任务队列
+- 下部阻碍与辅助
 
-The navigation rail should be black and compact.
+### 反思页
 
-Structure:
+更像总结页：
 
-- Echo mark at the top
-- Primary icons: Echo, Learn, Actions, Reflections
-- Secondary controls near bottom: settings, theme, connection status
+- 顶部今日或近期结论
+- 中部趋势与模式
+- 下部历史摘要
 
-Colors:
+### 记忆页
 
-- Background: `--color-black`
-- Inactive icon/text: `#9ca3af`
-- Active item: white text/icon on blue accent or blue left indicator
-- Hover: `rgba(255,255,255,0.08)`
+更像召回页：
 
-Interaction:
+- 顶部记忆概览
+- 中部分组与标签
+- 下部关键片段
 
-- Icon buttons should be `40px` square.
-- Active state must be visually clear.
-- Use tooltips for icon-only controls.
+## 17. 右侧状态工作台
 
-## Center Conversation
+右侧状态工作台只作为 `此刻` 页核心特征出现。
 
-The center column is the primary workspace.
+建议保留卡片：
 
-Sections:
+1. 当前状态
+2. 专注
+3. 下一步行动
+4. 学习线
+5. 记忆
+6. 反思趋势
 
-- Top status header
-- Conversation stream
-- Input composer
+禁止：
 
-Conversation message style:
+- 扩展成十几个状态卡
+- 变成分析后台
+- 视觉上压过中间主流程
 
-- User messages: right-aligned or clearly marked, white/gray surface
-- Echo messages: left-aligned, slightly stronger structure, calm text block
-- Metadata row: emotion, intent, tags, timestamp
+## 18. 核心状态可视化
 
-Composer:
+### 18.1 心跳波形
 
-- Fixed at bottom of center column
-- Text input height: `44px` minimum
-- Send button: icon button with blue active state
-- Quick actions above or beside input: `Done`, `Stuck`, `Continue`, `Plan today`
+Current State 必须保留心跳动画。
 
-Do not make chat bubbles overly rounded or playful.
+结构：
 
-## Right Status Workspace
+- 状态名
+- 波形
+- 一句说明
 
-The right panel explains where we are and what to do next.
+状态映射：
 
-Recommended stack:
+- Quiet：低振幅、低频率、灰蓝
+- Focused：中振幅、稳定频率、清晰蓝
+- Motivated：较强蓝、前进节奏
+- Anxious：尖峰更多、频率更高、深蓝
+- Distracted：节奏不规则、对比更低
+- Neutral：接近平线、弱灰
 
-1. Current State
-2. Next Action
-3. Learning Line
-4. Action Queue
-5. Memory / Reflection preview
+动效规则：
 
-Panel style:
+- 微动即可
+- 循环 `1.4s` 到 `3.2s`
+- 尊重 reduced motion
 
-- White or subtle gray surface
-- Thin border
-- Small title row
-- Clear primary value
-- Compact metadata
+### 18.2 Focus 进度条
 
-The Next Action panel is the strongest visual element on the right side. It may use a blue top border, blue action button, or blue selected state.
+Focus 卡必须保留进度条。
 
-Right workspace text limits:
+结构：
 
-- Current State: state name, heartbeat visual, one sentence maximum.
-- Focus: focus name, progress bar, percent or step count.
-- Next Action: action title, one short detail, one primary button.
-- Learning Line: topic, segmented progress, current step label.
-- Memory: item count, compact grid or sparkline, optional disclosure action.
+- 主题
+- 水平进度条
+- 百分比或步骤值
 
-## State Visualizations
+### 18.3 Learning 分段进度
 
-Echo's state system should use lightweight, animated visual instruments. These are part of the product identity and are not decorative charts.
+Learning Line 使用分段条，而不是长段说明。
 
-### Heartbeat State
+规则：
 
-Use a heartbeat waveform in the Current State panel to represent the user's emotional/contextual state.
+- 已完成：蓝色
+- 当前步骤：蓝色高亮
+- 未完成：浅灰
 
-Structure:
+### 18.4 Memory 网格
 
-- Left side: state label, such as `Quiet`, `Focused`, `Motivated`, `Anxious`, or `Distracted`.
-- Right side: animated heartbeat waveform.
-- Bottom or adjacent line: one short status explanation.
+Memory 使用紧凑网格或密度可视化。
 
-Recommended dimensions:
+规则：
 
-- Panel height: `88px` to `104px`
-- Waveform width: `72px` to `120px`
-- Waveform height: `24px` to `40px`
-- Stroke width: `1.5px` to `2px`
+- 以灰和蓝表达
+- 主卡只显示数量和概览
 
-State mapping:
+## 19. 任务化设计原则
 
-- `Quiet`: low amplitude, slow frequency, soft gray-blue line.
-- `Focused`: medium amplitude, steady frequency, clear blue line.
-- `Motivated`: slightly higher amplitude, steady forward rhythm, stronger blue.
-- `Anxious`: sharp peaks, higher frequency, darker blue, slightly tighter spacing.
-- `Distracted`: irregular broken rhythm, lower contrast, interrupted segments.
-- `Neutral`: flat or near-flat pulse with muted gray.
+Echo 可以借用游戏任务系统理念，但不做花哨游戏界面。
 
-Animation rules:
+### 19.1 任务必须具备四要素
 
-- Animate the waveform with a subtle left-to-right draw or pulse.
-- Loop duration should range from `1.4s` to `3.2s` depending on state.
-- Keep motion small; the waveform should feel alive, not alarming.
-- Respect reduced motion by showing a static waveform.
-- Do not use red, warning flashes, glow storms, or medical-device realism.
+每个任务都应具备：
 
-Implementation notes:
+1. 明确标题
+2. 明确当前目标
+3. 明确完成条件
+4. 明确进度反馈
 
-- Prefer SVG or canvas for the waveform.
-- Use Framer Motion or CSS stroke-dash animation.
-- Keep waveform data deterministic per state so the UI feels stable.
+### 19.2 主线优先
 
-### Focus Progress
+- 始终突出一个主任务
+- 次任务必须弱化
+- 不让多个任务同时争夺注意力
 
-Use a visual progress bar in the Focus panel to show the current execution line.
+### 19.3 小步推进
 
-Structure:
+- 大任务必须拆成小步骤
+- 当前步骤必须清楚
+- 用户不需要猜“下一步是什么”
 
-- Focus title, such as `JavaScript basics` or `Report + Meeting Prep`.
-- Horizontal progress bar.
-- Percent, step count, or remaining unit aligned to the right.
+### 19.4 轻反馈，不喧闹
 
-Recommended dimensions:
+允许：
 
-- Bar height: `8px`
-- Track color: `--color-gray-200`
-- Fill color: `--color-blue`
-- Radius: `4px`
-- Width: full panel minus label area
+- 进度推进
+- 阶段完成反馈
+- 下一任务解锁感
+- AI 写的任务总结或任务结语
 
-Rules:
+不建议首版加入：
 
-- The progress bar should be visible without reading the text.
-- If the focus is uncertain, show an indeterminate blue-gray shimmer bar.
-- If there are multiple focus signals, show only the active one and hide secondary details behind disclosure.
-- Do not add long explanations under the bar.
+- 复杂等级系统
+- 大量勋章墙
+- 金币式奖励
+- 高噪音特效
 
-### Learning Segments
+### 19.5 成就系统的定位
 
-Learning Line should use segmented progress rather than paragraphs.
+成就是二期可扩展能力，不是首版核心主流程。
 
-Structure:
+适合放在：
 
-- Topic title.
-- Step count, such as `Step 3 of 6`.
-- Segmented progress row.
-- Current step name.
+- 个人档案页
+- 成长页
+- 记忆 / 画像扩展页
 
-Rules:
+成就规则必须结构化判断，成就名称和描述可以由 AI 生成润色。
 
-- Done segments: blue.
-- Current segment: blue with stronger border or subtle pulse.
-- Pending segments: light gray.
-- Keep each segment fixed width so state changes do not shift layout.
+## 20. 按钮与输入
 
-### Memory Grid
-
-Memory should use a compact grid, density strip, or small sparkline to represent accumulated memories.
-
-Rules:
-
-- Use small square cells in gray and blue.
-- Blue cells can indicate recently active or relevant memories.
-- Show count text, such as `56 items`, but avoid listing memory content in the primary panel.
-- Detailed memory content belongs in an expanded view or a dedicated Memory page.
-
-## Components
-
-### Buttons
-
-Primary:
+### Primary
 
 ```css
 background: #2563eb;
@@ -513,7 +611,7 @@ border: 1px solid #2563eb;
 border-radius: 6px;
 ```
 
-Secondary:
+### Secondary
 
 ```css
 background: #ffffff;
@@ -522,7 +620,7 @@ border: 1px solid #c9ced8;
 border-radius: 6px;
 ```
 
-Ghost:
+### Ghost
 
 ```css
 background: transparent;
@@ -530,176 +628,108 @@ color: #4b5565;
 border: 1px solid transparent;
 ```
 
-Rules:
+规则：
 
-- Use icons for common actions where possible.
-- Text buttons are acceptable for clear commands such as `Start`, `Done`, `Dismiss`.
-- Button height should be `32px` or `36px`.
-- Primary actions should be visually obvious, but only one primary action should appear in a local panel.
-- Follow native desktop expectations for hover, pressed, disabled, and focus states.
+- 每个局部区域只有一个主按钮
+- 低频操作弱化
+- 复杂操作进入详情层
 
-### Chips
+输入框：
 
-Use chips for emotion, tags, intent, and status.
+- 高度：`40px` 到 `44px`
+- 聚焦边框：蓝色
+- 占位文字：灰色
 
-- Height: `24px`
-- Radius: `4px`
-- Padding: `0 8px`
-- Font: `11px` or `12px`
-- Active chip may use blue soft background.
+## 21. 动画与反馈
 
-### Inputs
+动效必须服务理解，而不是服务炫技。
 
-- Height: `40px` to `44px`
-- Border: `1px solid --border-strong`
-- Focus border: blue
-- Background: white
-- Placeholder: muted gray
+推荐：
 
-### Progress / Steps
+- Hover：`120ms ease`
+- 内容切换：`160ms ease`
+- 常规过渡：`120ms` 到 `220ms`
 
-Learning steps should look like a compact vertical sequence.
+反馈必须统一考虑：
 
-- Current step: blue indicator
-- Done step: dark check or filled neutral mark
-- Pending step: gray border
-- Step rows should not resize when state changes.
-- Prefer segmented progress over long step descriptions in compact panels.
-- The full step description should appear only after expansion or in the center conversation flow.
+- 加载态
+- 空状态
+- 异常态
+- 同步态
+- 成功反馈
 
-### Data-Lite Instruments
+规则：
 
-Use data-lite instruments before full charts.
+- 优先 skeleton，不优先大 spinner
+- 空状态一句话即可
+- 错误态保持克制
 
-Preferred instruments:
+## 22. 图表原则
 
-- Heartbeat waveform for current emotional/contextual state.
-- Horizontal progress bar for focus.
-- Segmented bar for learning progress.
-- Compact square grid for memory density.
-- Tiny sparkline for recent reflection or activity rhythm.
+优先 data-lite instrument，而不是正式大图表。
 
-Rules:
+优先级：
 
-- Instruments should be readable at a glance without legends.
-- Every instrument needs a short text label nearby for accessibility.
-- Use tooltips or expanded panels for detailed data.
-- Do not make instruments look like financial dashboards or medical monitors.
+1. 心跳波形
+2. 进度条
+3. 分段条
+4. 记忆网格
+5. 小趋势线
+6. 仅必要时使用正式图表
 
-### Charts
+允许图表库：
 
-Charts are optional and should appear only when they clarify memory, emotion, action, or learning patterns.
+- Recharts
+- Nivo
+- Apache ECharts
 
-Approved chart libraries:
+## 23. 文案原则
 
-- Recharts for standard React charts.
-- Nivo when richer responsive charts are needed.
-- Apache ECharts when advanced interaction or dense data is required.
+- 优先中文标题与中文界面标签
+- 使用短句
+- 不说教
+- 不营销
+- 不过度激励
+- 不使用 emoji
 
-Chart rules:
+## 24. 缩放与适配
 
-- Use grayscale as the base and blue as the main highlight.
-- Do not introduce extra categorical colors unless the data absolutely requires comparison.
-- Charts should be visually secondary to the current state and next action.
-- Keep chart panels balanced with neighboring content; avoid one oversized chart that dominates the workspace.
-- Use concise labels, direct legends, and readable tooltips.
-- Prefer simple trend lines, compact bars, and small multiples over complex dashboards.
-- Empty chart states should use skeletons or a short neutral message.
+必须考虑 Windows 高分屏与缩放场景，尤其是：
 
-## States
+- 2K 分辨率
+- 150% 缩放
+- 笔记本纵向空间不足
 
-Loading:
+规则：
 
-- Use skeleton rows or quiet pulsing gray blocks.
-- Avoid large spinners.
-- Skeleton screens are preferred for initial page load, state panels, conversation history, learning steps, and action queues.
-- Skeletons should match final layout dimensions to prevent layout shift.
+- 先保证完整可见
+- 再保证视觉平衡
+- 不能因缩放导致重叠、截断、难用
 
-Empty:
+## 25. 基于本文件出图时必须遵守
 
-- Use one concise prompt.
-- Optional subtle dotted background.
+1. `此刻` 页使用三栏
+2. 其他四页不强制右侧状态栏
+3. 保持黑白灰蓝体系
+4. 保留心跳波形与 Focus 进度条
+5. 减少长文本
+6. 突出主流程
+7. 保持轻任务化推进感
+8. 不引入新风格
+9. 不过度复杂化
+10. 必须更像真实产品，而不是概念展示板
 
-Error:
+## 26. 禁止事项
 
-- Use neutral error copy.
-- Red is allowed only for destructive or blocking errors; avoid making red part of the core palette.
-
-Offline / disconnected:
-
-- Use gray status by default.
-- Use blue only when connected or actively syncing.
-
-## Motion
-
-Motion should be minimal, purposeful, and native-feeling.
-
-- Hover transition: `120ms ease`
-- Panel/content transition: `160ms ease`
-- Avoid bouncy easing.
-- Do not animate background texture.
-
-Approved animation approach:
-
-- CSS transitions for simple hover, focus, and active states.
-- Framer Motion for panel entrance, list reordering, disclosure sections, and subtle layout transitions.
-- AutoAnimate may be used for simple list transitions when Framer Motion would be too heavy.
-
-Motion rules:
-
-- Use animation to clarify continuity, not to entertain.
-- Keep most transitions between `120ms` and `220ms`.
-- Ambient state animations may be slower, usually `1.4s` to `3.2s`.
-- Respect reduced motion preferences.
-- Avoid springy, playful, or elastic motion.
-- Avoid long page-level animations on app start.
-- Heartbeat and progress animations should pause when their panel is not visible.
-
-## Accessibility
-
-- Body text contrast should meet WCAG AA.
-- Interactive targets should be at least `32px` high, preferably `40px`.
-- Focus states must be visible with a blue outline or border.
-- Do not rely on color alone for status; include icon, label, or shape.
-- Native semantics should be preserved for buttons, inputs, lists, tabs, and dialogs.
-- Tooltips cannot be the only way to understand a critical action.
-
-## Content Tone
-
-UI labels should be short and direct.
-
-Preferred labels:
-
-- Echo
-- Now
-- Current state
-- Next action
-- Learning line
-- Memory
-- Reflections
-- Continue
-- Done
-- Stuck
-- Dismiss
-
-Avoid:
-
-- Marketing copy
-- Long onboarding explanations
-- Generic assistant phrasing
-- Overly motivational text
-- Emoji
-
-## Do Not
-
-- Do not use purple, beige, orange, green, or colorful gradients.
-- Do not create a hero landing page.
-- Do not use large rounded cards.
-- Do not nest cards inside cards.
-- Do not make the UI look like a social feed.
-- Do not turn the right panel into a data-heavy analytics dashboard.
-- Do not hide the next action behind navigation.
-- Do not let decorative texture reduce readability.
-- Do not use emoji as icons, labels, empty states, or decorative markers.
-- Do not build custom controls when native or accessible headless primitives cover the use case.
-- Do not introduce charts without a clear user decision or reflection benefit.
+- 不做 landing page
+- 不做营销式 hero
+- 不做全站统一三栏
+- 不引入紫、米、橙、绿等新配色
+- 不使用 emoji
+- 不嵌套卡片
+- 不做社交 feed 风格
+- 不把右侧状态区做成后台
+- 不写大段无必要说明文字
+- 不把下一步行动藏起来
+- 不做过深交互层级
+- 不在首版引入过多低频功能
