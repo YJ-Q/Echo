@@ -3,6 +3,8 @@ node_modules/
 data/*.json
 data/*.sqlite
 data/*.sqlite-*
+data/exports/
+data/backups/
 !data/.gitkeep
 npm-debug.log*
 huashu-design/

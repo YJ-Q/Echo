@@ -6,10 +6,12 @@ import {
   getUserProfile,
   getUserStates
 } from '../storage/memoryStore.js';
+import { analyzeInput } from './inputAnalyzer.js';
 import { buildMemoryInjection } from './memoryInjection.js';
 import { summarizeProfile } from './profileEngine.js';
 
 export async function buildContext(userInput) {
+  const queryAnalysis = analyzeInput(userInput || '');
   const [relevantMemories, recentMemories, userStates, userProfile, pendingActions, recentSummaries] = await Promise.all([
     getRelevantMemories(userInput, { limit: 8 }),
     getMemories({ limit: 6 }),
@@ -18,11 +20,13 @@ export async function buildContext(userInput) {
     getActions({ status: 'pending', limit: 3 }),
     getSummaries({ limit: 2 })
   ]);
+
   const summary = summarizeContext({
     relevantMemories,
     recentMemories,
     userStates,
-    userProfile
+    userProfile,
+    queryAnalysis
   });
   const injection = buildMemoryInjection({
     summary,
@@ -50,7 +54,8 @@ export function summarizeContext({
   relevantMemories = [],
   recentMemories = [],
   userStates = [],
-  userProfile = []
+  userProfile = [],
+  queryAnalysis = null
 } = {}) {
   const memoryPool = mergeMemories(relevantMemories, recentMemories);
   const hasMemory = memoryPool.length > 0;
@@ -65,15 +70,16 @@ export function summarizeContext({
     .filter(([, count]) => count >= 2)
     .sort((a, b) => b[1] - a[1])
     .map(([tag, count]) => ({ tag, count }));
-  const dominantEmotion = topKey(emotionCounts) || userStates.find((state) => {
-    return state.key === 'last_emotion';
-  })?.value || 'neutral';
+  const dominantEmotion = topKey(emotionCounts)
+    || userStates.find((state) => state.key === 'last_emotion')?.value
+    || 'neutral';
   const dominantTag = pickDominantTag(tagCounts);
   const latestMemory = recentMemories[0] || null;
   const currentLearningFocus = profile.current_learning_focus || '';
   const recurringPattern = profile.recurring_pattern || repeatedTags[0]?.tag || '';
   const insightTrail = mergeInsightTrail(memoryPool);
   const priorityOverview = buildPriorityOverview(memoryPool);
+  const retrievalOverview = buildRetrievalOverview(relevantMemories);
 
   return {
     dominant_emotion: dominantEmotion,
@@ -86,6 +92,10 @@ export function summarizeContext({
     latest_memory_note: latestMemory?.memory_note || '',
     insight_trail: insightTrail,
     priority_overview: priorityOverview,
+    retrieval_overview: retrievalOverview,
+    recall_channels: retrievalOverview.channels,
+    query_intent: queryAnalysis?.intent || 'chat',
+    query_emotion: queryAnalysis?.emotion || 'neutral',
     context_note: buildContextNote({
       hasMemory,
       profileNote,
@@ -96,7 +106,8 @@ export function summarizeContext({
       recurringPattern,
       latestMemory,
       insightTrail,
-      priorityOverview
+      priorityOverview,
+      retrievalOverview
     })
   };
 }
@@ -109,6 +120,7 @@ function buildContextNote({
   latestMemory,
   insightTrail,
   priorityOverview,
+  retrievalOverview,
   repeatedTags,
   dominantEmotion,
   dominantTag
@@ -136,15 +148,19 @@ function buildContextNote({
   }
 
   if (insightTrail.length > 0) {
-    notes.push(`最近保留下来的洞察之一是：${insightTrail[0]}`);
+    notes.push(`最近保留下来的一条洞察是：${insightTrail[0]}`);
   }
 
   if (priorityOverview.core.length > 0) {
     notes.push(`目前更常驻的记忆锚点有：${priorityOverview.core.join('、')}。`);
   }
 
+  if (retrievalOverview.summary) {
+    notes.push(retrievalOverview.summary);
+  }
+
   if (repeatedTags.length > 0) {
-    notes.push(`重复标签：${repeatedTags.map((entry) => `${formatTag(entry.tag)}×${entry.count}`).join('、')}。`);
+    notes.push(`重复标签：${repeatedTags.map((entry) => `${formatTag(entry.tag)}x${entry.count}`).join('、')}。`);
   }
 
   if (dominantEmotion && dominantEmotion !== 'neutral') {
@@ -203,6 +219,31 @@ function buildPriorityOverview(memories) {
   }
 
   return { core, important };
+}
+
+function buildRetrievalOverview(memories) {
+  const channelCounts = countBy(memories.flatMap((memory) => memory.retrieval?.channels || []));
+  const channels = Object.entries(channelCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([channel, count]) => ({ channel, count }));
+
+  return {
+    channels,
+    summary: buildRetrievalSummary(channels)
+  };
+}
+
+function buildRetrievalSummary(channels) {
+  if (channels.length === 0) {
+    return '';
+  }
+
+  const labels = channels
+    .slice(0, 2)
+    .map(({ channel }) => humanizeRecallChannel(channel))
+    .join('、');
+
+  return `这次被唤起的记忆，主要来自${labels}。`;
 }
 
 function trimLabel(value) {
@@ -266,4 +307,16 @@ function formatEmotion(value) {
   };
 
   return emotions[value] || value;
+}
+
+function humanizeRecallChannel(value) {
+  const labels = {
+    direct_match: '当前话题直接命中',
+    learning_continuity: '学习主线延续',
+    emotional_resonance: '情绪与模式共振',
+    core_anchor: '长期核心锚点',
+    recent_thread: '最近对话线程'
+  };
+
+  return labels[value] || value;
 }

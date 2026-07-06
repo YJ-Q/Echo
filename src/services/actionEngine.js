@@ -30,6 +30,16 @@ export async function listActions({ status, limit } = {}) {
 }
 
 export async function setActionStatus(id, status) {
+  if (status === 'active') {
+    const activeActions = await getActions({ status: 'active', limit: 50 });
+
+    for (const action of activeActions) {
+      if (action.id !== id) {
+        await updateActionStatus(action.id, 'pending');
+      }
+    }
+  }
+
   return updateActionStatus(id, status);
 }
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sendData } from '../lib/apiResponse.js';
 import { generateDailySummary } from '../services/reflectionEngine.js';
+import { buildReflectionViewModel } from '../services/reflectionViewModel.js';
 import { getSummaries } from '../storage/memoryStore.js';
 
 const router = Router();
@@ -21,7 +22,10 @@ router.get('/recent', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : 7
     });
 
-    sendData(res, { summaries });
+    sendData(res, {
+      summaries,
+      current_reflection: buildReflectionViewModel(summaries)
+    });
   } catch (error) {
     next(error);
   }

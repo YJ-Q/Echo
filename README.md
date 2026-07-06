@@ -1,37 +1,42 @@
-# Echo (回声)
+# Echo
 
-Echo is a memory-driven, emotionally aware personal AI companion.
+Echo is a memory-driven personal AI companion built as a "second self" rather than a generic chatbot.
 
-It is being built as a second-self system rather than a generic chatbot: Echo remembers conversations, notices patterns, suggests small executable next steps, and gradually forms a more stable picture of the user through memory, reflection, and profile synthesis.
+The current repository is centered on the backend MVP:
 
-The repository currently contains:
+- conversation and memory storage
+- state aggregation
+- learning flow guidance
+- daily reflection summaries
+- action suggestions
+- explainability output for `/chat` and `/state`
 
-- the backend API and memory system
-- a local desktop-style frontend shell
-- an Electron entry for local app experiments
+See [docs/VOICE.md](docs/VOICE.md) for Echo's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
+For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
 
-See [docs/VOICE.md](docs/VOICE.md) for Echo's voice and identity rules.
+## Current Status
 
-## Architecture
+The backend MVP is functional and test-covered.
 
-```text
-Routes
-  /chat  /state  /actions  /memory  /summary  /learning  /tts
+Implemented:
 
-Services
-  inputAnalyzer -> echoAgent -> chatService
-  contextBuilder -> memoryInjection
-  learningEngine -> behaviorDecisionEngine
-  reflectionEngine -> profileEngine -> profileSynthesisEngine
-  memoryDistiller -> memoryPriorityEngine -> memoryCalibrationEngine
-  explainabilityEngine
+- `POST /chat`
+- `GET /state`
+- `GET/POST /actions`
+- `GET /learning/active`
+- `GET /memory`, `GET /memory/context`
+- `POST /summary`, `GET /summary/recent`
+- profile synthesis and memory calibration
+- startup config validation and request logging
+- local backup / export / import tooling
+- optional TTS route
 
-LLM Providers
-  SiliconFlow / OpenAI / Anthropic / Local
+Still worth improving before a polished open-source `1.0`:
 
-Storage
-  SQLite (memoryStore.js)
-```
+- stronger long-term memory organization
+- production-ready deployment and backups
+- richer provider configuration
+- frontend rebuild on top of the stabilized backend
 
 ## Quick Start
 
@@ -41,39 +46,71 @@ cd Echo
 npm install
 ```
 
-Create `.env`:
+Copy the environment template:
 
 ```bash
-ECHO_LLM_PROVIDER=siliconflow
-SILICONFLOW_API_KEY=sk-...
+cp .env.example .env
 ```
 
-Start backend:
+On Windows PowerShell, the equivalent is:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Start the backend:
 
 ```bash
 npm run dev
 ```
 
-Optional desktop shell:
+Default local URL:
 
-```bash
-npm run desktop
+```text
+http://localhost:3000
 ```
 
-## Configuration
+## Environment
 
-Set `ECHO_LLM_PROVIDER` to one of:
+Core variables:
 
-- `siliconflow`
-- `openai`
-- `anthropic`
-- `local`
+```bash
+PORT=3000
+NODE_ENV=development
+ECHO_LOG_LEVEL=info
+ECHO_LLM_PROVIDER=local
+ECHO_DB_PATH=./data/echo.sqlite
+```
 
-If the selected remote provider fails, Echo falls back to the local reflective engine and marks `fallback_used: true` in the response.
+Optional provider variables:
 
-## API
+```bash
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+ANTHROPIC_API_KEY=
+SILICONFLOW_API_KEY=
+```
 
-All endpoints use a shared response envelope:
+Notes:
+
+- `ECHO_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
+- if a remote provider fails, Echo falls back to the local reflective engine
+- if `SILICONFLOW_API_KEY` is not set, `/tts` stays unavailable
+
+## Logging
+
+Echo now emits lightweight JSON logs for:
+
+- server startup
+- configuration warnings
+- every HTTP request
+- unhandled route errors
+
+Each request receives an `x-request-id` response header for easier debugging.
+
+## API Overview
+
+All endpoints share the same response envelope:
 
 ```json
 { "ok": true, "data": {} }
@@ -83,64 +120,17 @@ All endpoints use a shared response envelope:
 { "ok": false, "error": { "code": "...", "message": "..." } }
 ```
 
-### `POST /chat`
-
-Request:
-
-```json
-{
-  "message": "我想学 Node.js，但是总在开始前拖延"
-}
-```
-
-Response includes:
-
-- `reply`
-- `emotion`
-- `tags`
-- `intent`
-- `learning_session`
-- `behavior_hint`
-- `decision`
-- `memory_note`
-- `insight_note`
-- `explanation`
-- `tone`
-- `agent`
-
-`explanation` is the new backend explainability layer. It describes:
-
-- how the input was interpreted
-- which memory/profile signals were used
-- what response mode Echo selected
-- why the current next action was chosen
-
-### `GET /state?query=...`
-
-Returns Echo's current internal state, active learning line, pending actions, profile summary, next suggested action, and a structured `explain` block describing the decision trace.
-
-### `POST /tts`
-
-Synthesizes text into MP3 audio through SiliconFlow CosyVoice2.
-
-Request:
-
-```json
-{
-  "text": "我们先看清它，不急着整理成答案。"
-}
-```
-
-You can also request audio alongside chat by sending `{"tts": true}` with `/chat`.
-
-### Other endpoint groups
+Main routes:
 
 | Group | Paths |
 |---|---|
+| chat | `/chat` |
+| state | `/state` |
 | actions | `/actions`, `/actions/suggested`, `/actions/:id/status` |
-| memory | `/memory`, `/memory/states`, `/memory/profile`, `/memory/context`, `/memory/calibration` |
-| learning | `/learning`, `/learning/active`, `/learning/events`, `/learning/:id/steps/:stepIndex` |
+| learning | `/learning`, `/learning/active`, `/learning/events` |
+| memory | `/memory`, `/memory/context`, `/memory/profile`, `/memory/calibration` |
 | summary | `/summary`, `/summary/recent` |
+| tts | `/tts` |
 
 ## Testing
 
@@ -148,7 +138,38 @@ You can also request audio alongside chat by sending `{"tts": true}` with `/chat
 npm test
 ```
 
-The test suite covers chat flow, state flow, learning sessions, summary idempotency, memory distillation, priority reinforcement, profile synthesis, manual calibration, and explainability output.
+The current backend test suite covers:
+
+- chat flow
+- state flow
+- learning session continuity
+- summary idempotency
+- memory reinforcement and retrieval
+- profile synthesis
+- calibration behavior
+- backup export and import restore flow
+
+Current backend test status: `19/19` passing.
+
+## Backup And Export
+
+Create a JSON export and SQLite backup:
+
+```bash
+npm run backup
+```
+
+Create JSON export only:
+
+```bash
+npm run export:data
+```
+
+Import a snapshot back into Echo:
+
+```bash
+npm run import:data -- --file=./data/exports/echo-export.json
+```
 
 ## License
 

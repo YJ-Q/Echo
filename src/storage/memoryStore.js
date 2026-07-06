@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink } from 'node:fs/promises';
+﻿import { mkdir, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sqlite3 from 'sqlite3';
@@ -70,23 +70,12 @@ export async function addMemory(memory) {
 export async function getRelevantMemories(input, { limit = 8 } = {}) {
   const db = await getDb();
   const memories = await getMemories({ limit: 200 });
-  const queryTokens = tokenize(input);
-  const ranked = memories
-    .map((memory) => ({
-      memory,
-      score: scoreMemory(memory, queryTokens),
-      effective_priority: computeEffectivePriority(memory)
-    }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-
-      return b.effective_priority - a.effective_priority;
-    })
-    .slice(0, limit)
-    .map((entry) => entry.memory);
+  const queryProfile = buildQueryProfile(input);
+  const rankedEntries = memories
+    .map((memory) => rankMemory(memory, queryProfile))
+    .filter((entry) => entry.score > 0 || entry.channel_matches.length > 0)
+    .sort(compareRankedMemories);
+  const ranked = pickDiverseMemories(rankedEntries, limit);
   const now = new Date().toISOString();
 
   for (const memory of ranked) {
@@ -595,13 +584,13 @@ async function openDatabase() {
   });
 
   await db.exec('PRAGMA journal_mode = WAL;');
-  await migrate(db);
+  await migrateMemoryStoreDatabase(db);
   await importLegacyJsonIfNeeded(db);
 
   return db;
 }
 
-async function migrate(db) {
+export async function migrateMemoryStoreDatabase(db) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS conversations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -918,7 +907,51 @@ function safeJsonObject(value) {
   }
 }
 
-function scoreMemory(memory, queryTokens) {
+function rankMemory(memory, queryProfile) {
+  const queryTokens = queryProfile.tokens;
+  const normalizedTags = new Set((memory.tags || []).map((tag) => tag.toLowerCase()));
+  const textScore = scoreMemoryText(memory, queryTokens);
+  const tagScore = scoreTagOverlap(normalizedTags, queryProfile.tags);
+  const emotionScore = normalizedTags.has(queryProfile.emotion) || memory.emotion === queryProfile.emotion
+    ? 1.3
+    : 0;
+  const topicScore = scoreTopicContinuity(memory, queryProfile);
+  const priorityScore = computeEffectivePriority(memory);
+  const recencyScore = getRecencyScore(memory.timestamp);
+  const pinnedBonus = memory.pinned ? 0.8 : 0;
+  const channelMatches = collectChannelMatches({
+    memory,
+    queryProfile,
+    textScore,
+    tagScore,
+    emotionScore,
+    topicScore,
+    priorityScore,
+    recencyScore
+  });
+  const score = textScore
+    + tagScore
+    + emotionScore
+    + topicScore
+    + recencyScore
+    + priorityScore
+    + pinnedBonus;
+
+  return {
+    memory: {
+      ...memory,
+      retrieval: {
+        score: Number(score.toFixed(3)),
+        channels: channelMatches
+      }
+    },
+    score,
+    effective_priority: priorityScore,
+    channel_matches: channelMatches
+  };
+}
+
+function scoreMemoryText(memory, queryTokens) {
   const haystack = [
     memory.user_input,
     memory.echo_response,
@@ -931,10 +964,8 @@ function scoreMemory(memory, queryTokens) {
   const textScore = queryTokens.reduce((score, token) => {
     return haystack.includes(token) ? score + tokenWeight(token, memory) : score;
   }, 0);
-  const recencyScore = getRecencyScore(memory.timestamp);
-  const effectivePriority = computeEffectivePriority(memory);
 
-  return textScore > 0 ? textScore + recencyScore + effectivePriority : 0;
+  return textScore > 0 ? textScore : 0;
 }
 
 function tokenize(input) {
@@ -1017,6 +1048,190 @@ function tokenWeight(token, memory) {
   return token.length >= 4 ? 1.4 : 1;
 }
 
+function buildQueryProfile(input) {
+  const normalized = input.toLowerCase().trim();
+  const tags = new Set(extractIntentTerms(normalized).filter((term) => {
+    return ['learning', 'procrastination', 'planning', 'anxious'].includes(term);
+  }));
+  const emotion = inferQueryEmotion(normalized);
+  const topicHints = extractTopicHints(input);
+
+  if (topicHints.length > 0) {
+    tags.add('learning');
+  }
+
+  return {
+    raw: input,
+    normalized,
+    tokens: tokenize(input),
+    tags,
+    emotion,
+    topicHints
+  };
+}
+
+function inferQueryEmotion(value) {
+  if (value.includes('焦虑') || value.includes('压力') || value.includes('worried') || value.includes('stress')) {
+    return 'anxious';
+  }
+
+  if (value.includes('拖延') || value.includes('卡住') || value.includes('不想做') || value.includes('stuck')) {
+    return 'distracted';
+  }
+
+  if (value.includes('想学') || value.includes('学习') || value.includes('ready') || value.includes('start')) {
+    return 'motivated';
+  }
+
+  return 'neutral';
+}
+
+function extractTopicHints(input) {
+  const explicitTopics = Array.from(input.matchAll(/[A-Za-z][A-Za-z0-9.+#-]{2,}/g))
+    .map((match) => match[0].toLowerCase());
+  const cjkPhrases = Array.from(input.matchAll(/[\u4e00-\u9fff]{2,8}/g))
+    .map((match) => match[0].toLowerCase())
+    .filter((phrase) => !isGenericChinesePhrase(phrase));
+
+  return [...new Set([...explicitTopics, ...cjkPhrases])];
+}
+
+function isGenericChinesePhrase(value) {
+  const generic = [
+    '我想',
+    '学习',
+    '今天',
+    '最近',
+    '一直',
+    '拖延',
+    '焦虑',
+    '任务',
+    '开始',
+    '继续'
+  ];
+
+  return generic.includes(value);
+}
+
+function scoreTagOverlap(memoryTags, queryTags) {
+  let score = 0;
+
+  for (const tag of queryTags) {
+    if (memoryTags.has(tag)) {
+      score += 1.4;
+    }
+  }
+
+  return score;
+}
+
+function scoreTopicContinuity(memory, queryProfile) {
+  if (queryProfile.topicHints.length === 0) {
+    return 0;
+  }
+
+  const haystack = [
+    memory.user_input,
+    memory.echo_response,
+    memory.memory_note,
+    memory.insight_note,
+    ...(memory.tags || [])
+  ].join(' ').toLowerCase();
+
+  return queryProfile.topicHints.reduce((score, hint) => {
+    return haystack.includes(hint) ? score + 1.8 : score;
+  }, 0);
+}
+
+function collectChannelMatches({
+  memory,
+  queryProfile,
+  textScore,
+  tagScore,
+  emotionScore,
+  topicScore,
+  priorityScore,
+  recencyScore
+}) {
+  const channels = [];
+
+  if (textScore > 0 || topicScore > 0) {
+    channels.push('direct_match');
+  }
+
+  if (emotionScore > 0 || tagScore >= 1.4) {
+    channels.push('emotional_resonance');
+  }
+
+  if (topicScore > 0 || (queryProfile.tags.has('learning') && memory.tags?.includes('learning'))) {
+    channels.push('learning_continuity');
+  }
+
+  if (memory.pinned || memory.priority_bucket === 'core' || priorityScore >= 0.92) {
+    channels.push('core_anchor');
+  }
+
+  if (recencyScore >= 0.35) {
+    channels.push('recent_thread');
+  }
+
+  return channels;
+}
+
+function compareRankedMemories(a, b) {
+  if (b.score !== a.score) {
+    return b.score - a.score;
+  }
+
+  if (b.channel_matches.length !== a.channel_matches.length) {
+    return b.channel_matches.length - a.channel_matches.length;
+  }
+
+  return b.effective_priority - a.effective_priority;
+}
+
+function pickDiverseMemories(entries, limit) {
+  const selected = [];
+  const seen = new Set();
+  const channels = [
+    'direct_match',
+    'learning_continuity',
+    'emotional_resonance',
+    'core_anchor',
+    'recent_thread'
+  ];
+
+  for (const channel of channels) {
+    const match = entries.find((entry) => {
+      return entry.channel_matches.includes(channel) && !seen.has(entry.memory.id);
+    });
+
+    if (match) {
+      selected.push(match.memory);
+      seen.add(match.memory.id);
+    }
+
+    if (selected.length >= limit) {
+      return selected.slice(0, limit);
+    }
+  }
+
+  for (const entry of entries) {
+    if (seen.has(entry.memory.id)) {
+      continue;
+    }
+
+    selected.push(entry.memory);
+    seen.add(entry.memory.id);
+
+    if (selected.length >= limit) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
 function computeEffectivePriority(memory) {
   const salience = Number(memory.salience || 0.5);
   const reinforcement = Number(memory.reinforcement_count || 1);
@@ -1070,4 +1285,8 @@ function getStorePaths() {
     dbPath,
     legacyMemoryPath: path.join(dataDir, 'memory.json')
   };
+}
+
+export function getMemoryStorePaths() {
+  return getStorePaths();
 }

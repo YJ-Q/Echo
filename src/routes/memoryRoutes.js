@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sendData, sendError } from '../lib/apiResponse.js';
 import { getMemories, getUserProfile, getUserStates } from '../storage/memoryStore.js';
 import { buildContext } from '../services/contextBuilder.js';
+import { buildMemoryViewModel } from '../services/memoryViewModel.js';
 import {
   calibrateMemoryPriority,
   getCalibrationSnapshot,
@@ -17,10 +18,13 @@ router.get('/', async (req, res, next) => {
   try {
     const limit = Number.parseInt(req.query.limit, 10);
     const memories = await getMemories({
-      limit: Number.isFinite(limit) ? limit : undefined
+      limit: Number.isFinite(limit) ? limit : 40
     });
 
-    sendData(res, { memories });
+    sendData(res, {
+      memories,
+      current_memory: buildMemoryViewModel(memories)
+    });
   } catch (error) {
     next(error);
   }

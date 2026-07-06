@@ -6,6 +6,7 @@ import {
   getLearningSessions,
   updateLearningStep
 } from '../storage/memoryStore.js';
+import { buildLearningViewModel, emptyLearningViewModel } from '../services/learningViewModel.js';
 
 const router = Router();
 
@@ -27,7 +28,14 @@ router.get('/', async (req, res, next) => {
 router.get('/active', async (_req, res, next) => {
   try {
     const sessions = await getLearningSessions({ status: 'active', limit: 10 });
-    sendData(res, { sessions });
+    const currentSession = sessions[0] || null;
+    sendData(res, {
+      sessions,
+      current_session: currentSession,
+      current_learning: currentSession
+        ? buildLearningViewModel(currentSession)
+        : emptyLearningViewModel()
+    });
   } catch (error) {
     next(error);
   }

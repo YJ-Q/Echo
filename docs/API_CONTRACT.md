@@ -1,4 +1,4 @@
-# Echo API Contract
+﻿# Echo API Contract
 
 本文件用于约束 Echo 当前后端接口能力、返回格式、字段含义与状态流转，作为前后端联调与后端后续开发的统一基准。
 
@@ -99,6 +99,10 @@
     "profile_note": "..."
   },
   "next_action": {},
+  "current_action": {},
+  "current_learning": {},
+  "current_reflection": {},
+  "current_memory": {},
   "decision": {},
   "explain": {},
   "action_queue": [],
@@ -116,7 +120,11 @@
 前端依赖说明：
 
 - `current_state` 用于当前状态主视觉、状态卡、Focus 卡
-- `next_action` 用于下一步行动卡、行动页主任务卡
+- `next_action` 用于下一步行动卡、策略建议
+- `current_action` 用于行动页当前主任务卡，避免前端自行拼装主任务
+- `current_learning` 用于学习页当前学习线主卡、步骤概览、当前步骤详情
+- `current_reflection` 用于反思页顶部摘要、趋势卡、模式卡
+- `current_memory` 用于记忆页概览、置顶区、标签热度卡
 - `action_queue` 用于行动页队列
 - `active_learning` 用于学习页和学习线卡
 - `recent_memories` 用于对话流 fallback、记忆页概览
@@ -301,6 +309,26 @@ Session 字段：
 
 - 拉取激活中的学习任务线
 
+返回建议包含：
+
+```json
+{
+  "sessions": [],
+  "current_session": {},
+  "current_learning": {
+    "topic": "...",
+    "total_steps": 4,
+    "completed_steps": 1,
+    "current_step_index": 1,
+    "ratio": 0.25,
+    "step_labels": [],
+    "current_step": {},
+    "next_step": {},
+    "summary": "..."
+  }
+}
+```
+
 前端用途：
 
 - 学习页主数据
@@ -387,6 +415,27 @@ Memory 字段：
 - `priority_bucket`
 - `last_accessed_at`
 - `pinned`
+
+返回建议包含：
+
+```json
+{
+  "memories": [],
+  "current_memory": {
+    "overview": {},
+    "pinned_memories": [],
+    "recent_memory_notes": [],
+    "tag_heatmap": [],
+    "emotion_distribution": [],
+    "priority_groups": {
+      "core": [],
+      "important": [],
+      "ambient": []
+    },
+    "summary": "..."
+  }
+}
+```
 
 ### 7.2 `GET /memory/states`
 
@@ -509,6 +558,21 @@ Memory 字段：
 查询参数：
 
 - `limit`
+
+返回建议包含：
+
+```json
+{
+  "summaries": [],
+  "current_reflection": {
+    "latest_summary": {},
+    "emotional_trend": [],
+    "dominant_patterns": [],
+    "history": [],
+    "summary": "..."
+  }
+}
+```
 
 Summary 字段：
 
@@ -659,11 +723,46 @@ Step：
 3. 明确本次修改范围
 4. 再进行代码修改与提交
 
-## 13. 后续建议新增能力
+## 13. 本地运维脚本
+
+这些能力当前通过脚本提供，不是 HTTP 接口：
+
+### 13.1 备份与导出
+
+- `npm run backup`
+  - 生成 JSON 导出和 SQLite 备份
+- `npm run export:data`
+  - 仅生成 JSON 导出
+
+默认输出目录：
+
+- `data/exports/`
+- `data/backups/`
+
+### 13.2 导入与恢复
+
+- `npm run import:data -- --file=...`
+  - 从 JSON 快照恢复数据
+
+支持模式：
+
+- `--dry-run`
+  - 只检查快照，不写入数据库
+- `--mode=merge`
+  - 默认模式，按主键合并恢复
+- `--mode=replace`
+  - 先清空 Echo 当前表，再恢复快照
+
+注意：
+
+- 当前导入只支持 JSON 快照
+- 恢复能力面向本地运维，不建议前端直接暴露
+
+## 14. 后续建议新增能力
 
 以下能力不是必须立刻实现，但建议后端按文档方向预留：
 
-### 13.1 成长进度聚合接口
+### 14.1 成长进度聚合接口
 
 建议未来补充独立接口，例如：
 
@@ -687,7 +786,7 @@ Step：
 }
 ```
 
-### 13.2 成就系统接口
+### 14.2 成就系统接口
 
 成就系统属于二期能力，建议使用“结构化触发 + AI 文案润色”的模式。
 
