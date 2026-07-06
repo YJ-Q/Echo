@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendData, sendError } from '../lib/apiResponse.js';
 import {
   createManualAction,
   createSuggestedAction,
@@ -17,7 +18,7 @@ router.get('/', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : undefined
     });
 
-    res.json({ actions });
+    sendData(res, { actions });
   } catch (error) {
     next(error);
   }
@@ -26,7 +27,7 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const action = await createManualAction(req.body || {});
-    res.status(201).json({ action });
+    sendData(res, { action }, 201);
   } catch (error) {
     next(error);
   }
@@ -36,7 +37,7 @@ router.post('/suggested', async (req, res, next) => {
   try {
     const query = typeof req.body?.query === 'string' ? req.body.query : '';
     const action = await createSuggestedAction(query);
-    res.status(201).json({ action });
+    sendData(res, { action }, 201);
   } catch (error) {
     next(error);
   }
@@ -48,20 +49,20 @@ router.post('/:id/status', async (req, res, next) => {
     const status = typeof req.body?.status === 'string' ? req.body.status : '';
 
     if (!Number.isFinite(id)) {
-      return res.status(400).json({ error: 'valid action id is required' });
+      return sendError(res, 400, 'valid action id is required', 'invalid_action_id');
     }
 
     if (!['pending', 'active', 'done', 'dismissed'].includes(status)) {
-      return res.status(400).json({ error: 'status must be pending, active, done, or dismissed' });
+      return sendError(res, 400, 'status must be pending, active, done, or dismissed', 'invalid_action_status');
     }
 
     const action = await setActionStatus(id, status);
 
     if (!action) {
-      return res.status(404).json({ error: 'action not found' });
+      return sendError(res, 404, 'action not found', 'action_not_found');
     }
 
-    return res.json({ action });
+    return sendData(res, { action });
   } catch (error) {
     return next(error);
   }

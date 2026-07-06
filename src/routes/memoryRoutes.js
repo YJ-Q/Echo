@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendData } from '../lib/apiResponse.js';
 import { getMemories, getUserProfile, getUserStates } from '../storage/memoryStore.js';
 import { buildContext } from '../services/contextBuilder.js';
 import { summarizeProfile } from '../services/profileEngine.js';
@@ -12,7 +13,7 @@ router.get('/', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : undefined
     });
 
-    res.json({ memories });
+    sendData(res, { memories });
   } catch (error) {
     next(error);
   }
@@ -25,7 +26,7 @@ router.get('/states', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : undefined
     });
 
-    res.json({ states });
+    sendData(res, { states });
   } catch (error) {
     next(error);
   }
@@ -34,7 +35,7 @@ router.get('/states', async (req, res, next) => {
 router.get('/profile', async (_req, res, next) => {
   try {
     const profile = await getUserProfile();
-    res.json({
+    sendData(res, {
       profile,
       summary: summarizeProfile(profile)
     });
@@ -47,7 +48,7 @@ router.get('/context', async (req, res, next) => {
   try {
     const query = typeof req.query.query === 'string' ? req.query.query : '';
     const context = await buildContext(query);
-    res.json({ context });
+    sendData(res, { context });
   } catch (error) {
     next(error);
   }

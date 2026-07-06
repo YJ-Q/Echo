@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendData, sendError } from '../lib/apiResponse.js';
 import { handleChat } from '../services/chatService.js';
 
 const router = Router();
@@ -8,11 +9,11 @@ router.post('/', async (req, res, next) => {
     const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
 
     if (!message) {
-      return res.status(400).json({ error: 'message is required' });
+      return sendError(res, 400, 'message is required', 'message_required');
     }
 
     const result = await handleChat(message);
-    return res.json(result);
+    return sendData(res, result);
   } catch (error) {
     return next(error);
   }

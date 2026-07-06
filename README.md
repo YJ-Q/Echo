@@ -50,19 +50,22 @@ Returns:
 
 ```json
 {
-  "reply": "...",
-  "emotion": "motivated",
-  "tags": ["learning"],
-  "intent": "learning",
-  "learning_session": {
-    "id": 1,
-    "topic": "JavaScript",
-    "status": "active"
+  "ok": true,
+  "data": {
+    "reply": "...",
+    "emotion": "motivated",
+    "tags": ["learning"],
+    "intent": "learning",
+    "learning_session": {
+      "id": 1,
+      "topic": "JavaScript",
+      "status": "active"
+    },
+    "tone": {
+      "profile": "second_self_we",
+      "perspective": "we"
+    }
   },
-  "tone": {
-    "profile": "second_self_we",
-    "perspective": "we"
-  }
 }
 ```
 
@@ -77,6 +80,27 @@ While a learning session is active, Echo also reads follow-up messages such as
 Returns Echo's current system state for future frontend and integrations:
 current emotional/context state, profile summary, active learning sessions,
 recent memories, recent reflections, and one suggested next action.
+
+Most API endpoints now use a shared response envelope:
+
+```json
+{
+  "ok": true,
+  "data": {}
+}
+```
+
+Errors use:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "request_error",
+    "message": "..."
+  }
+}
+```
 
 ### `GET /actions?status=pending`
 

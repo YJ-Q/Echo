@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendData, sendError } from '../lib/apiResponse.js';
 import {
   addLearningEvent,
   getLearningEvents,
@@ -17,7 +18,7 @@ router.get('/', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : undefined
     });
 
-    res.json({ sessions });
+    sendData(res, { sessions });
   } catch (error) {
     next(error);
   }
@@ -26,7 +27,7 @@ router.get('/', async (req, res, next) => {
 router.get('/active', async (_req, res, next) => {
   try {
     const sessions = await getLearningSessions({ status: 'active', limit: 10 });
-    res.json({ sessions });
+    sendData(res, { sessions });
   } catch (error) {
     next(error);
   }
@@ -41,7 +42,7 @@ router.get('/events', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : undefined
     });
 
-    res.json({ events });
+    sendData(res, { events });
   } catch (error) {
     next(error);
   }
@@ -54,17 +55,17 @@ router.post('/:id/steps/:stepIndex', async (req, res, next) => {
     const status = typeof req.body?.status === 'string' ? req.body.status : 'done';
 
     if (!Number.isFinite(sessionId) || !Number.isFinite(stepIndex)) {
-      return res.status(400).json({ error: 'valid session id and step index are required' });
+      return sendError(res, 400, 'valid session id and step index are required', 'invalid_learning_identifiers');
     }
 
     if (!['pending', 'active', 'done'].includes(status)) {
-      return res.status(400).json({ error: 'status must be pending, active, or done' });
+      return sendError(res, 400, 'status must be pending, active, or done', 'invalid_learning_status');
     }
 
     const session = await updateLearningStep(sessionId, stepIndex, status);
 
     if (!session) {
-      return res.status(404).json({ error: 'learning session not found' });
+      return sendError(res, 404, 'learning session not found', 'learning_session_not_found');
     }
 
     await addLearningEvent({
@@ -76,7 +77,7 @@ router.post('/:id/steps/:stepIndex', async (req, res, next) => {
       note: 'Step status was changed through the learning API.'
     });
 
-    return res.json({ session });
+    return sendData(res, { session });
   } catch (error) {
     return next(error);
   }

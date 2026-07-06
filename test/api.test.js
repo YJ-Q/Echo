@@ -14,10 +14,11 @@ test('GET /state returns a stable empty-state shape', async () => {
     const data = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(data.current_state.emotion, 'neutral');
-    assert.equal(data.next_action.type, 'open_conversation');
-    assert.deepEqual(data.action_queue, []);
-    assert.equal(data.profile.summary.profile_note, '画像还在形成，我们先不急着定义自己。');
+    assert.equal(data.ok, true);
+    assert.equal(data.data.current_state.emotion, 'neutral');
+    assert.equal(data.data.next_action.type, 'open_conversation');
+    assert.deepEqual(data.data.action_queue, []);
+    assert.equal(data.data.profile.summary.profile_note, '画像还在形成，我们先不急着定义自己。');
   } finally {
     await ctx.cleanup();
   }
@@ -39,12 +40,14 @@ test('POST /chat learning request creates a learning line and updates /state', a
     const state = await stateResponse.json();
 
     assert.equal(chatResponse.status, 200);
-    assert.equal(chat.intent, 'learning');
-    assert.equal(chat.learning_session.topic, 'Node.js');
+    assert.equal(chat.ok, true);
+    assert.equal(chat.data.intent, 'learning');
+    assert.equal(chat.data.learning_session.topic, 'Node.js');
     assert.equal(stateResponse.status, 200);
-    assert.equal(state.next_action.type, 'continue_learning');
-    assert.equal(state.current_state.focus, 'Node.js');
-    assert.equal(state.active_learning.length, 1);
+    assert.equal(state.ok, true);
+    assert.equal(state.data.next_action.type, 'continue_learning');
+    assert.equal(state.data.current_state.focus, 'Node.js');
+    assert.equal(state.data.active_learning.length, 1);
   } finally {
     await ctx.cleanup();
   }
@@ -71,9 +74,11 @@ test('POST /summary is idempotent per day', async () => {
 
     assert.equal(first.status, 200);
     assert.equal(second.status, 200);
-    assert.equal(firstBody.date, secondBody.date);
-    assert.equal(recentBody.summaries.length, 1);
-    assert.equal(recentBody.summaries[0].date, firstBody.date);
+    assert.equal(firstBody.ok, true);
+    assert.equal(secondBody.ok, true);
+    assert.equal(firstBody.data.date, secondBody.data.date);
+    assert.equal(recentBody.data.summaries.length, 1);
+    assert.equal(recentBody.data.summaries[0].date, firstBody.data.date);
   } finally {
     await ctx.cleanup();
   }
@@ -100,8 +105,10 @@ test('POST /actions/suggested deduplicates the same pending suggestion', async (
 
     assert.equal(first.status, 201);
     assert.equal(second.status, 201);
-    assert.equal(firstBody.action.id, secondBody.action.id);
-    assert.equal(actionsBody.actions.length, 1);
+    assert.equal(firstBody.ok, true);
+    assert.equal(secondBody.ok, true);
+    assert.equal(firstBody.data.action.id, secondBody.data.action.id);
+    assert.equal(actionsBody.data.actions.length, 1);
   } finally {
     await ctx.cleanup();
   }

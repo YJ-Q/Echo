@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendData } from '../lib/apiResponse.js';
 import { generateDailySummary } from '../services/reflectionEngine.js';
 import { getSummaries } from '../storage/memoryStore.js';
 
@@ -7,7 +8,7 @@ const router = Router();
 router.post('/', async (_req, res, next) => {
   try {
     const summary = await generateDailySummary();
-    res.json(summary);
+    sendData(res, summary);
   } catch (error) {
     next(error);
   }
@@ -20,7 +21,7 @@ router.get('/recent', async (req, res, next) => {
       limit: Number.isFinite(limit) ? limit : 7
     });
 
-    res.json({ summaries });
+    sendData(res, { summaries });
   } catch (error) {
     next(error);
   }

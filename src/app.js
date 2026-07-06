@@ -6,6 +6,7 @@ import learningRoutes from './routes/learningRoutes.js';
 import memoryRoutes from './routes/memoryRoutes.js';
 import stateRoutes from './routes/stateRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
+import { sendData, sendError } from './lib/apiResponse.js';
 import { ensureMemoryStore } from './storage/memoryStore.js';
 
 export async function createApp() {
@@ -17,7 +18,7 @@ export async function createApp() {
   await ensureMemoryStore();
 
   app.get('/', (_req, res) => {
-    res.json({
+    sendData(res, {
       name: 'Echo',
       status: 'backend-only',
       message: 'Echo API is running. Frontend is intentionally paused while backend systems are refined.',
@@ -26,7 +27,7 @@ export async function createApp() {
   });
 
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', name: 'Echo' });
+    sendData(res, { status: 'ok', name: 'Echo' });
   });
 
   app.use('/chat', chatRoutes);
@@ -38,9 +39,12 @@ export async function createApp() {
 
   app.use((err, _req, res, _next) => {
     console.error(err);
-    res.status(err.status || 500).json({
-      error: err.message || 'Echo became quiet for a moment.'
-    });
+    sendError(
+      res,
+      err.status || 500,
+      err.message || 'Echo became quiet for a moment.',
+      err.code || 'internal_error'
+    );
   });
 
   return app;
