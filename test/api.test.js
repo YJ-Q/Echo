@@ -383,6 +383,7 @@ async function startTestServer() {
   process.env.ECHO_DB_PATH = dbPath;
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.SILICONFLOW_API_KEY;
   delete process.env.ECHO_LLM_PROVIDER;
 
   const app = await createApp();

@@ -7,6 +7,7 @@ import memoryRoutes from './routes/memoryRoutes.js';
 import stateRoutes from './routes/stateRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
 import { sendData, sendError } from './lib/apiResponse.js';
+import { logger } from './lib/logger.js';
 import { ensureMemoryStore } from './storage/memoryStore.js';
 
 export async function createApp() {
@@ -14,6 +15,11 @@ export async function createApp() {
 
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
+
+  app.use((req, _res, next) => {
+    logger.info({ method: req.method, path: req.path }, 'request');
+    next();
+  });
 
   await ensureMemoryStore();
 
@@ -37,8 +43,8 @@ export async function createApp() {
   app.use('/memory', memoryRoutes);
   app.use('/summary', summaryRoutes);
 
-  app.use((err, _req, res, _next) => {
-    console.error(err);
+  app.use((err, req, res, _next) => {
+    logger.error({ err, path: req.path, method: req.method }, 'Unhandled error');
     sendError(
       res,
       err.status || 500,

@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  echo:
+    build: .
+    container_name: echo
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - echo-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ECHO_DB_PATH=/app/data/echo.sqlite
+      - ECHO_LLM_PROVIDER=siliconflow
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.2
+      - LOG_LEVEL=info
+
+volumes:
+  echo-data:
