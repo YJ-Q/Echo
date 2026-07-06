@@ -13,6 +13,7 @@ The current repository is centered on the backend MVP:
 
 See [docs/VOICE.md](docs/VOICE.md) for Echo's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
 For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
+For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Current Status
 
