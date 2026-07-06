@@ -1,260 +1,155 @@
 # Echo (回声)
 
-Echo is a memory-driven, emotionally aware personal AI companion MVP.
+Echo is a memory-driven, emotionally aware personal AI companion.
 
-Echo is not a generic chatbot. It is being built as a second-self system: a
-small reflective engine that remembers conversations, notices patterns, and
-helps the user return to action.
+It is being built as a second-self system rather than a generic chatbot: Echo remembers conversations, notices patterns, suggests small executable next steps, and gradually forms a more stable picture of the user through memory, reflection, and profile synthesis.
 
-## Current Status
+The repository currently contains:
 
-- Express backend
-- `/chat` interaction endpoint
-- SQLite memory storage
-- Lightweight emotion, intent, and tag detection
-- User state and profile signals
-- Memory context summaries for second-self continuity
-- Current Echo state endpoint for future UI and integrations
-- Action queue engine for small executable next steps
-- Learning sessions with actionable steps
-- Learning action events for reflection
-- Echo voice profile with "we" perspective audit
-- Distilled memory notes and insight notes for each turn
-- Long-term profile synthesis from recent memory patterns
-- Memory priority, reinforcement, and lightweight decay for relevance ranking
-- Daily reflection endpoint
-- Abstracted Echo agent with `local / openai / anthropic` provider selection
+- the backend API and memory system
+- a local desktop-style frontend shell
+- an Electron entry for local app experiments
 
-See [Echo Voice](D:/Echo/docs/VOICE.md) for the project's tone and personality rules.
+See [docs/VOICE.md](docs/VOICE.md) for Echo's voice and identity rules.
 
-## Run
+## Architecture
+
+```text
+Routes
+  /chat  /state  /actions  /memory  /summary  /learning  /tts
+
+Services
+  inputAnalyzer -> echoAgent -> chatService
+  contextBuilder -> memoryInjection
+  learningEngine -> behaviorDecisionEngine
+  reflectionEngine -> profileEngine -> profileSynthesisEngine
+  memoryDistiller -> memoryPriorityEngine -> memoryCalibrationEngine
+  explainabilityEngine
+
+LLM Providers
+  SiliconFlow / OpenAI / Anthropic / Local
+
+Storage
+  SQLite (memoryStore.js)
+```
+
+## Quick Start
 
 ```bash
+git clone https://github.com/YJ-Q/Echo.git
+cd Echo
 npm install
+```
+
+Create `.env`:
+
+```bash
+ECHO_LLM_PROVIDER=siliconflow
+SILICONFLOW_API_KEY=sk-...
+```
+
+Start backend:
+
+```bash
 npm run dev
 ```
 
-Server defaults to `http://localhost:3000`.
+Optional desktop shell:
 
-Open `http://localhost:3000` to verify the API status. The frontend is
-intentionally paused while the backend memory, reflection, and agent systems are
-refined.
+```bash
+npm run desktop
+```
 
-## Agent Configuration
+## Configuration
 
-Echo now routes all reply generation through a unified agent layer:
+Set `ECHO_LLM_PROVIDER` to one of:
 
-- `ECHO_LLM_PROVIDER=local | openai | anthropic`
-- `OPENAI_API_KEY=...`
-- `OPENAI_MODEL=...`
-- `ANTHROPIC_API_KEY=...`
-- `ANTHROPIC_MODEL=...`
+- `siliconflow`
+- `openai`
+- `anthropic`
+- `local`
 
-Selection order:
-
-1. Explicit `ECHO_LLM_PROVIDER`
-2. `OPENAI_API_KEY`
-3. `ANTHROPIC_API_KEY`
-4. local reflective fallback
-
-If a remote provider fails or returns an empty response, Echo falls back to the
-local reflective generator and marks that in the API response.
+If the selected remote provider fails, Echo falls back to the local reflective engine and marks `fallback_used: true` in the response.
 
 ## API
 
+All endpoints use a shared response envelope:
+
+```json
+{ "ok": true, "data": {} }
+```
+
+```json
+{ "ok": false, "error": { "code": "...", "message": "..." } }
+```
+
 ### `POST /chat`
 
-```json
-{
-  "message": "I want to learn JavaScript"
-}
-```
-
-Returns:
+Request:
 
 ```json
 {
-  "ok": true,
-  "data": {
-    "reply": "...",
-    "emotion": "motivated",
-    "tags": ["learning"],
-    "intent": "learning",
-    "learning_session": {
-      "id": 1,
-      "topic": "JavaScript",
-      "status": "active"
-    },
-    "behavior_hint": {
-      "type": "continue_learning",
-      "label": "继续：说清 JavaScript 是什么",
-      "detail": "用一句话写下：JavaScript 解决什么问题。",
-      "reason": "学习线“JavaScript”还在进行中。",
-      "source": "active_learning_session",
-      "confidence": 0.92
-    },
-    "decision": {
-      "source": "active_learning_session",
-      "confidence": 0.92,
-      "rule": "continue_learning"
-    },
-    "memory_note": "我们把注意力放回了“JavaScript”，想把学习变成能执行的一小步。",
-    "insight_note": "学习在这里不是多知道一点，而是把理解推进成动作。",
-    "tone": {
-      "profile": "second_self_we",
-      "perspective": "we"
-    },
-    "agent": {
-      "provider": "local",
-      "model": "echo-local-reflective",
-      "fallback_used": false
-    }
-  }
+  "message": "我想学 Node.js，但是总在开始前拖延"
 }
 ```
 
-When the message is a learning request, Echo creates or reuses a learning
-session and returns the current executable step.
+Response includes:
 
-Each chat response now also includes a `behavior_hint`, so Echo's language and
-its suggested next action stay aligned through the same decision rules.
+- `reply`
+- `emotion`
+- `tags`
+- `intent`
+- `learning_session`
+- `behavior_hint`
+- `decision`
+- `memory_note`
+- `insight_note`
+- `explanation`
+- `tone`
+- `agent`
 
-Each stored memory now also keeps:
+`explanation` is the new backend explainability layer. It describes:
 
-- `memory_note`: a short distilled note of what this turn was really about
-- `insight_note`: a small behavioral or reflective takeaway Echo wants to keep
-
-Echo also synthesizes long-term profile signals from recent memories so the
-system can gradually form a more stable second-self picture rather than only
-stacking raw conversation history.
-
-Stored memories now also carry lightweight priority metadata:
-
-- `salience`
-- `reinforcement_count`
-- `priority_bucket`
-- `last_accessed_at`
-
-This lets Echo keep some memories closer to the center while ambient memories
-fade back unless they are repeatedly revisited.
-
-While a learning session is active, Echo also reads follow-up messages such as
-`done`, `完成`, `I don't understand`, or `卡住了` as learning progress signals.
+- how the input was interpreted
+- which memory/profile signals were used
+- what response mode Echo selected
+- why the current next action was chosen
 
 ### `GET /state?query=...`
 
-Returns Echo's current system state for future frontend and integrations:
-current emotional/context state, profile summary, active learning sessions,
-recent memories, recent reflections, and one suggested next action.
+Returns Echo's current internal state, active learning line, pending actions, profile summary, next suggested action, and a structured `explain` block describing the decision trace.
 
-Most API endpoints now use a shared response envelope:
+### `POST /tts`
 
-```json
-{
-  "ok": true,
-  "data": {}
-}
-```
+Synthesizes text into MP3 audio through SiliconFlow CosyVoice2.
 
-Errors use:
+Request:
 
 ```json
 {
-  "ok": false,
-  "error": {
-    "code": "request_error",
-    "message": "..."
-  }
+  "text": "我们先看清它，不急着整理成答案。"
 }
 ```
 
-### `GET /actions?status=pending`
+You can also request audio alongside chat by sending `{"tts": true}` with `/chat`.
 
-Returns Echo's action queue.
+### Other endpoint groups
 
-### `POST /actions`
+| Group | Paths |
+|---|---|
+| actions | `/actions`, `/actions/suggested`, `/actions/:id/status` |
+| memory | `/memory`, `/memory/states`, `/memory/profile`, `/memory/context`, `/memory/calibration` |
+| learning | `/learning`, `/learning/active`, `/learning/events`, `/learning/:id/steps/:stepIndex` |
+| summary | `/summary`, `/summary/recent` |
 
-Creates a manual action.
+## Testing
 
-```json
-{
-  "type": "start_small",
-  "title": "先做 5 分钟",
-  "detail": "打开编辑器，只写第一行。",
-  "priority": 2
-}
+```bash
+npm test
 ```
 
-### `POST /actions/suggested`
+The test suite covers chat flow, state flow, learning sessions, summary idempotency, memory distillation, priority reinforcement, profile synthesis, manual calibration, and explainability output.
 
-Creates an action from Echo's current `/state` next action.
+## License
 
-```json
-{
-  "query": "Node.js"
-}
-```
-
-### `POST /actions/:id/status`
-
-Updates an action status: `pending`, `active`, `done`, or `dismissed`.
-
-### `GET /memory`
-
-Returns stored memory entries.
-
-### `GET /memory/states`
-
-Returns current lightweight user state signals.
-
-### `GET /memory/profile`
-
-Returns long-term profile signals Echo has inferred, plus a readable profile
-summary for the second-self layer.
-
-### `POST /memory/profile/refresh`
-
-Runs long-term profile synthesis over recent memories and returns:
-
-- synthesized profile signals
-- raw profile entries
-- refreshed profile summary with `long_term_notes`
-
-### `GET /memory/context?query=...`
-
-Returns the memory context Echo would use for a message, including relevant
-memories, recent memories, user state/profile signals, and a compact
-`summary.context_note` for debugging the second-self continuity layer.
-
-### `GET /learning`
-
-Returns learning sessions.
-
-### `GET /learning/active`
-
-Returns active learning sessions.
-
-### `GET /learning/events`
-
-Returns learning action events such as session creation, step completion,
-attempts, and stuck points. These events are used by daily reflection.
-
-### `POST /learning/:id/steps/:stepIndex`
-
-Updates a learning step.
-
-```json
-{
-  "status": "done"
-}
-```
-
-### `POST /summary`
-
-Generates and stores today's Echo reflection. The reflection detects a daily
-theme, emotional trend, behavior pattern, learning progress, and one Echo-style
-reflective sentence.
-
-### `GET /summary/recent?limit=7`
-
-Returns recent saved Echo reflections.
+MIT

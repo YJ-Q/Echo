@@ -5,6 +5,7 @@ import { getEchoState } from './echoStateEngine.js';
 import { assessLearningProgress, prepareLearningSession } from './learningEngine.js';
 import { distillInteractionMemory } from './memoryDistiller.js';
 import { deriveMemoryPriority } from './memoryPriorityEngine.js';
+import { buildChatExplanation } from './explainabilityEngine.js';
 import { updateProfileFromInteraction } from './profileEngine.js';
 import { synthesizeProfileFromMemories } from './profileSynthesisEngine.js';
 import { addMemory, updateUserState } from '../storage/memoryStore.js';
@@ -64,6 +65,18 @@ export async function handleChat(message) {
     ...priority
   });
   await synthesizeProfileFromMemories({ limit: 24 });
+  const explanation = buildChatExplanation({
+    analysis,
+    memoryContext,
+    learningSession,
+    decision: {
+      ...state.decision,
+      ...state.next_action
+    },
+    reply,
+    tone,
+    agent
+  });
 
   return {
     reply,
@@ -75,6 +88,7 @@ export async function handleChat(message) {
     decision: state.decision,
     memory_note: distilled.memory_note,
     insight_note: distilled.insight_note,
+    explanation,
     tone,
     agent
   };

@@ -104,14 +104,14 @@ export function summarizeContext({
 function buildContextNote({
   hasMemory,
   profileNote,
-  dominantEmotion,
-  dominantTag,
-  repeatedTags,
   currentLearningFocus,
   recurringPattern,
   latestMemory,
   insightTrail,
-  priorityOverview
+  priorityOverview,
+  repeatedTags,
+  dominantEmotion,
+  dominantTag
 }) {
   const notes = [];
 

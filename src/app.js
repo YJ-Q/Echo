@@ -8,6 +8,7 @@ import learningRoutes from './routes/learningRoutes.js';
 import memoryRoutes from './routes/memoryRoutes.js';
 import stateRoutes from './routes/stateRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
+import ttsRoutes from './routes/ttsRoutes.js';
 import { sendData, sendError } from './lib/apiResponse.js';
 import { ensureMemoryStore } from './storage/memoryStore.js';
 
@@ -28,7 +29,7 @@ export async function createApp() {
       name: 'Echo',
       status: 'ui-connected',
       message: 'Echo API is running with the local desktop-style frontend.',
-      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning']
+      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/tts']
     });
   });
 
@@ -42,6 +43,7 @@ export async function createApp() {
   app.use('/learning', learningRoutes);
   app.use('/memory', memoryRoutes);
   app.use('/summary', summaryRoutes);
+  app.use('/tts', ttsRoutes);
 
   app.use((err, _req, res, _next) => {
     console.error(err);

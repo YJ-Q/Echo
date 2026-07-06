@@ -18,6 +18,7 @@ test('GET /state returns a stable empty-state shape', async () => {
     assert.equal(data.data.current_state.emotion, 'neutral');
     assert.equal(data.data.next_action.type, 'open_conversation');
     assert.equal(data.data.decision.rule, 'open_conversation');
+    assert.equal(data.data.explain.decision_trace.rule, 'open_conversation');
     assert.deepEqual(data.data.action_queue, []);
     assert.equal(data.data.profile.summary.profile_note, '画像还在形成，我们先不急着定义自己。');
   } finally {
@@ -49,11 +50,14 @@ test('POST /chat learning request creates a learning line and updates /state', a
     assert.equal(chat.data.decision.rule, 'continue_learning');
     assert.match(chat.data.memory_note, /Node\.js/);
     assert.ok(chat.data.insight_note.length > 0);
+    assert.equal(chat.data.explanation.input_analysis.intent, 'learning');
+    assert.equal(chat.data.explanation.next_action.type, 'continue_learning');
     assert.equal(stateResponse.status, 200);
     assert.equal(state.ok, true);
     assert.equal(state.data.next_action.type, 'continue_learning');
     assert.equal(state.data.current_state.focus, 'Node.js');
     assert.equal(state.data.active_learning.length, 1);
+    assert.equal(state.data.explain.decision_trace.rule, 'continue_learning');
   } finally {
     await ctx.cleanup();
   }
@@ -78,6 +82,7 @@ test('POST /chat returns a behavior hint aligned with state decisions', async ()
     assert.ok(body.data.decision);
     assert.equal(body.data.behavior_hint.type, body.data.decision.rule);
     assert.equal(body.data.behavior_hint.source, body.data.decision.source);
+    assert.equal(body.data.explanation.next_action.type, body.data.decision.rule);
   } finally {
     await ctx.cleanup();
   }

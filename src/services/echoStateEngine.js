@@ -8,6 +8,7 @@ import {
 } from '../storage/memoryStore.js';
 import { decideNextAction, explainDecision } from './behaviorDecisionEngine.js';
 import { buildContext } from './contextBuilder.js';
+import { buildStateExplanation } from './explainabilityEngine.js';
 import { summarizeProfile } from './profileEngine.js';
 
 export async function getEchoState(query = '') {
@@ -37,6 +38,7 @@ export async function getEchoState(query = '') {
     recentSummaries,
     pendingActions
   });
+  const decision = explainDecision(nextAction);
 
   return {
     name: 'Echo',
@@ -50,7 +52,14 @@ export async function getEchoState(query = '') {
       profile_note: profileSummary.profile_note
     },
     next_action: nextAction,
-    decision: explainDecision(nextAction),
+    decision,
+    explain: buildStateExplanation({
+      context,
+      profileSummary,
+      currentSession,
+      nextAction,
+      decision
+    }),
     action_queue: pendingActions,
     active_learning: activeLearningSessions,
     recent_memories: recentMemories,

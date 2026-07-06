@@ -184,7 +184,7 @@ function buildReflection(pattern, facts) {
     specific_friction: `我们今天把阻力看清了：它落在“${facts.latestStuck?.step_title || '某个具体步骤'}”，不是落在整个自己身上。`,
     learning_loop_closed: '我们今天至少完成了一个小闭环。它不大，但它是真实发生过的。',
     learning_without_execution: '我们今天反复靠近学习，但还没有真正进入现场。明天只需要守住第一个 5 分钟。',
-    planning_without_action: '我们今天有一点把计划当成了行动的替身。下一次，先做一格，再整理全局。',
+    planning_without_action: '我们今天有一点把计划当成了行动的替身。下一次，先做一样，再整理全局。',
     start_line_procrastination: '我们今天不是没有方向，而是一直在入口处徘徊。入口还要继续缩小。',
     future_pressure: '我们今天承担了太多尚未发生的事。先把明天还给明天。',
     learning_orientation: '我们在靠近新的自己，但还需要把理解继续变成动作。',

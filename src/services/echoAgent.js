@@ -95,7 +95,7 @@ function generateLocalEchoResponse({ userInput, analysis, memoryContext, learnin
 
   if (analysis.emotion === 'anxious') {
     return compactLines([
-      '我们现在像是在提前承受还没发生的事。',
+      '我们现在像是在提前承担还没发生的事。',
       context.contextNote
         ? `但记忆里更清楚的是：${context.contextNote}`
         : '先把问题放回眼前：此刻能做的下一步是什么？',
