@@ -7,14 +7,21 @@ import { open } from 'sqlite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..', '..');
-const dataDir = path.join(rootDir, 'data');
-const dbPath = path.join(dataDir, 'echo.sqlite');
-const legacyMemoryPath = path.join(dataDir, 'memory.json');
 
 let dbPromise;
 
 export async function ensureMemoryStore() {
   await getDb();
+}
+
+export async function closeMemoryStore() {
+  if (!dbPromise) {
+    return;
+  }
+
+  const db = await dbPromise;
+  dbPromise = undefined;
+  await db.close();
 }
 
 export async function getMemories({ limit } = {}) {
@@ -306,19 +313,47 @@ export async function updateLearningStep(sessionId, stepIndex, status) {
 
 export async function saveSummary(summary) {
   const db = await getDb();
-  await db.run(
+  const existing = await db.get(
     `
-      INSERT INTO summaries
-        (date, summary, emotional_trend, behavioral_pattern, echo_reflection, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      SELECT id
+      FROM summaries
+      WHERE date = ?
+      ORDER BY created_at DESC
+      LIMIT 1
     `,
-    summary.date,
-    summary.summary,
-    summary.emotional_trend,
-    summary.behavioral_pattern,
-    summary.echo_reflection,
-    new Date().toISOString()
+    summary.date
   );
+  const createdAt = new Date().toISOString();
+
+  if (existing) {
+    await db.run(
+      `
+        UPDATE summaries
+        SET summary = ?, emotional_trend = ?, behavioral_pattern = ?, echo_reflection = ?, created_at = ?
+        WHERE id = ?
+      `,
+      summary.summary,
+      summary.emotional_trend,
+      summary.behavioral_pattern,
+      summary.echo_reflection,
+      createdAt,
+      existing.id
+    );
+  } else {
+    await db.run(
+      `
+        INSERT INTO summaries
+          (date, summary, emotional_trend, behavioral_pattern, echo_reflection, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      summary.date,
+      summary.summary,
+      summary.emotional_trend,
+      summary.behavioral_pattern,
+      summary.echo_reflection,
+      createdAt
+    );
+  }
 
   return summary;
 }
@@ -347,6 +382,23 @@ export async function createAction({
   metadata = {}
 }) {
   const db = await getDb();
+  const existing = await db.get(
+    `
+      SELECT id, type, title, detail, source, priority, status, due_at, metadata, created_at, updated_at
+      FROM actions
+      WHERE type = ? AND title = ? AND source = ? AND status IN ('pending', 'active')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    type,
+    title,
+    source
+  );
+
+  if (existing) {
+    return mapActionRow(existing);
+  }
+
   const now = new Date().toISOString();
   const result = await db.run(
     `
@@ -435,6 +487,7 @@ async function getDb() {
 }
 
 async function openDatabase() {
+  const { dataDir, dbPath } = getStorePaths();
   await mkdir(dataDir, { recursive: true });
 
   const db = await open({
@@ -558,6 +611,7 @@ async function migrate(db) {
 }
 
 async function importLegacyJsonIfNeeded(db) {
+  const { legacyMemoryPath } = getStorePaths();
   const count = await db.get('SELECT COUNT(*) AS count FROM conversations');
 
   if (count.count > 0) {
@@ -818,4 +872,17 @@ function getRecencyScore(timestamp) {
   if (ageDays <= 7) return 0.35;
   if (ageDays <= 30) return 0.15;
   return 0;
+}
+
+function getStorePaths() {
+  const dbPath = process.env.ECHO_DB_PATH
+    ? path.resolve(process.env.ECHO_DB_PATH)
+    : path.join(rootDir, 'data', 'echo.sqlite');
+  const dataDir = path.dirname(dbPath);
+
+  return {
+    dataDir,
+    dbPath,
+    legacyMemoryPath: path.join(dataDir, 'memory.json')
+  };
 }
