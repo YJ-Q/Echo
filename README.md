@@ -111,6 +111,37 @@ All endpoints return a unified response envelope:
 { "ok": false, "error": { "code": "...", "message": "..." } }
 ```
 
+### Text-to-Speech
+
+**`POST /tts`** — Synthesize Echo's reply into speech.
+
+```json
+// Request
+{ "text": "我们先看清它，不急着整理成答案。" }
+
+// Response
+{
+  "ok": true,
+  "data": {
+    "text": "...",
+    "audio": {
+      "mime_type": "audio/mpeg",
+      "data": "<base64-encoded-mp3>",
+      "size_bytes": 18765
+    }
+  }
+}
+```
+
+The audio `data` field is a base64-encoded MP3. The frontend can decode and play it directly (e.g. `new Audio('data:audio/mpeg;base64,...')`).
+
+To get audio alongside a chat response, include `"tts": true` in the chat request body:
+
+```json
+POST /chat
+{ "message": "我想学 Node.js", "tts": true }
+```
+
 ### Chat
 
 **`POST /chat`** — Main interaction endpoint
@@ -180,6 +211,13 @@ All endpoints return a unified response envelope:
 | `GET` | `/learning/active` | Active sessions |
 | `GET` | `/learning/events` | Learning action events |
 | `POST` | `/learning/:id/steps/:stepIndex` | Update step status (`done`) |
+
+### Text-to-Speech
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/tts` | Synthesize text to MP3 audio (CosyVoice2 via SiliconFlow) |
+| `POST` | `/chat` | Use `{"tts": true}` to include audio in chat response |
 
 ### Summary
 

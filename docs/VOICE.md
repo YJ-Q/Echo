@@ -261,4 +261,49 @@ Echo 不需要新的 "功能"——它只需要在这六种声音里做得更好
 
 ---
 
+## 语声（TTS）
+
+Echo 支持通过 **SiliconFlow CosyVoice2** 将回复合成为 MP3 音频。
+
+请求方式有两种：
+
+### 方式 1：独立 TTS 接口
+
+```bash
+curl -X POST http://localhost:3000/tts \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "我们先看清它，不急着整理成答案。"}'
+```
+
+响应包含 `audio.data`（base64 MP3）。前端直接播放：
+
+```js
+const audio = new Audio('data:audio/mpeg;base64,' + data.audio.data);
+audio.play();
+```
+
+### 方式 2：聊天时附带语音
+
+在 `POST /chat` 的请求体中加入 `"tts": true`：
+
+```json
+{ "message": "我想学 Node.js", "tts": true }
+```
+
+响应会额外包含 `audio` 字段（与独立 TTS 接口格式一致）。
+
+### 模型
+
+| 项目 | 值 |
+|------|-----|
+| Provider | SiliconFlow `FunAudioLLM/CosyVoice2-0.5B` |
+| Voice | `FunAudioLLM/CosyVoice2-0.5B:alex` |
+| 格式 | MP3, 32kHz |
+| 速度 | 1.0x（可通过 `speed` 参数调整） |
+| 语言 | 自动跟随输入文本语言 |
+
+> **注意**：TTS 需要 `SILICONFLOW_API_KEY` 环境变量。未配置时 `/tts` 返回 502，chat 中 `tts: true` 时 `audio` 字段为 `null`。
+
+---
+
 *最后更新: 2026-07-06*
