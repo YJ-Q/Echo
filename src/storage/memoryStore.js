@@ -28,7 +28,8 @@ export async function getMemories({ limit } = {}) {
   const db = await getDb();
   const rows = await db.all(
     `
-      SELECT id, timestamp, user_input, echo_response, emotion, tags
+      SELECT id, timestamp, user_input, echo_response, emotion, tags, memory_note, insight_note,
+             salience, reinforcement_count, priority_bucket, last_accessed_at, pinned
       FROM conversations
       ORDER BY timestamp DESC
       ${typeof limit === 'number' ? 'LIMIT ?' : ''}
@@ -43,32 +44,78 @@ export async function addMemory(memory) {
   const db = await getDb();
   await db.run(
     `
-      INSERT INTO conversations (timestamp, user_input, echo_response, emotion, tags)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO conversations (
+        timestamp, user_input, echo_response, emotion, tags, memory_note, insight_note,
+        salience, reinforcement_count, priority_bucket, last_accessed_at, pinned
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     memory.timestamp,
     memory.user_input,
     memory.echo_response,
     memory.emotion,
-    JSON.stringify(memory.tags || [])
+    JSON.stringify(memory.tags || []),
+    memory.memory_note || '',
+    memory.insight_note || '',
+    memory.salience || 0.5,
+    memory.reinforcement_count || 1,
+    memory.priority_bucket || 'ambient',
+    memory.last_accessed_at || memory.timestamp,
+    memory.pinned ? 1 : 0
   );
 
   return memory;
 }
 
 export async function getRelevantMemories(input, { limit = 8 } = {}) {
+  const db = await getDb();
   const memories = await getMemories({ limit: 200 });
   const queryTokens = tokenize(input);
-
-  return memories
+  const ranked = memories
     .map((memory) => ({
       memory,
-      score: scoreMemory(memory, queryTokens)
+      score: scoreMemory(memory, queryTokens),
+      effective_priority: computeEffectivePriority(memory)
     }))
     .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      return b.effective_priority - a.effective_priority;
+    })
     .slice(0, limit)
     .map((entry) => entry.memory);
+  const now = new Date().toISOString();
+
+  for (const memory of ranked) {
+    await db.run(
+      `
+        UPDATE conversations
+        SET last_accessed_at = ?,
+            reinforcement_count = MIN(reinforcement_count + 1, 12),
+            salience = MIN(
+              CASE
+                WHEN pinned = 1 THEN MAX(salience, 0.96)
+                ELSE salience + 0.015
+              END,
+              1
+            )
+        WHERE id = ?
+      `,
+      now,
+      memory.id
+    );
+    memory.last_accessed_at = now;
+    memory.reinforcement_count = Math.min((memory.reinforcement_count || 1) + 1, 12);
+    memory.salience = Math.min(
+      memory.pinned ? Math.max(memory.salience || 0.5, 0.96) : (memory.salience || 0.5) + 0.015,
+      1
+    );
+  }
+
+  return ranked;
 }
 
 export async function updateUserState(analysis) {
@@ -81,6 +128,58 @@ export async function updateUserState(analysis) {
   for (const tag of analysis.tags || []) {
     await upsertCounter(db, `tag:${tag}`, tag, now);
   }
+}
+
+export async function setMemoryPriority(id, {
+  salience,
+  priorityBucket,
+  pinned,
+  reinforcementCount
+} = {}) {
+  const db = await getDb();
+  const memory = await db.get(
+    `
+      SELECT id, timestamp, user_input, echo_response, emotion, tags, memory_note, insight_note,
+             salience, reinforcement_count, priority_bucket, last_accessed_at, pinned
+      FROM conversations
+      WHERE id = ?
+    `,
+    id
+  );
+
+  if (!memory) {
+    return null;
+  }
+
+  await db.run(
+    `
+      UPDATE conversations
+      SET salience = ?,
+          priority_bucket = ?,
+          pinned = ?,
+          reinforcement_count = ?,
+          last_accessed_at = ?
+      WHERE id = ?
+    `,
+    typeof salience === 'number' ? Math.min(Math.max(salience, 0.1), 1) : memory.salience,
+    priorityBucket || memory.priority_bucket,
+    typeof pinned === 'boolean' ? Number(pinned) : memory.pinned,
+    Number.isFinite(reinforcementCount) ? Math.min(Math.max(reinforcementCount, 1), 12) : memory.reinforcement_count,
+    new Date().toISOString(),
+    id
+  );
+
+  const updated = await db.get(
+    `
+      SELECT id, timestamp, user_input, echo_response, emotion, tags, memory_note, insight_note,
+             salience, reinforcement_count, priority_bucket, last_accessed_at, pinned
+      FROM conversations
+      WHERE id = ?
+    `,
+    id
+  );
+
+  return mapMemoryRow(updated);
 }
 
 export async function getUserStates({ limit = 20 } = {}) {
@@ -510,7 +609,14 @@ async function migrate(db) {
       user_input TEXT NOT NULL,
       echo_response TEXT NOT NULL,
       emotion TEXT NOT NULL,
-      tags TEXT NOT NULL DEFAULT '[]'
+      tags TEXT NOT NULL DEFAULT '[]',
+      memory_note TEXT NOT NULL DEFAULT '',
+      insight_note TEXT NOT NULL DEFAULT '',
+      salience REAL NOT NULL DEFAULT 0.5,
+      reinforcement_count INTEGER NOT NULL DEFAULT 1,
+      priority_bucket TEXT NOT NULL DEFAULT 'ambient',
+      last_accessed_at TEXT,
+      pinned INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS idx_conversations_timestamp
@@ -608,6 +714,13 @@ async function migrate(db) {
   `);
 
   await ensureColumn(db, 'user_profile', 'confidence', 'REAL NOT NULL DEFAULT 0.5');
+  await ensureColumn(db, 'conversations', 'memory_note', "TEXT NOT NULL DEFAULT ''");
+  await ensureColumn(db, 'conversations', 'insight_note', "TEXT NOT NULL DEFAULT ''");
+  await ensureColumn(db, 'conversations', 'salience', 'REAL NOT NULL DEFAULT 0.5');
+  await ensureColumn(db, 'conversations', 'reinforcement_count', 'INTEGER NOT NULL DEFAULT 1');
+  await ensureColumn(db, 'conversations', 'priority_bucket', "TEXT NOT NULL DEFAULT 'ambient'");
+  await ensureColumn(db, 'conversations', 'last_accessed_at', 'TEXT');
+  await ensureColumn(db, 'conversations', 'pinned', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 async function importLegacyJsonIfNeeded(db) {
@@ -625,14 +738,24 @@ async function importLegacyJsonIfNeeded(db) {
     for (const memory of memories) {
       await db.run(
         `
-          INSERT INTO conversations (timestamp, user_input, echo_response, emotion, tags)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO conversations (
+            timestamp, user_input, echo_response, emotion, tags, memory_note, insight_note,
+            salience, reinforcement_count, priority_bucket, last_accessed_at, pinned
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         memory.timestamp,
         memory.user_input,
         memory.echo_response,
         memory.emotion,
-        JSON.stringify(memory.tags || [])
+        JSON.stringify(memory.tags || []),
+        memory.memory_note || '',
+        memory.insight_note || '',
+        memory.salience || 0.5,
+        memory.reinforcement_count || 1,
+        memory.priority_bucket || 'ambient',
+        memory.last_accessed_at || memory.timestamp,
+        memory.pinned ? 1 : 0
       );
     }
 
@@ -696,7 +819,14 @@ function mapMemoryRow(row) {
     user_input: row.user_input,
     echo_response: row.echo_response,
     emotion: row.emotion,
-    tags: safeJsonArray(row.tags)
+    tags: safeJsonArray(row.tags),
+    memory_note: row.memory_note || '',
+    insight_note: row.insight_note || '',
+    salience: Number(row.salience || 0.5),
+    reinforcement_count: Number(row.reinforcement_count || 1),
+    priority_bucket: row.priority_bucket || 'ambient',
+    last_accessed_at: row.last_accessed_at || '',
+    pinned: Boolean(row.pinned)
   };
 }
 
@@ -792,6 +922,8 @@ function scoreMemory(memory, queryTokens) {
   const haystack = [
     memory.user_input,
     memory.echo_response,
+    memory.memory_note,
+    memory.insight_note,
     memory.emotion,
     ...(memory.tags || [])
   ].join(' ').toLowerCase();
@@ -800,8 +932,9 @@ function scoreMemory(memory, queryTokens) {
     return haystack.includes(token) ? score + tokenWeight(token, memory) : score;
   }, 0);
   const recencyScore = getRecencyScore(memory.timestamp);
+  const effectivePriority = computeEffectivePriority(memory);
 
-  return textScore > 0 ? textScore + recencyScore : 0;
+  return textScore > 0 ? textScore + recencyScore + effectivePriority : 0;
 }
 
 function tokenize(input) {
@@ -826,6 +959,30 @@ function toCjkBigrams(value) {
   }
 
   return tokens;
+}
+
+function extractIntentTermsLegacy(value) {
+  const terms = [];
+  const mappings = [
+    ['拖延', 'procrastination'],
+    ['不想做', 'procrastination'],
+    ['逃避', 'procrastination'],
+    ['卡住', 'procrastination'],
+    ['焦虑', 'anxious'],
+    ['压力', 'anxious'],
+    ['学习', 'learning'],
+    ['想学', 'learning'],
+    ['计划', 'planning'],
+    ['安排', 'planning']
+  ];
+
+  for (const [needle, term] of mappings) {
+    if (value.includes(needle)) {
+      terms.push(needle, term);
+    }
+  }
+
+  return terms;
 }
 
 function extractIntentTerms(value) {
@@ -860,6 +1017,15 @@ function tokenWeight(token, memory) {
   return token.length >= 4 ? 1.4 : 1;
 }
 
+function computeEffectivePriority(memory) {
+  const salience = Number(memory.salience || 0.5);
+  const reinforcement = Number(memory.reinforcement_count || 1);
+  const decay = getDecayFactor(memory.timestamp, memory.priority_bucket);
+  const reinforcementBonus = Math.min(reinforcement * 0.04, 0.4);
+
+  return salience * decay + reinforcementBonus;
+}
+
 function getRecencyScore(timestamp) {
   const ageMs = Date.now() - new Date(timestamp).getTime();
   const ageDays = ageMs / 86_400_000;
@@ -872,6 +1038,25 @@ function getRecencyScore(timestamp) {
   if (ageDays <= 7) return 0.35;
   if (ageDays <= 30) return 0.15;
   return 0;
+}
+
+function getDecayFactor(timestamp, priorityBucket = 'ambient') {
+  const ageMs = Date.now() - new Date(timestamp).getTime();
+  const ageDays = ageMs / 86_400_000;
+
+  if (!Number.isFinite(ageDays) || ageDays < 0) {
+    return 1;
+  }
+
+  if (priorityBucket === 'core') {
+    return Math.max(0.82, 1 - ageDays * 0.004);
+  }
+
+  if (priorityBucket === 'important') {
+    return Math.max(0.62, 1 - ageDays * 0.008);
+  }
+
+  return Math.max(0.35, 1 - ageDays * 0.016);
 }
 
 function getStorePaths() {

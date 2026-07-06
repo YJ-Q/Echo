@@ -1,30 +1,48 @@
 import {
+  getActions,
   getMemories,
   getRelevantMemories,
+  getSummaries,
   getUserProfile,
   getUserStates
 } from '../storage/memoryStore.js';
+import { buildMemoryInjection } from './memoryInjection.js';
 import { summarizeProfile } from './profileEngine.js';
 
 export async function buildContext(userInput) {
-  const [relevantMemories, recentMemories, userStates, userProfile] = await Promise.all([
+  const [relevantMemories, recentMemories, userStates, userProfile, pendingActions, recentSummaries] = await Promise.all([
     getRelevantMemories(userInput, { limit: 8 }),
     getMemories({ limit: 6 }),
     getUserStates({ limit: 12 }),
-    getUserProfile()
+    getUserProfile(),
+    getActions({ status: 'pending', limit: 3 }),
+    getSummaries({ limit: 2 })
   ]);
+  const summary = summarizeContext({
+    relevantMemories,
+    recentMemories,
+    userStates,
+    userProfile
+  });
+  const injection = buildMemoryInjection({
+    summary,
+    relevantMemories,
+    recentMemories,
+    userStates,
+    userProfile,
+    pendingActions,
+    recentSummaries
+  });
 
   return {
     relevantMemories,
     recentMemories,
     userStates,
     userProfile,
-    summary: summarizeContext({
-      relevantMemories,
-      recentMemories,
-      userStates,
-      userProfile
-    })
+    pendingActions,
+    recentSummaries,
+    summary,
+    injection
   };
 }
 
@@ -54,6 +72,8 @@ export function summarizeContext({
   const latestMemory = recentMemories[0] || null;
   const currentLearningFocus = profile.current_learning_focus || '';
   const recurringPattern = profile.recurring_pattern || repeatedTags[0]?.tag || '';
+  const insightTrail = mergeInsightTrail(memoryPool);
+  const priorityOverview = buildPriorityOverview(memoryPool);
 
   return {
     dominant_emotion: dominantEmotion,
@@ -63,6 +83,9 @@ export function summarizeContext({
     recurring_pattern: recurringPattern,
     profile_note: profileNote,
     latest_user_input: latestMemory?.user_input || '',
+    latest_memory_note: latestMemory?.memory_note || '',
+    insight_trail: insightTrail,
+    priority_overview: priorityOverview,
     context_note: buildContextNote({
       hasMemory,
       profileNote,
@@ -70,7 +93,10 @@ export function summarizeContext({
       dominantTag,
       repeatedTags,
       currentLearningFocus,
-      recurringPattern
+      recurringPattern,
+      latestMemory,
+      insightTrail,
+      priorityOverview
     })
   };
 }
@@ -82,7 +108,10 @@ function buildContextNote({
   dominantTag,
   repeatedTags,
   currentLearningFocus,
-  recurringPattern
+  recurringPattern,
+  latestMemory,
+  insightTrail,
+  priorityOverview
 }) {
   const notes = [];
 
@@ -102,10 +131,20 @@ function buildContextNote({
     notes.push(`一个反复出现的模式是“${formatPattern(recurringPattern)}”。`);
   }
 
+  if (latestMemory?.memory_note) {
+    notes.push(`最近一次内部笔记是：${latestMemory.memory_note}`);
+  }
+
+  if (insightTrail.length > 0) {
+    notes.push(`最近保留下来的洞察之一是：${insightTrail[0]}`);
+  }
+
+  if (priorityOverview.core.length > 0) {
+    notes.push(`目前更常驻的记忆锚点有：${priorityOverview.core.join('、')}。`);
+  }
+
   if (repeatedTags.length > 0) {
-    notes.push(`重复标签：${repeatedTags.map((entry) => {
-      return `${formatTag(entry.tag)}×${entry.count}`;
-    }).join('、')}。`);
+    notes.push(`重复标签：${repeatedTags.map((entry) => `${formatTag(entry.tag)}×${entry.count}`).join('、')}。`);
   }
 
   if (dominantEmotion && dominantEmotion !== 'neutral') {
@@ -135,6 +174,39 @@ function mergeMemories(...groups) {
   }
 
   return merged;
+}
+
+function mergeInsightTrail(memories) {
+  return memories
+    .map((memory) => memory.insight_note)
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .slice(0, 3);
+}
+
+function buildPriorityOverview(memories) {
+  const core = [];
+  const important = [];
+
+  for (const memory of memories) {
+    const label = memory.memory_note || memory.user_input;
+
+    if (!label) {
+      continue;
+    }
+
+    if (memory.priority_bucket === 'core' && core.length < 3) {
+      core.push(trimLabel(label));
+    } else if (memory.priority_bucket === 'important' && important.length < 3) {
+      important.push(trimLabel(label));
+    }
+  }
+
+  return { core, important };
+}
+
+function trimLabel(value) {
+  return value.length <= 30 ? value : `${value.slice(0, 30)}...`;
 }
 
 function countBy(items) {
@@ -190,7 +262,7 @@ function formatEmotion(value) {
     distracted: '分心',
     anxious: '焦虑',
     neutral: '平静',
-    motivated: '有动机'
+    motivated: '有动力'
   };
 
   return emotions[value] || value;

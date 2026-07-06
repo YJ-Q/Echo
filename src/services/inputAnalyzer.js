@@ -20,7 +20,6 @@ const EMOTIONS = {
     'avoid',
     '拖延',
     '分心',
-    '刷',
     '卡住',
     '不想做'
   ],
@@ -68,7 +67,7 @@ export function analyzeInput(input) {
 }
 
 function detectIntent(text) {
-  if (matchesAny(text, ['want to learn', 'teach me', 'help me study', '想学', '教我', '帮我学'])) {
+  if (matchesAny(text, ['want to learn', 'teach me', 'help me study', '想学', '教我', '帮我学', '帮我学习'])) {
     return 'learning';
   }
 

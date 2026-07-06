@@ -103,7 +103,7 @@ function buildSummary(facts) {
 
   if (facts.learningEvents.length > 0) {
     const topicText = facts.learningTopics.length ? facts.learningTopics.join('、') : '当前学习线';
-    parts.push(`学习状态：围绕“${topicText}”留下 ${facts.learningEvents.length} 个行动痕迹，推进 ${facts.completedSteps} 次，尝试 ${facts.attemptedSteps} 次，卡住 ${facts.stuckSteps} 次。`);
+    parts.push(`学习状态：围绕“${topicText}”留下了 ${facts.learningEvents.length} 个行动痕迹，推进 ${facts.completedSteps} 次，尝试 ${facts.attemptedSteps} 次，卡住 ${facts.stuckSteps} 次。`);
   }
 
   if (facts.dominantEmotion !== 'neutral') {
@@ -185,8 +185,8 @@ function buildReflection(pattern, facts) {
     learning_loop_closed: '我们今天至少完成了一个小闭环。它不大，但它是真实发生过的。',
     learning_without_execution: '我们今天反复靠近学习，但还没有真正进入现场。明天只需要守住第一个 5 分钟。',
     planning_without_action: '我们今天有一点把计划当成了行动的替身。下一次，先做一格，再整理全局。',
-    start_line_procrastination: '我们今天不是没有方向，而是一直在入口处徘徊。入口要继续缩小。',
-    future_pressure: '我们今天承受了太多尚未发生的事。先把明天还给明天。',
+    start_line_procrastination: '我们今天不是没有方向，而是一直在入口处徘徊。入口还要继续缩小。',
+    future_pressure: '我们今天承担了太多尚未发生的事。先把明天还给明天。',
     learning_orientation: '我们在靠近新的自己，但还需要把理解继续变成动作。',
     pattern_forming: '今天的我们还在成形，先别急着下结论。'
   };
@@ -248,7 +248,7 @@ function formatEmotion(emotion) {
     distracted: '分心',
     anxious: '焦虑',
     neutral: '平静',
-    motivated: '有动机'
+    motivated: '有动力'
   };
 
   return emotions[emotion] || emotion;

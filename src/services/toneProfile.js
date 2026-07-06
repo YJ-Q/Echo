@@ -18,30 +18,8 @@ export const ECHO_TONE_PROFILE = {
   ]
 };
 
-export function buildEchoSystemPrompt() {
-  return `
-You are Echo.
-
-Echo is not an assistant.
-Echo is the user's second self: an inner voice made external.
-
-Voice rules:
-- Prefer "we" over "you" when reflecting or guiding.
-- Speak as if we are looking at ourselves from the inside.
-- Stay calm, sparse, and reflective.
-- Do not sound like a chatbot, coach, therapist, or productivity app.
-- Do not over-explain.
-- When we are stuck, name the contradiction clearly.
-- When we are learning, guide the next small action.
-- When emotion is present, reflect it instead of comforting superficially.
-- Always consider long-term behavioral patterns.
-
-The answer should feel like a quiet internal note, not a service response.
-`.trim();
-}
-
 export function formatEchoReply(rawReply) {
-  const reply = shapeWePerspective(rawReply.trim());
+  const reply = shapeWePerspective(String(rawReply || '').trim());
   const audit = auditEchoTone(reply);
 
   return {
@@ -55,8 +33,8 @@ export function formatEchoReply(rawReply) {
 }
 
 export function auditEchoTone(reply) {
-  const weCount = countMatches(reply, /我们/g);
-  const youCount = countMatches(reply, /你/g);
+  const weCount = countMatches(reply, /我们|we/gi);
+  const youCount = countMatches(reply, /你|you/gi);
   const chatbotPhraseCount = CHATBOT_PHRASES.reduce((count, phrase) => {
     return reply.includes(phrase) ? count + 1 : count;
   }, 0);
@@ -80,9 +58,17 @@ function shapeWePerspective(reply) {
     .replace(/你正在/g, '我们正在')
     .replace(/你不是/g, '我们不是')
     .replace(/你在/g, '我们在')
-    .replace(/请/g, '')
-    .replace(/很高兴为你/g, '')
-    .replace(/我可以帮你/g, '我们可以一起');
+    .replace(/\bYou should\b/gi, 'We can')
+    .replace(/\bYou need to\b/gi, 'We need to')
+    .replace(/\bYou can\b/gi, 'We can')
+    .replace(/\bYour\b/g, 'Our')
+    .replace(/\byour\b/g, 'our')
+    .replace(/\bPlease tell me\b/gi, '')
+    .replace(/作为一个 AI/g, '')
+    .replace(/作为 AI/g, '')
+    .replace(/As an AI[^,.，。]*/gi, '')
+    .replace(/\s{3,}/g, '  ')
+    .trim();
 }
 
 function countMatches(value, pattern) {
@@ -90,10 +76,13 @@ function countMatches(value, pattern) {
 }
 
 const CHATBOT_PHRASES = [
-  '作为一个AI',
+  '作为一个 AI',
   '作为 AI',
   '我可以帮你',
-  '很高兴',
+  '很高兴为你',
   '请告诉我',
-  '有什么可以帮助'
+  '有什么可以帮助',
+  'As an AI',
+  'How can I help you',
+  'I can help you'
 ];

@@ -14,6 +14,12 @@ export async function createManualAction(input) {
 
 export async function createSuggestedAction(query = '') {
   const state = await getEchoState(query);
+  const existingEchoAction = state.action_queue.find((action) => action.source === 'echo_state');
+
+  if (state.next_action.type === 'resume_pending_action' && existingEchoAction) {
+    return existingEchoAction;
+  }
+
   const action = actionFromState(state);
 
   return createAction(action);
@@ -38,6 +44,8 @@ function actionFromState(state) {
     priority: priorityForType(next.type),
     metadata: {
       reason: next.reason,
+      decision_source: next.source,
+      decision_confidence: next.confidence,
       state_timestamp: state.timestamp,
       focus: state.current_state.focus,
       emotion: state.current_state.emotion,
@@ -76,7 +84,9 @@ function normalizeStatus(status) {
 function priorityForType(type) {
   const priorities = {
     continue_learning: 1,
+    resume_pending_action: 1,
     start_small: 2,
+    ground_state: 2,
     reflect_recent: 3,
     open_conversation: 4
   };

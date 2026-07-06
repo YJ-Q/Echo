@@ -1,8 +1,12 @@
 import { analyzeInput } from './inputAnalyzer.js';
 import { generateEchoResponse } from './echoAgent.js';
 import { buildContext } from './contextBuilder.js';
+import { getEchoState } from './echoStateEngine.js';
 import { assessLearningProgress, prepareLearningSession } from './learningEngine.js';
+import { distillInteractionMemory } from './memoryDistiller.js';
+import { deriveMemoryPriority } from './memoryPriorityEngine.js';
 import { updateProfileFromInteraction } from './profileEngine.js';
+import { synthesizeProfileFromMemories } from './profileSynthesisEngine.js';
 import { addMemory, updateUserState } from '../storage/memoryStore.js';
 
 export async function handleChat(message) {
@@ -27,7 +31,7 @@ export async function handleChat(message) {
     memoryContext,
     learningSession
   });
-  const { reply, tone } = echoResult;
+  const { reply, tone, agent } = echoResult;
 
   const memory = {
     timestamp: new Date().toISOString(),
@@ -37,9 +41,29 @@ export async function handleChat(message) {
     tags: analysis.tags
   };
 
-  await addMemory(memory);
   await updateUserState(analysis);
   await updateProfileFromInteraction(message, analysis);
+  const state = await getEchoState(message);
+  const distilled = distillInteractionMemory({
+    userInput: message,
+    reply,
+    analysis,
+    learningSession,
+    behaviorHint: state.next_action
+  });
+  const priority = deriveMemoryPriority({
+    analysis,
+    learningSession,
+    memoryNote: distilled.memory_note,
+    insightNote: distilled.insight_note
+  });
+
+  await addMemory({
+    ...memory,
+    ...distilled,
+    ...priority
+  });
+  await synthesizeProfileFromMemories({ limit: 24 });
 
   return {
     reply,
@@ -47,6 +71,11 @@ export async function handleChat(message) {
     tags: analysis.tags,
     intent: analysis.intent,
     learning_session: learningSession?.session || null,
-    tone
+    behavior_hint: state.next_action,
+    decision: state.decision,
+    memory_note: distilled.memory_note,
+    insight_note: distilled.insight_note,
+    tone,
+    agent
   };
 }

@@ -178,7 +178,7 @@ export function classifyLearningReply(input) {
     return { status: 'stuck', reason: 'explicit_stuck' };
   }
 
-  if (text.length >= 12 || /[\u4e00-\u9fff]/.test(text) && text.length >= 8) {
+  if (text.length >= 12 || (/[\u4e00-\u9fff]/.test(text) && text.length >= 8)) {
     return { status: 'partial', reason: 'substantive_reply' };
   }
 

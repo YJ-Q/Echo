@@ -62,7 +62,7 @@ export function extractProfileSignals(userInput, analysis) {
     });
   }
 
-  if (analysis.emotion === 'anxious' || containsAny(text, ['焦虑', '压力', '担心', '怕', 'worried', 'stress'])) {
+  if (analysis.emotion === 'anxious' || containsAny(text, ['焦虑', '压力', '担心', '慌', 'worried', 'stress'])) {
     signals.push({
       key: 'emotional_trigger',
       value: 'future pressure entering the present',
@@ -111,12 +111,17 @@ export function summarizeProfile(profileEntries = []) {
     recurring_pattern: humanizeProfileValue(profile.recurring_pattern?.value || ''),
     start_friction: humanizeProfileValue(profile.start_friction?.value || ''),
     emotional_trigger: humanizeProfileValue(profile.emotional_trigger?.value || ''),
+    emotional_baseline: humanizeProfileValue(profile.emotional_baseline?.value || ''),
     learning_preference: humanizeProfileValue(profile.learning_preference?.value || ''),
     execution_style: humanizeProfileValue(profile.execution_style?.value || ''),
     planning_style: humanizeProfileValue(profile.planning_style?.value || ''),
+    recovery_path: humanizeProfileValue(profile.recovery_path?.value || ''),
+    self_regulation_pattern: humanizeProfileValue(profile.self_regulation_pattern?.value || ''),
+    sustained_learning_topic: profile.sustained_learning_topic?.value || '',
     echo_interaction_style: humanizeProfileValue(profile.echo_interaction_style?.value || ''),
     stable_signals: stableSignals.map(formatProfileSignal),
     developing_signals: developingSignals.map(formatProfileSignal),
+    long_term_notes: buildLongTermNotes(profile),
     profile_note: buildProfileNote(profile)
   };
 }
@@ -155,6 +160,28 @@ function buildProfileNote(profile) {
   return notes.join(' ');
 }
 
+function buildLongTermNotes(profile) {
+  const notes = [];
+
+  if (profile.self_regulation_pattern?.value) {
+    notes.push(humanizeProfileValue(profile.self_regulation_pattern.value));
+  }
+
+  if (profile.recovery_path?.value) {
+    notes.push(`比较有效的回路是：${humanizeProfileValue(profile.recovery_path.value)}。`);
+  }
+
+  if (profile.emotional_baseline?.value) {
+    notes.push(`最近的情绪底色更接近“${humanizeProfileValue(profile.emotional_baseline.value)}”。`);
+  }
+
+  if (profile.sustained_learning_topic?.value) {
+    notes.push(`一条持续出现的学习线是“${profile.sustained_learning_topic.value}”。`);
+  }
+
+  return notes;
+}
+
 function formatProfileSignal(entry) {
   return {
     key: entry.key,
@@ -169,11 +196,20 @@ function humanizeProfileValue(value) {
     'procrastination around starting tasks': '启动任务前的拖延',
     'learning and study execution': '学习与执行',
     'small executable steps': '小而可执行的步骤',
-    'difficulty entering the first action': '进入第一个动作',
+    'difficulty entering the first action': '进入第一个动作很难',
     'future pressure entering the present': '未来压力提前进入当下',
-    'responds to small starts': '小启动动作',
-    'needs one main task and a stop point': '一个主任务和一个停止点',
-    'reflective we-perspective with one next action': '我们视角 + 一个下一步'
+    'responds to small starts': '对小启动动作反应更好',
+    'needs one main task and a stop point': '需要一个主任务和一个停止点',
+    'reflective we-perspective with one next action': '我们视角 + 一个下一步动作',
+    focused: '专注',
+    distracted: '分心',
+    anxious: '焦虑',
+    neutral: '平静',
+    motivated: '有动力',
+    'start resistance matters more than task difficulty': '比起任务难度，真正卡住我们的更常常是开始那一下',
+    'small visible action restores momentum': '先做一个看得见的小动作，比继续想更容易把自己带回来',
+    'ground into one visible next step': '先落回一件眼前能做的事',
+    'returns through small executable learning steps': '通过小而可执行的学习动作，更容易重新进入状态'
   };
 
   return values[value] || value;
