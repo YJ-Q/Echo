@@ -7,5 +7,3 @@ data/*.sqlite-*
 npm-debug.log*
 huashu-design/
 design-references/
-server.log
-*.mp3

@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Echo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="launch-screen" id="launch-screen" aria-hidden="true">
+      <div class="launch-mark" aria-hidden="true">
+        <span></span><span></span><span></span>
+        <span></span>
+        <span></span><span></span><span></span>
+        <span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <p class="launch-title mono">Echo</p>
+      <p class="launch-copy">正在校准当前线索。</p>
+    </div>
+
+    <main class="app-shell dotted-surface" aria-label="Echo 桌面应用">
+      <aside class="nav-rail" aria-label="主导航">
+        <div class="echo-mark" aria-label="Echo 标识">
+          <span></span><span></span><span></span>
+          <span></span>
+          <span></span><span></span><span></span>
+          <span></span>
+          <span></span><span></span><span></span>
+        </div>
+
+        <div class="nav-presence">
+          <span class="presence-dot"></span>
+          <span>稳定同步</span>
+        </div>
+
+        <nav class="nav-stack" aria-label="Echo 分区">
+          <button class="nav-item active" type="button" aria-label="此刻" title="此刻" data-view="now">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.3"></circle>
+              <circle cx="16" cy="8" r="2.3"></circle>
+              <circle cx="8" cy="16" r="2.3"></circle>
+              <circle cx="16" cy="16" r="2.3"></circle>
+            </svg>
+            <span>此刻</span>
+          </button>
+          <button class="nav-item" type="button" aria-label="学习" title="学习" data-view="learn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3 4.5 7.2 12 11.4l7.5-4.2L12 3Z"></path>
+              <path d="M4.5 7.2v8.2L12 20l7.5-4.6V7.2"></path>
+              <path d="M12 11.4V20"></path>
+            </svg>
+            <span>学习</span>
+          </button>
+          <button class="nav-item" type="button" aria-label="行动" title="行动" data-view="actions">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="18" r="2.4"></circle>
+              <circle cx="18" cy="6" r="2.4"></circle>
+              <circle cx="14" cy="14" r="2.4"></circle>
+              <path d="m8 16 4-2"></path>
+              <path d="m15.7 12.3 1.5-4"></path>
+            </svg>
+            <span>行动</span>
+          </button>
+          <button class="nav-item" type="button" aria-label="反思" title="反思" data-view="reflections">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path>
+              <path d="M14 3v5h5"></path>
+              <path d="M8 13h8"></path>
+              <path d="M8 17h6"></path>
+            </svg>
+            <span>反思</span>
+          </button>
+          <button class="nav-item" type="button" aria-label="记忆" title="记忆" data-view="memory">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 8h12l1.6 4.5V19a2 2 0 0 1-2 2H6.4a2 2 0 0 1-2-2v-6.5L6 8Z"></path>
+              <path d="M8 3h8l2 5H6l2-5Z"></path>
+              <path d="M8 14h8"></path>
+            </svg>
+            <span>记忆</span>
+          </button>
+        </nav>
+
+        <div class="nav-tools" aria-label="辅助控件">
+          <button class="tool-button" type="button" aria-label="设置" title="设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-3v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H4v-3h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V4h3v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v3h-.1a1.7 1.7 0 0 0-1.5 1Z"></path>
+            </svg>
+          </button>
+          <button class="tool-button" type="button" aria-label="同步" title="同步">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
+              <path d="M3 12A9 9 0 0 1 18.3 5.6"></path>
+              <path d="M18 2v4h4"></path>
+              <path d="M6 22v-4H2"></path>
+            </svg>
+          </button>
+        </div>
+      </aside>
+
+      <section class="main-window" aria-label="Echo 工作区">
+        <div class="window-frame-glow" aria-hidden="true"></div>
+        <div class="window-controls" aria-label="窗口控制">
+          <button class="window-control" id="window-minimize" type="button" aria-label="最小化窗口"></button>
+          <button class="window-control" id="window-maximize" type="button" aria-label="最大化窗口"></button>
+          <button class="window-control close" id="window-close" type="button" aria-label="关闭窗口"></button>
+        </div>
+
+        <section class="center-column" aria-label="对话区">
+          <header class="topbar">
+            <div class="title-stack">
+              <h1>Echo</h1>
+              <p id="view-subtitle">当前线索保持可见。</p>
+            </div>
+            <div class="header-meta">
+              <div class="signal-strip">
+                <span class="signal-chip active" id="active-view-chip">此刻</span>
+                <span class="signal-chip" id="secondary-view-chip">聚焦</span>
+              </div>
+              <div class="time-strip mono">
+                <span id="clock">14:32:11</span>
+                <span>MON 20 APR 2026</span>
+              </div>
+            </div>
+          </header>
+
+          <div class="workspace-view active" data-view-panel="now">
+            <section class="hero-band dotted-panel" aria-labelledby="hero-title">
+              <div class="hero-copy">
+                <p class="panel-kicker" id="hero-title">当前状态</p>
+                <strong id="hero-emotion">平静</strong>
+                <p id="hero-copy">正在倾听，正在观察，暂不急于行动。</p>
+              </div>
+            </section>
+
+            <section class="conversation-board" aria-label="对话看板">
+              <div class="board-header">
+                <div>
+                  <p class="panel-kicker">实时线程</p>
+                  <h2>对话流</h2>
+                </div>
+                <div class="board-badges subtle-badges" id="board-badges">
+                  <span class="status-badge">有动力</span>
+                  <span class="status-badge">学习中</span>
+                  <span class="status-badge muted-badge">规划中</span>
+                </div>
+              </div>
+
+              <section class="timeline-panel" id="timeline-panel" aria-label="对话时间线">
+                <article class="timeline-row">
+                  <time class="mono">14:28</time>
+                  <span class="timeline-dot"></span>
+                  <div class="timeline-copy">
+                    <h3>Echo</h3>
+                    <p>你刚才听起来有些焦虑。</p>
+                  </div>
+                </article>
+              </section>
+
+              <form class="composer" id="composer-form" aria-label="消息输入区">
+                <div class="composer-meta">
+                  <button class="quick-prompt" type="button" data-prompt="我完成了上一步，帮我判断下一步该做什么。">已完成</button>
+                  <button class="quick-prompt" type="button" data-prompt="我有点卡住了，帮我把下一步再缩小一点。">卡住了</button>
+                  <button class="quick-prompt" type="button" data-prompt="沿着当前对话继续。">继续聊</button>
+                  <button class="quick-prompt" type="button" data-prompt="帮我把今天的安排拆成三个步骤。">规划今天</button>
+                </div>
+                <div class="composer-row">
+                  <input id="composer-input" type="text" value="" placeholder="继续输入..." aria-label="继续对话" />
+                  <button class="primary-button" id="composer-submit" type="submit">
+                    <span id="composer-submit-label">继续</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M19 7v7a3 3 0 0 1-3 3H7"></path>
+                      <path d="m10 13-4 4 4 4"></path>
+                    </svg>
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="learn">
+            <section class="hero-band dotted-panel">
+              <div class="hero-copy left-align">
+                <p class="panel-kicker">学习系统</p>
+                <strong class="hero-title-small" id="learn-hero-topic">管理工作负荷</strong>
+                <p id="learn-hero-copy">当前线索正在教会 Echo 如何降低你开始行动时的启动阻力。</p>
+              </div>
+              <div class="hero-stat-grid">
+                <div class="stat-block">
+                  <span class="mono stat-value" id="learn-step-stat">03</span>
+                  <span class="stat-label">当前步骤</span>
+                </div>
+                <div class="stat-block">
+                  <span class="mono stat-value" id="learn-total-stat">06</span>
+                  <span class="stat-label">总步骤</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="workspace-grid two-up">
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">学习线</p>
+                    <h2>步骤序列</h2>
+                  </div>
+                </div>
+                <div class="learning-steps-list" id="learn-steps-list"></div>
+              </article>
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">模式</p>
+                    <h2>行为信号</h2>
+                  </div>
+                </div>
+                <div class="insight-stack">
+                  <div class="insight-row">
+                    <span class="insight-dot active"></span>
+                    <div>
+                      <strong id="learn-pattern-title">启动阻力</strong>
+                      <p>Echo 持续把最小的起步动作推到台前。</p>
+                    </div>
+                  </div>
+                  <div class="insight-row">
+                    <span class="insight-dot"></span>
+                    <div>
+                      <strong>信号翻译</strong>
+                      <p>压力被转成更清晰的下一步结构，而不是更多文字。</p>
+                    </div>
+                  </div>
+                  <div class="insight-row">
+                    <span class="insight-dot"></span>
+                    <div>
+                      <strong>记忆方向</strong>
+                      <p>反复出现的关注主题会沉淀成可复用的支持策略。</p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="actions">
+            <section class="hero-band dotted-panel">
+              <div class="hero-copy left-align">
+                <p class="panel-kicker">行动系统</p>
+                <strong class="hero-title-small">执行看板</strong>
+                <p>行动把反思转成推进力，始终让一个主动作保持在最前面。</p>
+              </div>
+              <div class="hero-stat-grid">
+                <div class="stat-block">
+                  <span class="mono stat-value" id="actions-open-count">04</span>
+                  <span class="stat-label">待处理</span>
+                </div>
+                <div class="stat-block">
+                  <span class="mono stat-value">01</span>
+                  <span class="stat-label">进行中</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="workspace-grid two-up">
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">优先通道</p>
+                    <h2>此刻推进什么</h2>
+                  </div>
+                </div>
+                <div class="action-list" id="action-list"></div>
+              </article>
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">流动</p>
+                    <h2>执行节奏</h2>
+                  </div>
+                </div>
+                <div class="mini-bars" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="lane-metrics">
+                  <div class="metric-chip">
+                    <span class="metric-key">下一步</span>
+                    <strong id="actions-next-label">列出第 2 部分提纲</strong>
+                  </div>
+                  <div class="metric-chip">
+                    <span class="metric-key">阻碍</span>
+                    <strong id="actions-blocker-label">范围过大</strong>
+                  </div>
+                  <div class="metric-chip">
+                    <span class="metric-key">辅助</span>
+                    <strong id="actions-assist-label">按章节拆分</strong>
+                  </div>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="reflections">
+            <section class="hero-band dotted-panel">
+              <div class="hero-copy left-align">
+                <p class="panel-kicker">反思系统</p>
+                <strong class="hero-title-small">趋势与意义</strong>
+                <p>反思把线程压缩成可用洞察，让产品随着使用变得更轻盈。</p>
+              </div>
+              <svg class="hero-wave" viewBox="0 0 220 80" aria-hidden="true">
+                <path d="M4 48 L24 42 L44 39 L64 45 L84 31 L104 43 L124 30 L144 46 L164 44 L184 25 L204 40 L216 36"></path>
+              </svg>
+            </section>
+
+            <section class="workspace-grid two-up">
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">近期回顾</p>
+                    <h2>简短反思</h2>
+                  </div>
+                  <button class="secondary-button" id="refresh-summary" type="button">刷新总结</button>
+                </div>
+                <div class="reflection-stack">
+                  <article class="reflection-card">
+                    <span class="mono">今天</span>
+                    <p id="reflection-summary-copy">当下一步变得具体，压力就会明显下降。</p>
+                  </article>
+                  <article class="reflection-card">
+                    <span class="mono">此前</span>
+                    <p id="reflection-echo-copy">当 Echo 给出更少但更明确的选项时，专注度会更好。</p>
+                  </article>
+                  <article class="reflection-card">
+                    <span class="mono">模式</span>
+                    <p id="reflection-pattern-copy">重复出现的阻力主要集中在大型任务的起步阶段。</p>
+                  </article>
+                </div>
+              </article>
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">状态漂移</p>
+                    <h2>信号平衡</h2>
+                  </div>
+                </div>
+                <div class="balance-grid">
+                  <div class="balance-item">
+                    <span>平静</span>
+                    <div class="progress-track"><span style="width: 68%"></span></div>
+                  </div>
+                  <div class="balance-item">
+                    <span>专注</span>
+                    <div class="progress-track"><span style="width: 54%"></span></div>
+                  </div>
+                  <div class="balance-item">
+                    <span>焦虑</span>
+                    <div class="progress-track"><span style="width: 31%"></span></div>
+                  </div>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="memory">
+            <section class="hero-band dotted-panel">
+              <div class="hero-copy left-align">
+                <p class="panel-kicker">记忆系统</p>
+                <strong class="hero-title-small">回忆界面</strong>
+                <p>记忆让产品保持连续性，模式、情绪和有用表述都能被快速召回。</p>
+              </div>
+              <div class="hero-stat-grid">
+                <div class="stat-block">
+                  <span class="mono stat-value" id="memory-total-stat">56</span>
+                  <span class="stat-label">近期</span>
+                </div>
+                <div class="stat-block">
+                  <span class="mono stat-value">03</span>
+                  <span class="stat-label">高频标签</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="workspace-grid two-up">
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">聚类</p>
+                    <h2>记忆分组</h2>
+                  </div>
+                </div>
+                <div class="cluster-grid" id="memory-clusters"></div>
+              </article>
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">近期召回</p>
+                    <h2>已存片段</h2>
+                  </div>
+                </div>
+                <div class="memory-list" id="memory-list"></div>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <aside class="status-column" aria-label="状态工作台">
+          <div class="status-view active" data-status-panel="now">
+            <section class="instrument-panel current-state-card interactive-panel" data-jump-view="now">
+              <div>
+                <h2>当前状态</h2>
+                <strong id="emotion-label">焦虑</strong>
+              </div>
+              <svg class="heartbeat anxious" viewBox="0 0 160 48" aria-label="焦虑状态心跳波形" role="img">
+                <path class="heartbeat-guide" d="M0 25 H160"></path>
+                <path class="heartbeat-line" d="M0 26 L13 26 L18 21 L23 27 L29 26 L34 15 L39 36 L45 9 L51 40 L58 18 L64 28 L70 22 L76 29 L82 20 L88 26 L96 25 L104 25 L111 10 L117 39 L123 21 L130 28 L137 17 L143 27 L151 25 L160 26"></path>
+              </svg>
+              <p id="emotion-copy">频率偏高，需要先落地。</p>
+            </section>
+
+            <section class="instrument-panel focus-instrument interactive-panel" data-jump-view="actions">
+              <div class="panel-head">
+                <h2>专注</h2>
+                <span class="mono" id="focus-percentage">62%</span>
+              </div>
+              <p class="metric-title" id="focus-title">报告 + 会议准备</p>
+              <div class="progress-row" aria-label="专注进度 62%">
+                <span class="progress-track"><span id="focus-track-fill" style="width: 62%"></span></span>
+              </div>
+            </section>
+
+            <section class="instrument-panel action-card interactive-panel" data-jump-view="actions">
+              <div class="panel-head">
+                <h2>下一步行动</h2>
+                <button class="arrow-button" type="button" aria-label="打开下一步行动" data-jump-view="actions">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+              <p class="action-title" id="action-title">列出第 2 部分提纲</p>
+              <p class="muted" id="action-copy">先完成一个明确动作，再展开更大的清单。</p>
+              <button class="primary-button compact" id="start-next-action" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 5v14l11-7-11-7Z"></path>
+                </svg>
+                <span>开始</span>
+              </button>
+            </section>
+
+            <section class="instrument-panel interactive-panel" data-jump-view="learn">
+              <div class="panel-head">
+                <h2>学习线</h2>
+                <span class="mono" id="learning-ratio">3/6</span>
+              </div>
+              <p class="metric-title" id="learning-topic">管理工作负荷</p>
+              <p class="muted" id="learning-step-copy">当前步骤：缩小下一步动作。</p>
+              <div class="segments" id="learning-segments" aria-label="学习进度，第 3 步，共 6 步">
+                <span class="done"></span>
+                <span class="done"></span>
+                <span class="current"></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </section>
+
+            <section class="instrument-panel memory-card interactive-panel" data-jump-view="memory">
+              <div class="panel-head">
+                <div>
+                  <h2>记忆</h2>
+                  <p class="metric-title" id="memory-count">56 条</p>
+                </div>
+                <button class="arrow-button static-arrow" type="button" aria-label="打开记忆" data-jump-view="memory">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="memory-grid" id="memory-grid" aria-label="记忆活跃网格">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hot"></span><span></span><span></span><span></span><span></span><span></span><span class="hot"></span><span></span>
+                <span></span><span></span><span></span><span class="hot"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </section>
+
+            <section class="instrument-panel interactive-panel" data-jump-view="reflections">
+              <div class="panel-head">
+                <h2>反思趋势</h2>
+                <span class="mono">稳定</span>
+              </div>
+              <svg class="sparkline" viewBox="0 0 260 48" aria-label="稳定的反思趋势" role="img">
+                <path d="M2 32 L24 27 L46 24 L68 31 L90 16 L112 28 L134 18 L156 31 L178 30 L200 34 L222 22 L244 9 L258 26"></path>
+                <circle cx="244" cy="9" r="3"></circle>
+              </svg>
+            </section>
+          </div>
+
+          <div class="status-view" data-status-panel="learn">
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>当前课题</h2>
+                <span class="mono" id="learn-lesson-ratio">3/6</span>
+              </div>
+              <p class="metric-title" id="learn-side-topic">管理工作负荷</p>
+              <div class="segments" id="learn-side-segments">
+                <span class="done"></span><span class="done"></span><span class="current"></span><span></span><span></span><span></span>
+              </div>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>留存度</h2>
+                <span class="mono">高</span>
+              </div>
+              <svg class="sparkline" viewBox="0 0 260 48" aria-hidden="true">
+                <path d="M2 34 L34 30 L66 24 L98 18 L130 20 L162 15 L194 11 L226 14 L258 10"></path>
+              </svg>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>已应用线索</h2>
+                <span class="mono" id="learn-cues-count">03</span>
+              </div>
+              <div class="mini-tags">
+                <span class="status-badge">缩小范围</span>
+                <span class="status-badge">小步推进</span>
+                <span class="status-badge muted-badge">落地稳定</span>
+              </div>
+            </section>
+          </div>
+
+          <div class="status-view" data-status-panel="actions">
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>执行状态</h2>
+                <span class="mono">01 进行中</span>
+              </div>
+              <svg class="heartbeat focused" viewBox="0 0 160 48" aria-hidden="true">
+                <path class="heartbeat-guide" d="M0 25 H160"></path>
+                <path class="heartbeat-line" d="M0 26 L16 26 L22 24 L28 27 L40 26 L48 20 L56 31 L64 16 L72 28 L82 24 L96 26 L110 26 L120 18 L128 29 L140 23 L160 26"></path>
+              </svg>
+              <p class="muted">节奏更稳定，适合直接执行。</p>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>队列健康度</h2>
+                <span class="mono">紧凑</span>
+              </div>
+              <div class="balance-grid compact-balance">
+                <div class="balance-item">
+                  <span>就绪</span>
+                  <div class="progress-track"><span style="width: 72%"></span></div>
+                </div>
+                <div class="balance-item">
+                  <span>等待</span>
+                  <div class="progress-track"><span style="width: 28%"></span></div>
+                </div>
+              </div>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>辅助模式</h2>
+                <span class="mono">分块</span>
+              </div>
+              <p class="muted">Echo 会持续缩小第一步，直到执行真正开始。</p>
+            </section>
+          </div>
+
+          <div class="status-view" data-status-panel="reflections">
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>反思评分</h2>
+                <span class="mono">稳定</span>
+              </div>
+              <svg class="sparkline" viewBox="0 0 260 48" aria-hidden="true">
+                <path d="M2 30 L34 24 L66 28 L98 18 L130 20 L162 31 L194 26 L226 12 L258 16"></path>
+              </svg>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>压缩度</h2>
+                <span class="mono">简洁</span>
+              </div>
+              <p class="muted">线程正在朝更清晰的总结和更少重复提示收束。</p>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>主导主题</h2>
+                <span class="mono" id="reflection-theme">启动</span>
+              </div>
+              <p class="metric-title">相比持续推进，真正开始一项工作仍是更强的阻力点。</p>
+            </section>
+          </div>
+
+          <div class="status-view" data-status-panel="memory">
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>记忆地图</h2>
+                <span class="mono" id="memory-side-total">56</span>
+              </div>
+              <div class="memory-grid" id="memory-side-grid"></div>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>标签热度</h2>
+                <span class="mono">03 热点</span>
+              </div>
+              <div class="mini-tags" id="memory-tags">
+                <span class="status-badge">规划</span>
+                <span class="status-badge">学习</span>
+                <span class="status-badge muted-badge">动力</span>
+              </div>
+            </section>
+            <section class="instrument-panel">
+              <div class="panel-head">
+                <h2>连续性</h2>
+                <span class="mono">强</span>
+              </div>
+              <p class="muted">近期措辞、情绪线索和未完成事项仍然很容易被召回。</p>
+            </section>
+          </div>
+        </aside>
+      </section>
+    </main>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
