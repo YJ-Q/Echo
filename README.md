@@ -4,6 +4,8 @@ A memory-driven, emotionally aware personal AI companion — a **second-self sys
 
 Echo is not a chatbot. It speaks as an internal reflective voice, using "we" to mirror the user's own thinking.
 
+See [docs/VOICE.md](docs/VOICE.md) for Echo's complete voice and identity guidelines.
+
 ---
 
 ## Architecture
