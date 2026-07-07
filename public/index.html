@@ -95,78 +95,72 @@
           </header>
 
           <div class="workspace-view active" data-view-panel="now">
-            <section class="hero-band now-hero">
-              <article class="panel state-hero">
-                <div class="state-hero-layout">
-                  <div class="state-hero-copy">
+            <section class="now-shell">
+              <section class="content-card now-arrival-card">
+                <div class="now-arrival-main">
+                  <div class="now-arrival-copy">
                     <p class="panel-kicker">当前状态</p>
                     <strong class="hero-emotion" id="hero-emotion">平静</strong>
                     <p class="hero-copy" id="hero-copy">正在整理当前线索，准备继续推进。</p>
-                    <div class="metric-grid">
-                      <div class="metric-card">
-                        <span class="metric-key">当前聚焦</span>
-                        <strong id="hero-focus-topic">等待状态同步</strong>
-                      </div>
-                      <div class="metric-card">
-                        <span class="metric-key">学习进度</span>
-                        <strong id="hero-learning-ratio">0 / 0</strong>
-                      </div>
-                    </div>
                   </div>
 
-                  <div class="state-hero-visual" aria-hidden="true">
+                  <div class="now-arrival-visual" aria-hidden="true">
                     <div class="hero-orbit">
                       <span class="hero-orbit-core"></span>
                     </div>
                   </div>
                 </div>
-              </article>
 
-              <article class="panel action-hero">
-                <div class="panel-head">
+                <div class="now-arrival-rail">
+                  <article class="arrival-card arrival-focus-card">
+                    <span class="arrival-label">当前聚焦</span>
+                    <strong id="hero-focus-topic">等待状态同步</strong>
+                    <span class="arrival-meta" id="hero-learning-ratio">0 / 0</span>
+                  </article>
+
+                  <article class="arrival-card arrival-next-card">
+                    <div class="arrival-next-head">
+                      <span class="arrival-label">继续这条线</span>
+                      <span class="hero-pill mono" id="hero-focus-percentage">0%</span>
+                    </div>
+                    <strong id="hero-next-action">等待生成下一步</strong>
+                    <p id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</p>
+                    <div class="progress-track">
+                      <span id="hero-focus-track-fill" style="width: 0%"></span>
+                    </div>
+                    <button class="secondary-button" id="hero-start-action" type="button">把这一步带回对话</button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="content-card conversation-board">
+                <div class="board-header conversation-header">
                   <div>
-                    <p class="panel-kicker">下一步行动</p>
-                    <h2 id="hero-next-action">等待生成下一步</h2>
+                    <p class="panel-kicker">主对话流</p>
+                    <h2>先接住此刻，再慢慢续上</h2>
                   </div>
-                  <span class="hero-pill mono" id="hero-focus-percentage">0%</span>
+                  <div class="board-badges" id="board-badges"></div>
                 </div>
-                <p class="hero-copy" id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</p>
-                <div class="progress-track large">
-                  <span id="hero-focus-track-fill" style="width: 0%"></span>
-                </div>
-                <div class="hero-actions">
-                  <button class="secondary-button" id="hero-start-action" type="button">把这一步带回对话</button>
-                </div>
-              </article>
-            </section>
 
-            <section class="content-card conversation-board">
-              <div class="board-header">
-                <div>
-                  <p class="panel-kicker">主对话流</p>
-                  <h2>继续当前线索</h2>
-                </div>
-                <div class="board-badges" id="board-badges"></div>
-              </div>
+                <section class="timeline-panel" id="timeline-panel" aria-label="对话时间线"></section>
 
-              <section class="timeline-panel" id="timeline-panel" aria-label="对话时间线"></section>
-
-              <form class="composer" id="composer-form" aria-label="消息输入区">
-                <div class="composer-meta">
-                  <button class="quick-prompt" type="button" data-prompt="我完成了上一步，帮我判断下一步该做什么。">已完成上一步</button>
-                  <button class="quick-prompt" type="button" data-prompt="我有点卡住了，帮我把下一步再缩小一点。">我卡住了</button>
-                  <button class="quick-prompt" type="button" data-prompt="沿着刚才的线索继续。">继续当前线索</button>
-                </div>
-                <div class="composer-row">
-                  <input id="composer-input" type="text" placeholder="继续输入你现在最想先理清的一件事..." aria-label="继续对话" />
-                  <div class="composer-actions">
-                    <button class="secondary-button hidden" id="play-latest-echo" type="button">朗读最新回复</button>
-                    <button class="primary-button" id="composer-submit" type="submit">
-                      <span id="composer-submit-label">发送</span>
-                    </button>
+                <form class="composer" id="composer-form" aria-label="消息输入区">
+                  <div class="composer-meta">
+                    <button class="quick-prompt" type="button" data-prompt="我完成了上一步，帮我判断下一步该做什么。">已完成上一步</button>
+                    <button class="quick-prompt" type="button" data-prompt="我有点卡住了，帮我把下一步再缩小一点。">我卡住了</button>
+                    <button class="quick-prompt" type="button" data-prompt="沿着刚才的线索继续。">继续当前线索</button>
                   </div>
-                </div>
-              </form>
+                  <div class="composer-row">
+                    <input id="composer-input" type="text" placeholder="继续输入你现在最想先理清的一件事..." aria-label="继续对话" />
+                    <div class="composer-actions">
+                      <button class="secondary-button hidden" id="play-latest-echo" type="button">朗读最新回复</button>
+                      <button class="primary-button" id="composer-submit" type="submit">
+                        <span id="composer-submit-label">发送</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </section>
             </section>
           </div>
 
@@ -349,6 +343,10 @@
         </section>
 
         <aside class="status-column" aria-label="此刻页状态工作台">
+          <div class="status-column-intro">
+            <p class="panel-kicker">轻量工作台</p>
+            <h2>把还活着的线留在旁边</h2>
+          </div>
           <section class="instrument-panel state-panel-card">
             <div class="panel-head">
               <h2>当前状态</h2>

@@ -245,9 +245,10 @@ svg {
   position: relative;
   height: calc(100vh - 20px);
   min-height: 0;
+  overflow: auto;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 288px;
   gap: 18px;
   padding: 0 20px 18px;
   border: 1px solid rgba(255, 255, 255, 0.7);
@@ -400,7 +401,20 @@ svg {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding-top: 70px;
+  padding-top: 10px;
+}
+
+.status-column-intro {
+  display: grid;
+  gap: 4px;
+  padding: 4px 4px 2px;
+}
+
+.status-column-intro h2 {
+  margin: 0;
+  font-size: var(--font-h2);
+  line-height: 1.35;
+  font-weight: 600;
 }
 
 .topbar {
@@ -496,12 +510,11 @@ svg {
 
 .workspace-view.active {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
 }
 
-.hero-band,
 .content-card,
 .instrument-panel,
 .panel {
@@ -512,20 +525,10 @@ svg {
   backdrop-filter: blur(16px);
 }
 
-.hero-band {
-  padding: 16px;
-}
-
 .panel,
 .content-card,
 .instrument-panel {
   padding: 18px;
-}
-
-.now-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.88fr);
-  gap: 14px;
 }
 
 .single-hero {
@@ -538,23 +541,111 @@ svg {
   font-weight: 600;
 }
 
-.state-hero {
-  background:
-    radial-gradient(circle at top right, rgba(36, 99, 235, 0.08), transparent 32%),
-    rgba(255, 255, 255, 0.82);
+.now-shell {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
 }
 
-.state-hero-layout {
+.now-arrival-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 18px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(36, 99, 235, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.84));
+}
+
+.now-arrival-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 144px;
   gap: 18px;
   align-items: center;
+}
+
+.now-arrival-copy {
+  max-width: 580px;
+}
+
+.now-arrival-visual {
+  display: grid;
+  place-items: center;
+}
+
+.now-arrival-rail {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.74fr) minmax(280px, 1fr);
+  gap: 12px;
+}
+
+.arrival-card {
+  padding: 14px 16px;
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.arrival-focus-card {
+  display: grid;
+  align-content: space-between;
+  min-height: 120px;
+}
+
+.arrival-next-card {
+  display: grid;
+  gap: 10px;
+}
+
+.arrival-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arrival-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(36, 99, 235, 0.4);
+}
+
+.arrival-meta {
+  color: var(--color-text-secondary);
+  font-size: var(--font-small);
+}
+
+.arrival-next-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.arrival-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text);
+  font-size: var(--font-h2);
+  line-height: 1.45;
+}
+
+.arrival-next-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
 }
 
 .hero-emotion {
   display: block;
   margin-top: 10px;
-  font-size: clamp(28px, 3vw, 34px);
+  font-size: clamp(30px, 3.2vw, 38px);
   line-height: 1.08;
   letter-spacing: -0.03em;
   color: var(--color-blue);
@@ -691,35 +782,64 @@ svg {
 .conversation-board {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 14px;
+  gap: 16px;
   min-height: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.76)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8)),
     rgba(255, 255, 255, 0.7);
+  max-width: 880px;
+  width: 100%;
+  justify-self: center;
+  padding: 22px;
+}
+
+.conversation-header {
+  margin-bottom: 0;
+  align-items: end;
 }
 
 .timeline-panel {
   min-height: 0;
   overflow: auto;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding-right: 4px;
+  padding-right: 8px;
 }
 
 .timeline-row {
-  display: grid;
-  grid-template-columns: 50px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
 }
 
 .timeline-row time {
-  padding-top: 10px;
   font-size: var(--font-micro);
   color: var(--color-text-tertiary);
+  padding-inline: 6px;
 }
 
-.timeline-row.active .timeline-copy {
+.timeline-row.user {
+  align-items: flex-end;
+}
+
+.timeline-row.user time {
+  align-self: flex-end;
+}
+
+.timeline-row.user .timeline-copy {
+  align-self: flex-end;
+  background: rgba(17, 24, 39, 0.05);
+  border-bottom-right-radius: 8px;
+}
+
+.timeline-row.echo .timeline-copy {
+  align-self: flex-start;
+}
+
+.timeline-row.echo.active .timeline-copy,
+.timeline-row.typing .timeline-copy {
   border-color: var(--color-line-active);
   background: rgba(255, 255, 255, 0.88);
 }
@@ -730,20 +850,12 @@ svg {
 }
 
 .timeline-copy {
-  max-width: 86%;
-  padding: 12px 14px;
+  max-width: min(100%, 640px);
+  padding: 14px 16px;
   border: 1px solid rgba(24, 33, 47, 0.08);
-  border-radius: 20px;
+  border-radius: 18px;
   background: rgba(249, 251, 255, 0.94);
-}
-
-.timeline-row:nth-child(odd) .timeline-copy {
-  justify-self: start;
-}
-
-.timeline-row:nth-child(even) .timeline-copy {
-  justify-self: end;
-  background: rgba(17, 24, 39, 0.04);
+  box-shadow: var(--shadow-xs);
 }
 
 .timeline-copy h3,
@@ -752,9 +864,12 @@ svg {
 }
 
 .timeline-copy h3 {
-  margin-bottom: 4px;
-  font-size: var(--font-small);
+  margin-bottom: 6px;
+  font-size: var(--font-micro);
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
 }
 
 .timeline-copy p {
@@ -786,6 +901,8 @@ svg {
 .composer {
   display: grid;
   gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(24, 33, 47, 0.06);
 }
 
 .quick-prompt,
@@ -1092,15 +1209,15 @@ body[data-density="compact"] .main-window {
   padding-inline: 16px;
 }
 
-body[data-density="compact"] .now-hero,
-body[data-density="compact"] .state-hero-layout,
+body[data-density="compact"] .now-arrival-main,
+body[data-density="compact"] .now-arrival-rail,
 body[data-density="compact"] .workspace-grid.two-up,
 body[data-density="compact"] .inline-form {
   grid-template-columns: minmax(0, 1fr);
 }
 
 body[data-density="compact"] .status-column {
-  padding-top: 60px;
+  padding-top: 4px;
 }
 
 @media (max-width: 1320px) {

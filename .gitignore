@@ -3,6 +3,10 @@ node_modules/
 data/*.json
 data/*.sqlite
 data/*.sqlite-*
+data/**/*.json
+data/**/*.sqlite
+data/**/*.sqlite-*
+data/**/*.log
 data/exports/
 data/backups/
 !data/.gitkeep

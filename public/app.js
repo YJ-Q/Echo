@@ -218,6 +218,11 @@ function conciseText(value, fallback, limit = 26) {
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
 }
 
+function quoteForPrompt(value, fallback = "这一步") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
 function emotionCopy(emotion) {
   switch (emotion) {
     case "anxious": return "先缩小一步。";
@@ -349,6 +354,82 @@ function updateTtsAvailability() {
   dom.playLatestEchoButton.textContent = ttsRequesting ? "朗读中..." : "朗读最新回复";
 }
 
+function buildPromptFromContext(kind, payload = {}) {
+  switch (kind) {
+    case "next-action":
+      return `我想继续推进“${quoteForPrompt(payload.label, "当前动作")}”，你帮我把这一步说清楚。`;
+    case "learning-step":
+      return `围绕“${quoteForPrompt(payload.title, "当前学习步骤")}”这一步继续，帮我先确认现在最适合怎么做。`;
+    case "reflection":
+      return `结合刚才这条反思：“${quoteForPrompt(payload.summary, "最近的变化")}”，帮我提炼一个接下来可执行的小动作。`;
+    case "memory":
+      return `把这条记忆带回当前对话：“${quoteForPrompt(payload.note, "这条记忆")}”，帮我看看它对现在这一步有什么提醒。`;
+    case "focus":
+      return `我想继续围绕“${quoteForPrompt(payload.focus, "当前重点")}”推进，先帮我缩成一个更容易开始的小动作。`;
+    default:
+      return payload.text || "";
+  }
+}
+
+function fillComposerFromContext(kind, payload) {
+  const prompt = buildPromptFromContext(kind, payload);
+  if (!prompt) return;
+  setActiveView("now");
+  fillComposer(prompt);
+}
+
+function renderQuickPrompts(state) {
+  const emotion = state?.current_state?.emotion || "neutral";
+  const nextActionLabel = state?.next_action?.label;
+  const focus = state?.current_state?.focus;
+  const currentStepTitle =
+    state?.current_learning?.current_step?.title
+    || state?.active_learning?.[0]?.current_step?.title
+    || state?.active_learning?.[0]?.steps?.[state?.active_learning?.[0]?.current_step]?.title;
+
+  const prompts = [
+    nextActionLabel
+      ? {
+        label: "继续下一步",
+        prompt: buildPromptFromContext("next-action", { label: nextActionLabel })
+      }
+      : {
+        label: "继续当前线索",
+        prompt: "沿着刚才的线索继续，帮我先理清最值得推进的一步。"
+      },
+    currentStepTitle
+      ? {
+        label: "回到学习这步",
+        prompt: buildPromptFromContext("learning-step", { title: currentStepTitle })
+      }
+      : emotion === "anxious" || emotion === "distracted"
+        ? {
+          label: "帮我缩小一步",
+          prompt: "我有点卡住了，帮我把下一步再缩小一点。"
+        }
+        : {
+          label: "我完成一步了",
+          prompt: "我完成了上一步，帮我判断下一步该做什么。"
+        },
+    focus
+      ? {
+        label: "围绕当前重点",
+        prompt: buildPromptFromContext("focus", { focus })
+      }
+      : {
+        label: "继续当前线索",
+        prompt: "沿着刚才的线索继续。"
+      }
+  ];
+
+  dom.quickPromptButtons.forEach((button, index) => {
+    const config = prompts[index];
+    if (!config) return;
+    button.textContent = config.label;
+    button.dataset.prompt = config.prompt;
+  });
+}
+
 function ensureReflectionHistory() {
   let node = document.querySelector("#reflection-history");
   if (node) return node;
@@ -410,12 +491,17 @@ function renderTimeline() {
       minute: "2-digit",
       hour12: false
     }).format(new Date(entry.timestamp));
+    const roleClass = entry.typing
+      ? "typing"
+      : entry.actor === "你"
+        ? "user"
+        : "echo";
     const body = entry.typing
       ? `<div class="typing-dots" aria-label="输入中"><span></span><span></span><span></span></div>`
       : `<p>${escapeHtml(entry.text)}</p>`;
 
     return `
-      <article class="timeline-row${entry.active ? " active" : ""}${entry.tone === "error" ? " error" : ""}">
+      <article class="timeline-row ${roleClass}${entry.active ? " active" : ""}${entry.tone === "error" ? " error" : ""}">
         <time class="mono">${escapeHtml(timeText)}</time>
         <div class="timeline-copy">
           <h3>${escapeHtml(entry.actor)}</h3>
@@ -523,6 +609,7 @@ function renderLearnView(state) {
     currentActions.innerHTML = `
       <button class="mini-action" type="button" data-learning-session="${session.id}" data-learning-step="${currentStep}" data-learning-status="active">进行中</button>
       <button class="mini-action" type="button" data-learning-session="${session.id}" data-learning-step="${currentStep}" data-learning-status="done">完成</button>
+      <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(stepLabels[currentStep]?.title || learningView?.current_step?.title || "")}">带回对话</button>
     `;
   } else {
     currentActions.innerHTML = "";
@@ -546,6 +633,7 @@ function renderLearnView(state) {
         <div class="inline-actions">
           <button class="mini-action${status === "active" ? " selected" : ""}" type="button" data-learning-session="${session.id}" data-learning-step="${index}" data-learning-status="active"${isBusy ? " disabled" : ""}>进行中</button>
           <button class="mini-action${status === "done" ? " selected" : ""}" type="button" data-learning-session="${session.id}" data-learning-step="${index}" data-learning-status="done"${isBusy ? " disabled" : ""}>完成</button>
+          <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(step.title || "")}">带回对话</button>
         </div>
       </article>
     `;
@@ -617,7 +705,8 @@ function renderPrimaryActionCard(primaryAction, currentAction, nextAction) {
         ${canMutate
           ? `<button class="mini-action${status === "active" ? " selected" : ""}" type="button" data-action-id="${primaryAction.id}" data-action-status="active"${isBusy ? " disabled" : ""}>开始推进</button>
              <button class="mini-action${status === "done" ? " selected" : ""}" type="button" data-action-id="${primaryAction.id}" data-action-status="done"${isBusy ? " disabled" : ""}>完成主任务</button>
-             <button class="mini-action" type="button" data-action-id="${primaryAction.id}" data-action-status="dismissed"${isBusy ? " disabled" : ""}>移除主任务</button>`
+             <button class="mini-action" type="button" data-action-id="${primaryAction.id}" data-action-status="dismissed"${isBusy ? " disabled" : ""}>移除主任务</button>
+             <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(title)}">带回对话</button>`
           : `<button class="mini-action" type="button" data-compose-next="true">带回对话继续</button>`}
       </div>
     </article>
@@ -668,6 +757,7 @@ function renderActionsView(state) {
           <button class="mini-action${action.status === "active" ? " selected" : ""}" type="button" data-action-id="${action.id}" data-action-status="active"${isBusy ? " disabled" : ""}>进行中</button>
           <button class="mini-action${action.status === "done" ? " selected" : ""}" type="button" data-action-id="${action.id}" data-action-status="done"${isBusy ? " disabled" : ""}>完成</button>
           <button class="mini-action" type="button" data-action-id="${action.id}" data-action-status="dismissed"${isBusy ? " disabled" : ""}>移除</button>
+          <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(action.title || "")}">带回对话</button>
         </div>
       </article>
     `;
@@ -704,6 +794,9 @@ function renderReflectionsView() {
       <article class="reflection-card">
         <span class="mono">${escapeHtml(item.date || "recent")}</span>
         <p>${escapeHtml(conciseText(item.summary || item.echo_reflection, "等待摘要。", 28))}</p>
+        <div class="inline-actions">
+          <button class="mini-action" type="button" data-compose-kind="reflection" data-compose-text="${escapeHtml(item.summary || item.echo_reflection || "")}">带回对话</button>
+        </div>
       </article>
     `).join("")
     : `<div class="empty-state">还没有近期总结。</div>`;
@@ -762,6 +855,7 @@ function renderMemoryView() {
           <div class="inline-actions">
             <button class="mini-action" type="button" data-memory-id="${memory.id}" data-memory-mode="pin"${isBusy ? " disabled" : ""}>置顶</button>
             <button class="mini-action" type="button" data-memory-id="${memory.id}" data-memory-mode="boost"${isBusy ? " disabled" : ""}>提升优先级</button>
+            <button class="mini-action" type="button" data-compose-kind="memory" data-compose-text="${escapeHtml(memory.memory_note || memory.user_input || memory.echo_response || "")}">带回对话</button>
           </div>
         </article>
       `;
@@ -772,6 +866,7 @@ function renderMemoryView() {
 function renderState(state) {
   currentState = state || structuredClone(FALLBACK_STATE);
   renderBadges(currentState);
+  renderQuickPrompts(currentState);
   renderNowView(currentState);
   renderLearnView(currentState);
   renderActionsView(currentState);
@@ -894,6 +989,7 @@ async function submitMessage(event) {
     dom.composerInput.value = "";
     pendingUserMessage = "";
     renderTimeline();
+    showToast(getErrorMessage(error, "刚才这条消息还没成功发出，请稍后再试。"), "error", 3200);
   } finally {
     setSubmitting(false);
   }
@@ -1048,6 +1144,18 @@ function bindProductInteractions() {
     if (composeButton) {
       setActiveView("now");
       fillComposer(`我想继续推进"${currentState?.next_action?.label || "当前动作"}"`);
+      return;
+    }
+
+    const contextualComposeButton = event.target.closest("[data-compose-kind]");
+    if (contextualComposeButton) {
+      fillComposerFromContext(contextualComposeButton.dataset.composeKind, {
+        text: contextualComposeButton.dataset.composeText,
+        label: contextualComposeButton.dataset.composeText,
+        title: contextualComposeButton.dataset.composeText,
+        summary: contextualComposeButton.dataset.composeText,
+        note: contextualComposeButton.dataset.composeText
+      });
       return;
     }
 

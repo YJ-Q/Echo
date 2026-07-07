@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Echo 当前系统设计规范</title>
+    <style>
+      :root {
+        --color-white: #ffffff;
+        --color-bg: #f5f7fb;
+        --color-bg-soft: #eef3f8;
+        --color-surface: rgba(255, 255, 255, 0.84);
+        --color-surface-strong: rgba(255, 255, 255, 0.95);
+        --color-surface-soft: rgba(250, 252, 255, 0.76);
+        --color-ink: #111827;
+        --color-text: #18212f;
+        --color-text-secondary: #5f6b7c;
+        --color-text-tertiary: #8a94a6;
+        --color-line: rgba(24, 33, 47, 0.08);
+        --color-line-strong: rgba(24, 33, 47, 0.14);
+        --color-line-active: rgba(36, 99, 235, 0.2);
+        --color-blue: #2463eb;
+        --color-blue-hover: #1f57d0;
+        --color-blue-deep: #1544b2;
+        --color-blue-soft: rgba(36, 99, 235, 0.1);
+        --color-blue-surface: rgba(36, 99, 235, 0.06);
+        --shadow-xs: 0 2px 8px rgba(15, 23, 42, 0.04);
+        --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
+        --shadow-md: 0 20px 60px rgba(15, 23, 42, 0.08);
+        --radius-xs: 10px;
+        --radius-sm: 12px;
+        --radius-md: 16px;
+        --radius-lg: 20px;
+        --radius-xl: 24px;
+        --radius-2xl: 28px;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 20px;
+        --space-6: 24px;
+        --space-7: 28px;
+        --space-8: 32px;
+        --space-10: 40px;
+        --space-12: 48px;
+        --font-display: 34px;
+        --font-h1: 24px;
+        --font-h2: 18px;
+        --font-h3: 15px;
+        --font-body: 14px;
+        --font-small: 13px;
+        --font-micro: 11px;
+        --motion-fast: 120ms;
+        --motion-base: 180ms;
+        --motion-slow: 260ms;
+        --motion-curve: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top left, rgba(36, 99, 235, 0.08), transparent 22%),
+          radial-gradient(circle at bottom right, rgba(36, 99, 235, 0.07), transparent 20%),
+          linear-gradient(180deg, #f9fbfe, var(--color-bg));
+        color: var(--color-text);
+        font-family:
+          "SF Pro Display",
+          "SF Pro Text",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          sans-serif;
+        font-size: var(--font-body);
+        line-height: 1.65;
+      }
+
+      body {
+        padding: 18px;
+      }
+
+      a {
+        color: var(--color-blue-deep);
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--color-blue-hover);
+      }
+
+      .mono {
+        font-family: "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+      }
+
+      .spec-shell {
+        width: min(1480px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 18px;
+      }
+
+      .spec-sidebar,
+      .spec-main {
+        border: 1px solid rgba(255, 255, 255, 0.38);
+        border-radius: var(--radius-2xl);
+        background: var(--color-surface);
+        backdrop-filter: blur(22px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .spec-sidebar {
+        position: sticky;
+        top: 18px;
+        align-self: start;
+        padding: var(--space-7);
+      }
+
+      .brand-mark {
+        width: 28px;
+        height: 40px;
+        display: grid;
+        grid-template-columns: repeat(3, 7px);
+        grid-auto-rows: 6px;
+        gap: 3px;
+        color: var(--color-blue);
+        margin-bottom: var(--space-5);
+      }
+
+      .brand-mark span {
+        background: currentColor;
+      }
+
+      .brand-mark span:nth-child(4),
+      .brand-mark span:nth-child(8) {
+        grid-column: 1;
+      }
+
+      .sidebar-kicker,
+      .section-kicker,
+      .chip-label {
+        margin: 0;
+        color: var(--color-text-tertiary);
+        font-size: var(--font-micro);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-title {
+        margin: 10px 0 8px;
+        font-size: 26px;
+        line-height: 1.2;
+      }
+
+      .sidebar-copy {
+        margin: 0 0 var(--space-6);
+        color: var(--color-text-secondary);
+      }
+
+      .sidebar-note {
+        margin: var(--space-6) 0 0;
+        padding: var(--space-4);
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-soft);
+        color: var(--color-text-secondary);
+      }
+
+      .toc {
+        display: grid;
+        gap: 10px;
+      }
+
+      .toc a {
+        padding: 12px 14px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        color: var(--color-text-secondary);
+        background: rgba(255, 255, 255, 0.44);
+        transition:
+          border-color var(--motion-base) var(--motion-curve),
+          background var(--motion-base) var(--motion-curve),
+          color var(--motion-base) var(--motion-curve),
+          transform var(--motion-base) var(--motion-curve);
+      }
+
+      .toc a:hover {
+        border-color: var(--color-line-active);
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--color-text);
+        transform: translateX(4px);
+      }
+
+      .spec-main {
+        padding: var(--space-8);
+      }
+
+      .hero-panel {
+        overflow: hidden;
+        position: relative;
+        padding: var(--space-10);
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 32px;
+        background:
+          radial-gradient(circle at top right, rgba(36, 99, 235, 0.12), transparent 26%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.78));
+        box-shadow: var(--shadow-sm);
+      }
+
+      .hero-panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -80px -80px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(36, 99, 235, 0.14), transparent 68%);
+      }
+
+      .hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+        gap: var(--space-8);
+      }
+
+      .hero-title {
+        margin: 12px 0 14px;
+        font-size: clamp(30px, 3.2vw, 42px);
+        line-height: 1.1;
+      }
+
+      .hero-copy {
+        max-width: 680px;
+        margin: 0;
+        color: var(--color-text-secondary);
+        font-size: 15px;
+      }
+
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: var(--space-6);
+      }
+
+      .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border: 1px solid var(--color-line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.76);
+        color: var(--color-text-secondary);
+      }
+
+      .hero-sample {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+
+      .sample-card {
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: var(--radius-xl);
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: var(--shadow-xs);
+      }
+
+      .sample-card strong,
+      .sample-card p {
+        display: block;
+      }
+
+      .sample-card strong {
+        margin: 8px 0 6px;
+        font-size: 16px;
+      }
+
+      .sample-card p {
+        margin: 0;
+        color: var(--color-text-secondary);
+      }
+
+      .spec-section {
+        margin-top: var(--space-12);
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: var(--space-5);
+        margin-bottom: var(--space-6);
+      }
+
+      .section-head h2 {
+        margin: 10px 0 0;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      .section-desc {
+        max-width: 720px;
+        margin: 0;
+        color: var(--color-text-secondary);
+      }
+
+      .section-tag {
+        padding: 9px 12px;
+        border: 1px solid var(--color-line);
+        border-radius: 999px;
+        color: var(--color-text-secondary);
+        background: var(--color-surface-soft);
+        white-space: nowrap;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .info-card,
+      .example-card,
+      .token-card,
+      .wire-card,
+      .check-card {
+        padding: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.38);
+        border-radius: var(--radius-xl);
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow-xs);
+      }
+
+      .info-card h3,
+      .example-card h3,
+      .token-card h3,
+      .wire-card h3,
+      .check-card h3 {
+        margin: 8px 0 12px;
+        font-size: 18px;
+      }
+
+      .info-card p,
+      .example-card p,
+      .token-card p,
+      .wire-card p,
+      .check-card p {
+        margin: 0;
+        color: var(--color-text-secondary);
+      }
+
+      .rule-list,
+      .do-dont-list,
+      .mini-list,
+      .check-list {
+        display: grid;
+        gap: 10px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .rule-list li,
+      .do-dont-list li,
+      .mini-list li,
+      .check-list li {
+        padding: 12px 14px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-line);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .do-dont {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .do-card {
+        border-color: rgba(27, 94, 32, 0.14);
+        background: linear-gradient(180deg, rgba(236, 253, 245, 0.9), rgba(255, 255, 255, 0.76));
+      }
+
+      .dont-card {
+        border-color: rgba(191, 38, 0, 0.14);
+        background: linear-gradient(180deg, rgba(255, 244, 242, 0.94), rgba(255, 255, 255, 0.78));
+      }
+
+      .token-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 18px;
+      }
+
+      .swatch-row {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .swatch {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+      }
+
+      .swatch-chip {
+        height: 56px;
+        border-radius: 16px;
+        border: 1px solid rgba(17, 24, 39, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+      }
+
+      .swatch-meta strong,
+      .swatch-meta span {
+        display: block;
+      }
+
+      .swatch-meta span {
+        color: var(--color-text-secondary);
+      }
+
+      .type-scale {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .type-row {
+        display: grid;
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 14px;
+        align-items: baseline;
+      }
+
+      .type-size {
+        color: var(--color-text-tertiary);
+        font-size: 12px;
+      }
+
+      .layout-preview {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr) 260px;
+        gap: 14px;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(240, 245, 252, 0.92), rgba(255, 255, 255, 0.68));
+      }
+
+      .layout-column {
+        min-height: 230px;
+        padding: 16px;
+        border: 1px solid var(--color-line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .layout-column strong {
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .layout-lines {
+        display: grid;
+        gap: 10px;
+      }
+
+      .layout-lines span {
+        display: block;
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(36, 99, 235, 0.16), rgba(36, 99, 235, 0.04));
+      }
+
+      .component-showcase {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 18px;
+      }
+
+      .conversation-demo {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .bubble {
+        max-width: 82%;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid var(--color-line);
+        box-shadow: var(--shadow-xs);
+      }
+
+      .bubble.echo {
+        justify-self: start;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .bubble.user {
+        justify-self: end;
+        background: rgba(36, 99, 235, 0.1);
+        border-color: rgba(36, 99, 235, 0.18);
+      }
+
+      .bubble.typing {
+        justify-self: start;
+        background: rgba(248, 250, 253, 0.88);
+        color: var(--color-text-secondary);
+      }
+
+      .composer-demo {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .prompt-row,
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .prompt-chip,
+      .button-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid var(--color-line);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--color-text-secondary);
+      }
+
+      .button-chip.primary {
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--color-blue), #3a78ff);
+        color: var(--color-white);
+      }
+
+      .input-demo {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        border: 1px solid var(--color-line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--color-text-tertiary);
+      }
+
+      .page-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .page-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .page-badges span {
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--color-line);
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--color-text-secondary);
+      }
+
+      .wire-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .wire-block {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .wire-block span {
+        display: block;
+        min-height: 46px;
+        border: 1px solid var(--color-line);
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 246, 253, 0.78));
+      }
+
+      .wire-block span:first-child {
+        min-height: 84px;
+      }
+
+      .wire-block.two-up {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .wire-block.two-up span:first-child {
+        grid-column: 1 / -1;
+      }
+
+      .motion-grid,
+      .check-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .motion-bars {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .motion-bar {
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid var(--color-line);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .motion-bar strong,
+      .motion-bar span {
+        display: block;
+      }
+
+      .motion-bar span {
+        color: var(--color-text-secondary);
+      }
+
+      .footer-note {
+        margin-top: var(--space-12);
+        padding: 18px 20px;
+        border: 1px solid var(--color-line);
+        border-radius: var(--radius-xl);
+        background: linear-gradient(180deg, rgba(240, 247, 255, 0.88), rgba(255, 255, 255, 0.72));
+        color: var(--color-text-secondary);
+      }
+
+      @media (max-width: 1120px) {
+        .spec-shell,
+        .hero-grid,
+        .card-grid,
+        .token-grid,
+        .component-showcase,
+        .page-grid,
+        .wire-grid,
+        .motion-grid,
+        .check-grid,
+        .do-dont {
+          grid-template-columns: 1fr;
+        }
+
+        .layout-preview {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 860px) {
+        body {
+          padding: 12px;
+        }
+
+        .spec-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .spec-sidebar {
+          position: static;
+        }
+
+        .spec-main,
+        .spec-sidebar,
+        .hero-panel {
+          padding: var(--space-6);
+        }
+
+        .section-head {
+          align-items: start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="spec-shell">
+      <aside class="spec-sidebar">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span>
+          <span></span><span></span><span></span>
+          <span></span>
+          <span></span><span></span><span></span>
+        </div>
+        <p class="sidebar-kicker">Echo UI System</p>
+        <h1 class="sidebar-title">当前系统设计规范</h1>
+        <p class="sidebar-copy">
+          这不是理想化愿景稿，而是一份围绕当前已实现界面整理出的约束文档。后续所有 UI 优化，都先以这份规范为边界，再逐步做强化与升级。
+        </p>
+
+        <nav class="toc" aria-label="目录导航">
+          <a href="#principles">01 原则与定位</a>
+          <a href="#tokens">02 视觉令牌</a>
+          <a href="#layout">03 布局骨架</a>
+          <a href="#components">04 核心组件</a>
+          <a href="#pages">05 页面规则</a>
+          <a href="#motion">06 动效与响应式</a>
+          <a href="#checklist">07 验收清单</a>
+        </nav>
+
+        <div class="sidebar-note">
+          <strong>适用范围</strong><br />
+          当前桌面端工作区 UI，尤其是 `Now / 学习 / 行动 / 反思 / 记忆` 五个主视图。
+        </div>
+      </aside>
+
+      <main class="spec-main">
+        <section class="hero-panel">
+          <div class="hero-grid">
+            <div>
+              <p class="section-kicker">Document Snapshot</p>
+              <h2 class="hero-title">把 Echo 约束成一个能接住情绪、承接对话、再轻轻推进行动的桌面空间</h2>
+              <p class="hero-copy">
+                Echo 不应该长成任务控制台，也不应该像数据仪表盘。当前系统最重要的体验目标，是让用户愿意回来、愿意继续说、愿意顺着眼前这条线再往前一点。
+              </p>
+              <div class="hero-meta">
+                <span class="meta-chip"><span class="mono">Updated</span> 2026-07-07</span>
+                <span class="meta-chip"><span class="mono">Tone</span> 安静、温和、清晰、低压</span>
+                <span class="meta-chip"><span class="mono">Priority</span> 对话中心 > 当前主线 > 轻量结构</span>
+              </div>
+            </div>
+
+            <div class="hero-sample">
+              <div class="sample-card">
+                <p class="chip-label">Current Focus</p>
+                <strong>先接住此刻，再慢慢续上</strong>
+                <p>主对话永远是第一焦点，信息结构只为承接对话服务。</p>
+              </div>
+              <div class="sample-card">
+                <p class="chip-label">What Echo Is Not</p>
+                <strong>不是高压推进器</strong>
+                <p>避免 KPI 感、避免面板堆叠、避免“立刻安排你的一天”式控制感。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="spec-section" id="principles">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">01 Principles</p>
+              <h2>原则与定位</h2>
+            </div>
+            <span class="section-tag">先陪伴，再组织</span>
+          </div>
+          <p class="section-desc">
+            这一部分定义 Echo 的产品气质与 UI 判断标准。只要后续设计方案违背这里的原则，即使视觉更炫，也不应进入主产品。
+          </p>
+
+          <div class="card-grid">
+            <article class="info-card">
+              <p class="chip-label">Product Position</p>
+              <h3>Echo 是陪伴空间，不是任务系统</h3>
+              <p>
+                界面需要同时承接四件事：接住用户状态、保持主对话、保留当前主线、用轻量结构支持学习与成长记录。
+              </p>
+              <ul class="rule-list">
+                <li>判断标准不是“信息更多”，而是“用户更容易回来、更容易继续说、更容易接上当前这条线”。</li>
+                <li>学习、行动、反思、记忆都属于主对话的延伸层，不得夺走系统中心。</li>
+                <li>推荐、提醒、任务安排都要像陪伴式提议，而不是控制式派发。</li>
+              </ul>
+            </article>
+
+            <article class="info-card">
+              <p class="chip-label">Experience Rules</p>
+              <h3>当前版本的四条体验原则</h3>
+              <ul class="rule-list">
+                <li>先接住，再引导。</li>
+                <li>先对话，再管理。</li>
+                <li>先保留主线，再展开信息。</li>
+                <li>先轻量可继续，再补足层级与结构。</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="do-dont" style="margin-top: 18px;">
+            <article class="example-card do-card">
+              <p class="chip-label">Should Feel Like</p>
+              <h3>应当呈现的气质</h3>
+              <ul class="do-dont-list">
+                <li>安静，不吵闹。</li>
+                <li>温和，不命令。</li>
+                <li>清晰，但不过度硬朗。</li>
+                <li>轻微活着，有呼吸感，但不过度拟人表演。</li>
+              </ul>
+            </article>
+
+            <article class="example-card dont-card">
+              <p class="chip-label">Must Avoid</p>
+              <h3>明确要排除的表达</h3>
+              <ul class="do-dont-list">
+                <li>仪表盘式任务管理感。</li>
+                <li>炫技 AI 面板感。</li>
+                <li>情绪表演过重的“陪聊宠物”感。</li>
+                <li>多个同等级焦点同时争夺注意力。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-section" id="tokens">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">02 Tokens</p>
+              <h2>视觉令牌</h2>
+            </div>
+            <span class="section-tag">来自当前已实现样式</span>
+          </div>
+
+          <div class="token-grid">
+            <article class="token-card">
+              <p class="chip-label">Color Palette</p>
+              <h3>颜色不是装饰，而是压力管理工具</h3>
+              <p>当前系统以雾白和冷蓝为主，蓝色只用于“轻度聚焦”和“被温柔提起”的位置，不用于制造强迫推进感。</p>
+              <div class="swatch-row">
+                <div class="swatch">
+                  <div class="swatch-chip" style="background:#f5f7fb;"></div>
+                  <div class="swatch-meta">
+                    <strong>Background</strong>
+                    <span class="mono">#f5f7fb</span>
+                  </div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-chip" style="background:rgba(255,255,255,0.84);"></div>
+                  <div class="swatch-meta">
+                    <strong>Surface</strong>
+                    <span class="mono">rgba(255,255,255,0.84)</span>
+                  </div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-chip" style="background:#2463eb;"></div>
+                  <div class="swatch-meta">
+                    <strong>Accent Blue</strong>
+                    <span class="mono">#2463eb</span>
+                  </div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-chip" style="background:#18212f;"></div>
+                  <div class="swatch-meta">
+                    <strong>Primary Text</strong>
+                    <span class="mono">#18212f</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="token-card">
+              <p class="chip-label">Type Scale</p>
+              <h3>排版以“低压阅读”优先</h3>
+              <p>标题层级存在，但不靠极端大小差制造压迫。主阅读区始终要保持舒适和可停留。</p>
+              <div class="type-scale">
+                <div class="type-row">
+                  <span class="type-size mono">34px</span>
+                  <strong style="font-size:34px; line-height:1.08;">规范页主标题 / 气质陈述</strong>
+                </div>
+                <div class="type-row">
+                  <span class="type-size mono">24px</span>
+                  <strong style="font-size:24px;">页面主标题 / 重要分区</strong>
+                </div>
+                <div class="type-row">
+                  <span class="type-size mono">18px</span>
+                  <strong style="font-size:18px;">卡片标题 / 次级标题</strong>
+                </div>
+                <div class="type-row">
+                  <span class="type-size mono">14px</span>
+                  <span style="font-size:14px;">正文基准字号，用于大多数说明与对话文本。</span>
+                </div>
+                <div class="type-row">
+                  <span class="type-size mono">11-13px</span>
+                  <span style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase;">Kicker / Label / Meta</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-section" id="layout">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">03 Layout</p>
+              <h2>布局骨架</h2>
+            </div>
+            <span class="section-tag">三层桌面结构</span>
+          </div>
+          <p class="section-desc">
+            当前桌面端使用稳定的三层骨架。这个结构不是为了“信息最大化”，而是为了让产品存在感、对话空间与连续性提示各司其职。
+          </p>
+
+          <div class="card-grid">
+            <article class="info-card">
+              <p class="chip-label">Shell Structure</p>
+              <h3>主骨架职责</h3>
+              <ul class="rule-list">
+                <li><span class="mono">nav-rail</span>：页面切换与产品存在感，宽度固定，视觉上更像呼吸中的书签，而不是功能树。</li>
+                <li><span class="mono">main-window</span>：承载所有核心信息，是用户主要停留区域。</li>
+                <li><span class="mono">status-column</span>：只在 Now 页作为轻量侧轨出现，用来保留连续性，不承接主任务流。</li>
+              </ul>
+            </article>
+
+            <article class="info-card">
+              <p class="chip-label">Window Logic</p>
+              <h3>主窗口结构</h3>
+              <ul class="rule-list">
+                <li><span class="mono">app-titlebar</span>：桌面身份与同步状态。</li>
+                <li><span class="mono">topbar</span>：当前视图名称、说明与时钟信息。</li>
+                <li><span class="mono">workspace-view</span>：页面实际内容区，各视图布局遵守同一节奏。</li>
+              </ul>
+            </article>
+          </div>
+
+          <article class="example-card" style="margin-top:18px;">
+            <p class="chip-label">Layout Preview</p>
+            <h3>推荐的空间优先级</h3>
+            <p>左侧稳定，中央最重，右侧轻量。任何新增功能都不应破坏这个注意力流向。</p>
+            <div class="layout-preview">
+              <div class="layout-column">
+                <strong>Nav Rail</strong>
+                <div class="layout-lines">
+                  <span></span><span style="width:82%;"></span><span style="width:70%;"></span>
+                </div>
+              </div>
+              <div class="layout-column">
+                <strong>Main Window</strong>
+                <div class="layout-lines">
+                  <span style="width:64%;"></span>
+                  <span></span>
+                  <span style="width:92%;"></span>
+                  <span style="width:76%;"></span>
+                  <span style="width:88%;"></span>
+                </div>
+              </div>
+              <div class="layout-column">
+                <strong>Status Column</strong>
+                <div class="layout-lines">
+                  <span style="width:78%;"></span>
+                  <span style="width:66%;"></span>
+                  <span style="width:84%;"></span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="spec-section" id="components">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">04 Components</p>
+              <h2>核心组件规则</h2>
+            </div>
+            <span class="section-tag">对话必须是系统主角</span>
+          </div>
+
+          <div class="component-showcase">
+            <article class="example-card">
+              <p class="chip-label">Conversation Board</p>
+              <h3>主对话板</h3>
+              <p>对话区必须始终像一个可停留、可继续、可回来的空间，而不是即时消息列表或客服工单面板。</p>
+              <div class="conversation-demo">
+                <div class="bubble echo">先接住你现在的状态，我们沿着刚才那条线慢慢续上。</div>
+                <div class="bubble user">我有点卡住了，但还是想继续往前推一点。</div>
+                <div class="bubble echo">那就不扩太大，先把下一步缩成一个现在就能做的动作。</div>
+                <div class="bubble typing">Echo 正在回应...</div>
+              </div>
+              <ul class="mini-list">
+                <li>Echo 气泡左侧落位，用户气泡右侧落位，强化“陪伴式并行”而非对抗问答。</li>
+                <li>消息宽度不满屏，保留呼吸边界。</li>
+                <li>打字态必须轻，不做夸张动画和高频闪烁。</li>
+              </ul>
+            </article>
+
+            <article class="example-card">
+              <p class="chip-label">Composer</p>
+              <h3>输入区与快捷提词</h3>
+              <p>输入区是延续对话的入口，不是命令行。快捷提词要像“给用户搭把手”，而不是催促按钮。</p>
+              <div class="composer-demo">
+                <div class="prompt-row">
+                  <span class="prompt-chip">已完成上一步</span>
+                  <span class="prompt-chip">我卡住了</span>
+                  <span class="prompt-chip">继续当前线索</span>
+                </div>
+                <div class="input-demo">继续输入你现在最想先理清的一件事...</div>
+                <div class="button-row">
+                  <span class="button-chip">朗读最新回复</span>
+                  <span class="button-chip primary">发送</span>
+                </div>
+              </div>
+              <ul class="mini-list">
+                <li>快捷提词不超过 3 个，且必须贴近当前情境。</li>
+                <li>主按钮清晰可见，但不应做出强推进感的高饱和强调。</li>
+                <li>任何“推荐任务”都优先通过对话语境进入，而不是直接替换输入区中心地位。</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="card-grid" style="margin-top:18px;">
+            <article class="info-card">
+              <p class="chip-label">Arrival Cards</p>
+              <h3>Now 页到达卡片</h3>
+              <ul class="rule-list">
+                <li>到达卡负责承接“你现在在哪里”，不是展示所有统计。</li>
+                <li>左侧为情绪与状态陈述，右侧为当前焦点与下一步。</li>
+                <li>卡片中的 CTA 只允许一条主延续动作，例如“把这一步带回对话”。</li>
+              </ul>
+            </article>
+
+            <article class="info-card">
+              <p class="chip-label">Status Column</p>
+              <h3>右侧侧轨</h3>
+              <ul class="rule-list">
+                <li>右侧只保留“还活着的线”，不堆叠冗余模块。</li>
+                <li>用于轻提醒、连续性提示、成就回声，不用于主操作。</li>
+                <li>在较窄屏幕下可以隐藏，证明它不是主体验依赖项。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-section" id="pages">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">05 Pages</p>
+              <h2>页面规则</h2>
+            </div>
+            <span class="section-tag">一个页面只保留一个最强焦点</span>
+          </div>
+
+          <div class="page-grid">
+            <article class="example-card">
+              <p class="chip-label">Now</p>
+              <h3>此刻页是系统中心</h3>
+              <p>Now 页负责承接状态、继续主对话、保留当前主线，是整个产品最重要的一页。</p>
+              <div class="page-badges">
+                <span>状态到达</span>
+                <span>主对话流</span>
+                <span>轻量连续性侧轨</span>
+              </div>
+              <ul class="mini-list">
+                <li>主对话必须处于页面视觉中心，并且留出足够纵深。</li>
+                <li>任何学习、任务、记忆信息进入 Now 页时都只能以“下一条线索”形式出现。</li>
+              </ul>
+            </article>
+
+            <article class="example-card">
+              <p class="chip-label">Learn / Actions / Reflections / Memory</p>
+              <h3>四个专题页是延伸层</h3>
+              <p>这些页面允许结构化信息更完整，但仍然必须保持“当前一步”逻辑，不能长成独立的管理后台。</p>
+              <div class="page-badges">
+                <span>当前学习线</span>
+                <span>当前任务队列</span>
+                <span>近期反思</span>
+                <span>重要记忆层</span>
+              </div>
+              <ul class="mini-list">
+                <li>每页只强调一个当前动作或当前主题。</li>
+                <li>允许从专题页把内容“带回对话”，不鼓励在专题页内闭环一切。</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="wire-grid" style="margin-top:18px;">
+            <article class="wire-card">
+              <p class="chip-label">Wireframe</p>
+              <h3>Now 页</h3>
+              <p>顶部状态卡 + 对话板 + 轻侧轨</p>
+              <div class="wire-block">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </article>
+
+            <article class="wire-card">
+              <p class="chip-label">Wireframe</p>
+              <h3>学习 / 行动页</h3>
+              <p>主题英雄区 + 双栏内容或单栏队列</p>
+              <div class="wire-block two-up">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </article>
+
+            <article class="wire-card">
+              <p class="chip-label">Wireframe</p>
+              <h3>反思 / 记忆页</h3>
+              <p>总结、模式、片段三者分层，但焦点仍然单一</p>
+              <div class="wire-block">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-section" id="motion">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">06 Motion</p>
+              <h2>动效与响应式</h2>
+            </div>
+            <span class="section-tag">轻微活着，不喧宾夺主</span>
+          </div>
+
+          <div class="motion-grid">
+            <article class="check-card">
+              <p class="chip-label">Motion Rules</p>
+              <h3>动效规范</h3>
+              <div class="motion-bars">
+                <div class="motion-bar">
+                  <strong>Fast / 120ms</strong>
+                  <span>按钮 hover、chip 切换、轻微状态反馈。</span>
+                </div>
+                <div class="motion-bar">
+                  <strong>Base / 180ms</strong>
+                  <span>卡片层级变化、导航切换、输入反馈。</span>
+                </div>
+                <div class="motion-bar">
+                  <strong>Slow / 260ms</strong>
+                  <span>页面级淡入、启动页消退、情绪光晕等呼吸感动画。</span>
+                </div>
+              </div>
+              <ul class="mini-list">
+                <li>曲线统一采用柔和减速，不使用弹跳或激进位移。</li>
+                <li>动画的目的应是“让状态被感觉到”，而不是“展示产品很聪明”。</li>
+              </ul>
+            </article>
+
+            <article class="check-card">
+              <p class="chip-label">Responsive Rules</p>
+              <h3>响应式优先级</h3>
+              <ul class="check-list">
+                <li>先保留主对话与主内容，再考虑压缩装饰区。</li>
+                <li>窄屏下右侧侧轨可隐藏，证明其始终是从属结构。</li>
+                <li>多栏页面收束为单栏时，保持内容顺序不打乱“当前一步”的逻辑。</li>
+                <li>移动端如果后续单做版本，应重新定义骨架，而不是机械缩放桌面布局。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-section" id="checklist">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">07 Checklist</p>
+              <h2>验收清单</h2>
+            </div>
+            <span class="section-tag">讨论新方案前先过这一轮</span>
+          </div>
+
+          <div class="check-grid">
+            <article class="check-card">
+              <p class="chip-label">Function + Experience</p>
+              <h3>功能落地时要检查</h3>
+              <ul class="check-list">
+                <li>是否仍然以主对话为中心，而不是让新功能夺走主舞台。</li>
+                <li>是否帮助用户更容易回来、继续说、继续做，而不是增加额外理解成本。</li>
+                <li>是否把推荐、提醒、任务安排表达成提议，而不是指令。</li>
+                <li>是否保留了“当前主线”这一唯一最强焦点。</li>
+              </ul>
+            </article>
+
+            <article class="check-card">
+              <p class="chip-label">Visual + Tone</p>
+              <h3>界面更新时要检查</h3>
+              <ul class="check-list">
+                <li>有没有产生仪表盘感、管理后台感、AI 炫技面板感。</li>
+                <li>颜色、动效、文案有没有把产品变得太兴奋、太命令、太表演。</li>
+                <li>页面焦点是否过多，是否存在多个区域同时大声说话。</li>
+                <li>新增样式是否仍与当前白雾蓝调、圆角玻璃层级保持一致。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <div class="footer-note">
+          这份规范页建议作为后续 UI 讨论的基线文档使用。下一步如果你愿意，我们可以直接在这份 HTML 上继续加两类内容：
+          1. 更细的组件禁用话术与交互守则。
+          2. 每个页面的高保真目标稿约束。
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
