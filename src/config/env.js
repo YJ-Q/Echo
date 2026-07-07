@@ -1,4 +1,4 @@
-const SUPPORTED_PROVIDERS = ['openai', 'anthropic', 'local'];
+const SUPPORTED_PROVIDERS = ['openai', 'anthropic', 'siliconflow', 'local'];
 
 export function loadRuntimeConfig(env = process.env) {
   const port = parsePort(env.PORT);
@@ -21,8 +21,12 @@ export function loadRuntimeConfig(env = process.env) {
     warnings.push('ANTHROPIC_API_KEY is not set; Echo will fall back to the local provider if Anthropic fails.');
   }
 
+  if (llmProvider === 'siliconflow' && !env.SILICONFLOW_API_KEY) {
+    warnings.push('SILICONFLOW_API_KEY is not set; Echo will fall back to the local provider if SiliconFlow fails.');
+  }
+
   if (env.SILICONFLOW_API_KEY) {
-    warnings.push('SiliconFlow TTS is enabled.');
+    warnings.push('SiliconFlow API is enabled for configured features.');
   } else {
     warnings.push('SILICONFLOW_API_KEY is not set; /tts will remain unavailable.');
   }
