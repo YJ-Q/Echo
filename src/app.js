@@ -29,11 +29,13 @@ export async function createApp({ logger } = {}) {
   await ensureMemoryStore();
 
   app.get('/api', (_req, res) => {
+    const ttsAvailable = Boolean(process.env.SILICONFLOW_API_KEY);
     sendData(res, {
       name: 'Echo',
       status: 'ui-connected',
       message: 'Echo API is running with the local desktop-style frontend.',
-      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/tts']
+      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/tts'],
+      capabilities: { tts: ttsAvailable }
     });
   });
 

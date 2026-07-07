@@ -39,7 +39,17 @@ export function createTtsProvider() {
         throw new Error(`TTS request failed: ${response.status} - ${detail}`);
       }
 
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const detail = await response.text();
+        throw new Error(`TTS request returned JSON instead of audio: ${detail}`);
+      }
+
       const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('TTS request returned an empty audio payload');
+      }
+
       const base64 = Buffer.from(arrayBuffer).toString('base64');
 
       return {
