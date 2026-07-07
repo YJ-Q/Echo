@@ -59,7 +59,7 @@
             <span class="desktop-badge mono">ECHO</span>
             <div class="titlebar-copy">
               <strong>桌面陪伴体</strong>
-              <span>优先跑通首版功能，再逐步优化视觉体验</span>
+              <span>先接住此刻，再决定往哪走</span>
             </div>
           </div>
 
@@ -85,7 +85,7 @@
             <div class="header-meta">
               <div class="signal-strip">
                 <span class="signal-chip active" id="active-view-chip">此刻</span>
-                <span class="signal-chip" id="secondary-view-chip">主驾驶舱</span>
+                <span class="signal-chip" id="secondary-view-chip">连续陪伴</span>
               </div>
               <div class="time-strip mono">
                 <span id="clock">00:00:00</span>
@@ -97,17 +97,27 @@
           <div class="workspace-view active" data-view-panel="now">
             <section class="hero-band now-hero">
               <article class="panel state-hero">
-                <p class="panel-kicker">当前状态</p>
-                <strong class="hero-emotion" id="hero-emotion">平静</strong>
-                <p class="hero-copy" id="hero-copy">正在整理当前线索，准备继续推进。</p>
-                <div class="metric-grid">
-                  <div class="metric-card">
-                    <span class="metric-key">当前专注</span>
-                    <strong id="hero-focus-topic">等待状态同步</strong>
+                <div class="state-hero-layout">
+                  <div class="state-hero-copy">
+                    <p class="panel-kicker">当前状态</p>
+                    <strong class="hero-emotion" id="hero-emotion">平静</strong>
+                    <p class="hero-copy" id="hero-copy">正在整理当前线索，准备继续推进。</p>
+                    <div class="metric-grid">
+                      <div class="metric-card">
+                        <span class="metric-key">当前聚焦</span>
+                        <strong id="hero-focus-topic">等待状态同步</strong>
+                      </div>
+                      <div class="metric-card">
+                        <span class="metric-key">学习进度</span>
+                        <strong id="hero-learning-ratio">0 / 0</strong>
+                      </div>
+                    </div>
                   </div>
-                  <div class="metric-card">
-                    <span class="metric-key">学习进度</span>
-                    <strong id="hero-learning-ratio">0 / 0</strong>
+
+                  <div class="state-hero-visual" aria-hidden="true">
+                    <div class="hero-orbit">
+                      <span class="hero-orbit-core"></span>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -120,7 +130,7 @@
                   </div>
                   <span class="hero-pill mono" id="hero-focus-percentage">0%</span>
                 </div>
-                <p class="hero-copy" id="hero-next-copy">首版先保证状态明确、动作可执行。</p>
+                <p class="hero-copy" id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</p>
                 <div class="progress-track large">
                   <span id="hero-focus-track-fill" style="width: 0%"></span>
                 </div>
@@ -148,7 +158,7 @@
                   <button class="quick-prompt" type="button" data-prompt="沿着刚才的线索继续。">继续当前线索</button>
                 </div>
                 <div class="composer-row">
-                  <input id="composer-input" type="text" placeholder="继续输入..." aria-label="继续对话" />
+                  <input id="composer-input" type="text" placeholder="继续输入你现在最想先理清的一件事..." aria-label="继续对话" />
                   <div class="composer-actions">
                     <button class="secondary-button hidden" id="play-latest-echo" type="button">朗读最新回复</button>
                     <button class="primary-button" id="composer-submit" type="submit">
@@ -165,7 +175,7 @@
               <article class="panel">
                 <p class="panel-kicker">学习页</p>
                 <h2 id="learn-topic">等待学习主题</h2>
-                <p id="learn-summary">首版只保留当前主题、步骤序列和当前一步。</p>
+                <p id="learn-summary">当前版本只保留当前主线、步骤序列和当前一步。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="learn-progress-chip">0 / 0</span>
                   <span class="summary-chip" id="learn-pattern-chip">等待模式信号</span>
@@ -205,7 +215,7 @@
               <article class="panel">
                 <p class="panel-kicker">行动页</p>
                 <h2 id="actions-headline">等待任务队列</h2>
-                <p id="actions-summary">首版只强调当前主任务、次任务队列与状态切换。</p>
+                <p id="actions-summary">当前版本只强调当前主任务、次任务队列与状态切换。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="actions-open-chip">0 个待处理</span>
                   <span class="summary-chip" id="actions-active-chip">0 个进行中</span>
@@ -253,7 +263,7 @@
               <article class="panel">
                 <p class="panel-kicker">反思页</p>
                 <h2 id="reflection-headline">近期总结</h2>
-                <p id="reflection-summary">首版先保证最近总结、趋势和模式能从后端真实读出来。</p>
+                <p id="reflection-summary">当前版本先保证最近总结、趋势和模式能从后端真实读出。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="reflection-theme-chip">等待主题</span>
                   <button class="secondary-button" id="refresh-summary" type="button">刷新总结</button>
@@ -305,7 +315,7 @@
               <article class="panel">
                 <p class="panel-kicker">记忆页</p>
                 <h2 id="memory-headline">关键记忆与召回</h2>
-                <p id="memory-summary">首版只保留记忆概览、关键片段和标签，不做复杂检索系统。</p>
+                <p id="memory-summary">当前版本只保留记忆概览、关键片段和标签，不做复杂检索系统。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="memory-total-chip">0 条记忆</span>
                   <span class="summary-chip" id="memory-tags-chip">0 个标签</span>
@@ -339,15 +349,20 @@
         </section>
 
         <aside class="status-column" aria-label="此刻页状态工作台">
-          <section class="instrument-panel">
+          <section class="instrument-panel state-panel-card">
             <div class="panel-head">
               <h2>当前状态</h2>
               <span class="mono" id="emotion-label">平静</span>
             </div>
             <p class="detail-copy" id="emotion-copy">等待状态同步。</p>
+            <div class="waveform" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
           </section>
 
-          <section class="instrument-panel" data-jump-view="actions">
+          <section class="instrument-panel focus-panel-card" data-jump-view="actions">
             <div class="panel-head">
               <h2>专注</h2>
               <span class="mono" id="focus-percentage">0%</span>
@@ -358,7 +373,7 @@
             </div>
           </section>
 
-          <section class="instrument-panel" data-jump-view="actions">
+          <section class="instrument-panel next-panel-card" data-jump-view="actions">
             <div class="panel-head">
               <h2>下一步行动</h2>
               <button class="link-button" id="start-next-action" type="button">带回对话</button>
@@ -367,7 +382,7 @@
             <p class="detail-copy" id="action-copy">当前还没有明确动作。</p>
           </section>
 
-          <section class="instrument-panel" data-jump-view="learn">
+          <section class="instrument-panel learning-panel-card" data-jump-view="learn">
             <div class="panel-head">
               <h2>学习线</h2>
               <span class="mono" id="learning-ratio">0 / 0</span>
@@ -377,9 +392,9 @@
             <div class="segments" id="learning-segments"></div>
           </section>
 
-          <section class="instrument-panel" data-jump-view="reflections">
+          <section class="instrument-panel continuity-panel-card" data-jump-view="reflections">
             <div class="panel-head">
-              <h2>反思趋势</h2>
+              <h2>连续性</h2>
               <span class="mono" id="reflection-side-trend">等待</span>
             </div>
             <p class="detail-copy" id="reflection-side-copy">联调后，这里只保留轻量趋势摘要。</p>
