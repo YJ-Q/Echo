@@ -5,6 +5,7 @@ import {
   getLatestActiveLearningSession,
   updateLearningStep
 } from '../storage/memoryStore.js';
+import { buildLearningEvent, LEARNING_EVENT_TYPES } from './learningEvents.js';
 import { extractLearningTopic } from './topicExtractor.js';
 
 export async function prepareLearningSession(userInput) {
@@ -12,15 +13,12 @@ export async function prepareLearningSession(userInput) {
   const activeSession = await getActiveLearningSession(topic);
 
   if (activeSession) {
-    await addLearningEvent({
-      sessionId: activeSession.id,
-      topic: activeSession.topic,
-      eventType: 'session_reused',
-      stepIndex: activeSession.current_step,
-      stepTitle: activeSession.steps[activeSession.current_step]?.title,
-      note: 'We returned to an existing learning line.',
+    await addLearningEvent(buildLearningEvent({
+      session: activeSession,
+      eventType: LEARNING_EVENT_TYPES.SESSION_REUSED,
+      reason: 'same_topic_active_session',
       userInput
-    });
+    }));
 
     return {
       session: activeSession,
@@ -33,15 +31,12 @@ export async function prepareLearningSession(userInput) {
     topic,
     steps
   });
-  await addLearningEvent({
-    sessionId: session.id,
-    topic: session.topic,
-    eventType: 'session_created',
-    stepIndex: session.current_step,
-    stepTitle: session.steps[session.current_step]?.title,
-    note: 'We turned a learning wish into a small executable line.',
+  await addLearningEvent(buildLearningEvent({
+    session,
+    eventType: LEARNING_EVENT_TYPES.SESSION_CREATED,
+    reason: 'learning_intent',
     userInput
-  });
+  }));
 
   return {
     session,
@@ -81,20 +76,21 @@ export async function assessLearningProgress(userInput) {
     return null;
   }
 
+  if (!isLearningRelatedMessage(userInput, session)) {
+    return null;
+  }
+
   const assessment = classifyLearningReply(userInput);
 
   if (assessment.status === 'complete') {
     const previousStep = session.steps[session.current_step];
     const updatedSession = await updateLearningStep(session.id, session.current_step, 'done');
-    await addLearningEvent({
-      sessionId: session.id,
-      topic: session.topic,
-      eventType: 'step_completed',
-      stepIndex: session.current_step,
-      stepTitle: previousStep?.title,
-      note: 'We moved one step forward.',
+    await addLearningEvent(buildLearningEvent({
+      session,
+      eventType: LEARNING_EVENT_TYPES.STEP_COMPLETED,
+      reason: assessment.reason,
       userInput
-    });
+    }));
 
     return {
       type: 'progress',
@@ -106,15 +102,12 @@ export async function assessLearningProgress(userInput) {
   }
 
   if (assessment.status === 'stuck') {
-    await addLearningEvent({
-      sessionId: session.id,
-      topic: session.topic,
-      eventType: 'step_stuck',
-      stepIndex: session.current_step,
-      stepTitle: session.steps[session.current_step]?.title,
-      note: 'We met friction in the current step.',
+    await addLearningEvent(buildLearningEvent({
+      session,
+      eventType: LEARNING_EVENT_TYPES.STEP_STUCK,
+      reason: assessment.reason,
       userInput
-    });
+    }));
 
     return {
       type: 'progress',
@@ -126,15 +119,12 @@ export async function assessLearningProgress(userInput) {
   }
 
   if (assessment.status === 'partial') {
-    await addLearningEvent({
-      sessionId: session.id,
-      topic: session.topic,
-      eventType: 'step_attempted',
-      stepIndex: session.current_step,
-      stepTitle: session.steps[session.current_step]?.title,
-      note: 'We put something into motion, but the step is not confirmed yet.',
+    await addLearningEvent(buildLearningEvent({
+      session,
+      eventType: LEARNING_EVENT_TYPES.STEP_ATTEMPTED,
+      reason: assessment.reason,
       userInput
-    });
+    }));
 
     return {
       type: 'progress',
@@ -148,8 +138,38 @@ export async function assessLearningProgress(userInput) {
   return null;
 }
 
+export function isLearningRelatedMessage(input, session = {}) {
+  const text = normalizeText(input);
+
+  if (!text || isShortAcknowledgement(text)) {
+    return false;
+  }
+
+  const currentStep = session.steps?.[session.current_step] || null;
+
+  if (matchesTopic(text, session.topic) || matchesStep(text, currentStep)) {
+    return true;
+  }
+
+  const assessment = classifyLearningReply(input);
+
+  if (assessment.status === 'ignore' || isCasualOffTopic(text)) {
+    return false;
+  }
+
+  if (assessment.status === 'stuck') {
+    return hasConcreteStuckObject(text);
+  }
+
+  if (assessment.status === 'complete') {
+    return hasCompletionObject(text) || hasStepActionCue(text, currentStep);
+  }
+
+  return hasStudyCue(text) || hasStepActionCue(text, currentStep);
+}
+
 export function classifyLearningReply(input) {
-  const text = input.toLowerCase().trim();
+  const text = normalizeText(input);
 
   if (matchesAny(text, [
     'done',
@@ -187,4 +207,177 @@ export function classifyLearningReply(input) {
 
 function matchesAny(text, keywords) {
   return keywords.some((keyword) => text.includes(keyword));
+}
+
+function normalizeText(input) {
+  return String(input || '').toLowerCase().trim();
+}
+
+function isShortAcknowledgement(text) {
+  return [
+    '嗯',
+    '好',
+    '好的',
+    '收到',
+    'ok',
+    'okay',
+    'yes',
+    '行',
+    '可以'
+  ].includes(text);
+}
+
+function matchesTopic(text, topic) {
+  const normalizedTopic = normalizeText(topic);
+
+  if (!normalizedTopic || normalizedTopic === '这件事') {
+    return false;
+  }
+
+  if (text.includes(normalizedTopic)) {
+    return true;
+  }
+
+  return topicAliases(normalizedTopic).some((alias) => text.includes(alias));
+}
+
+function topicAliases(topic) {
+  const aliases = {
+    javascript: ['js', '闭包', '原型', 'promise', '异步', 'dom'],
+    'node.js': ['node', 'npm', 'express'],
+    nodejs: ['node', 'npm', 'express'],
+    typescript: ['ts', '类型', '泛型'],
+    rust: ['borrow', 'ownership', '所有权', '借用']
+  };
+
+  return aliases[topic] || [];
+}
+
+function matchesStep(text, step) {
+  if (!step) {
+    return false;
+  }
+
+  return extractStepKeywords(step).some((keyword) => text.includes(keyword));
+}
+
+function extractStepKeywords(step) {
+  return [
+    step.title,
+    step.action
+  ]
+    .filter(Boolean)
+    .flatMap((value) => normalizeText(value).split(/[\s，。,.!?！？；;：:"“”'（）()、]+/))
+    .map((value) => value.trim())
+    .filter((value) => value.length >= 2)
+    .filter((value) => ![
+      '一个',
+      '一句话',
+      '写下',
+      '当前',
+      '步骤',
+      '问题',
+      '什么',
+      '自己',
+      '不用',
+      '术语',
+      '刚学到',
+      '东西'
+    ].includes(value));
+}
+
+function isCasualOffTopic(text) {
+  return matchesAny(text, [
+    '只想聊聊',
+    '随便聊',
+    '有点累',
+    '今天很累',
+    '不想学',
+    '先不学',
+    '换个话题',
+    '聊点别的'
+  ]);
+}
+
+function hasConcreteStuckObject(text) {
+  if (!matchesAny(text, [
+    'stuck',
+    'confused',
+    "don't understand",
+    '不懂',
+    '不会',
+    '卡住',
+    '看不懂',
+    '没明白'
+  ])) {
+    return false;
+  }
+
+  const remainder = text
+    .replace(/i'?m|i am|stuck|confused|don'?t understand|不懂|不会|卡住|看不懂|没明白|我|还是|有点|这个|这里|那里/g, '')
+    .trim();
+
+  return remainder.length >= 2;
+}
+
+function hasCompletionObject(text) {
+  return matchesAny(text, [
+    'demo',
+    'example',
+    '练习',
+    '例子',
+    '小例子',
+    '代码',
+    '步骤',
+    '这一节',
+    '这一步',
+    '跑通',
+    '复述',
+    '笔记'
+  ]);
+}
+
+function hasStepActionCue(text, step) {
+  if (matchesStep(text, step)) {
+    return true;
+  }
+
+  return matchesAny(text, [
+    'demo',
+    'example',
+    '练习',
+    '例子',
+    '小例子',
+    '代码',
+    '跑通',
+    '复述',
+    '笔记',
+    '实现',
+    '写了',
+    '做了',
+    '试了'
+  ]);
+}
+
+function hasStudyCue(text) {
+  return matchesAny(text, [
+    'learn',
+    'study',
+    'practice',
+    'demo',
+    'example',
+    '学习',
+    '练习',
+    '例子',
+    '小例子',
+    '代码',
+    '跑通',
+    '复述',
+    '笔记',
+    '实现',
+    '写了',
+    '做了',
+    '试了',
+    '闭包'
+  ]);
 }

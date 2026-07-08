@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+import { mergeProfileSignal } from '../services/profileMergeEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -184,10 +185,14 @@ export async function getUserStates({ limit = 20 } = {}) {
   );
 }
 
-export async function upsertUserProfile(key, value, confidence = 0.5) {
+export async function upsertUserProfile(key, value, confidence = 0.5, options = {}) {
   const db = await getDb();
   const existing = await db.get('SELECT value, confidence FROM user_profile WHERE key = ?', key);
-  const nextConfidence = calculateProfileConfidence(existing, value, confidence);
+  const merged = mergeProfileSignal(existing, {
+    value,
+    confidence,
+    force: options.force
+  });
 
   await db.run(
     `
@@ -199,8 +204,8 @@ export async function upsertUserProfile(key, value, confidence = 0.5) {
         updated_at = excluded.updated_at
     `,
     key,
-    value,
-    nextConfidence,
+    merged.value,
+    merged.confidence,
     new Date().toISOString()
   );
 }
@@ -367,6 +372,13 @@ export async function updateLearningStep(sessionId, stepIndex, status) {
     return null;
   }
 
+  if (!Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex >= session.steps.length) {
+    const error = new Error('learning step index is out of range');
+    error.status = 400;
+    error.code = 'learning_step_out_of_range';
+    throw error;
+  }
+
   const steps = session.steps.map((step, index) => ({
     ...step,
     status: index === stepIndex ? status : step.status
@@ -517,7 +529,7 @@ export async function getActions({ status, limit = 20 } = {}) {
         SELECT id, type, title, detail, source, priority, status, due_at, metadata, created_at, updated_at
         FROM actions
         WHERE status = ?
-        ORDER BY priority ASC, created_at DESC
+        ORDER BY priority ASC, updated_at DESC, created_at DESC, id DESC
         LIMIT ?
       `,
       status,
@@ -532,16 +544,49 @@ export async function getActions({ status, limit = 20 } = {}) {
             WHEN 'active' THEN 0
             WHEN 'pending' THEN 1
             WHEN 'done' THEN 2
-            ELSE 3
+            WHEN 'dismissed' THEN 3
+            ELSE 4
           END,
           priority ASC,
-          created_at DESC
+          updated_at DESC,
+          created_at DESC,
+          id DESC
         LIMIT ?
       `,
       limit
     );
 
   return rows.map(mapActionRow);
+}
+
+export async function findActionBySuggestedIdentity(identity) {
+  if (!identity) {
+    return null;
+  }
+
+  const db = await getDb();
+  const rows = await db.all(
+    `
+      SELECT id, type, title, detail, source, priority, status, due_at, metadata, created_at, updated_at
+      FROM actions
+      WHERE source = 'echo_state' AND status IN ('pending', 'active')
+      ORDER BY
+        CASE status
+          WHEN 'active' THEN 0
+          WHEN 'pending' THEN 1
+          ELSE 2
+        END,
+        priority ASC,
+        updated_at DESC,
+        created_at DESC,
+        id DESC
+      LIMIT 100
+    `
+  );
+
+  return rows
+    .map(mapActionRow)
+    .find((action) => action.metadata?.suggested_identity === identity) || null;
 }
 
 export async function updateActionStatus(id, status) {
@@ -776,22 +821,6 @@ async function upsertCounter(db, key, value, updatedAt) {
   );
 }
 
-function calculateProfileConfidence(existing, nextValue, incomingConfidence) {
-  if (!existing) {
-    return clampConfidence(incomingConfidence);
-  }
-
-  if (existing.value === nextValue) {
-    return clampConfidence(Math.max(existing.confidence, incomingConfidence) + 0.08);
-  }
-
-  return clampConfidence(Math.max(incomingConfidence, existing.confidence * 0.82));
-}
-
-function clampConfidence(value) {
-  return Math.min(Math.max(value || 0.5, 0.1), 1);
-}
-
 async function ensureColumn(db, table, column, definition) {
   const columns = await db.all(`PRAGMA table_info(${table})`);
   const hasColumn = columns.some((entry) => entry.name === column);
@@ -873,6 +902,8 @@ async function getActionById(id) {
   return row ? mapActionRow(row) : null;
 }
 
+export { getActionById };
+
 function mapActionRow(row) {
   return {
     id: row.id,
@@ -929,19 +960,23 @@ function rankMemory(memory, queryProfile) {
     priorityScore,
     recencyScore
   });
+  const channelScore = scoreRetrievalChannels(channelMatches);
   const score = textScore
     + tagScore
     + emotionScore
     + topicScore
     + recencyScore
     + priorityScore
-    + pinnedBonus;
+    + pinnedBonus
+    + channelScore;
 
   return {
     memory: {
       ...memory,
       retrieval: {
         score: Number(score.toFixed(3)),
+        ranking_score: Number(score.toFixed(3)),
+        channel_score: Number(channelScore.toFixed(3)),
         channels: channelMatches
       }
     },
@@ -949,6 +984,18 @@ function rankMemory(memory, queryProfile) {
     effective_priority: priorityScore,
     channel_matches: channelMatches
   };
+}
+
+function scoreRetrievalChannels(channels) {
+  const weights = {
+    direct_match: 1.2,
+    learning_continuity: 0.9,
+    core_anchor: 0.75,
+    emotional_resonance: 0.45,
+    recent_thread: 0.25
+  };
+
+  return channels.reduce((score, channel) => score + (weights[channel] || 0), 0);
 }
 
 function scoreMemoryText(memory, queryTokens) {
@@ -1179,6 +1226,13 @@ function collectChannelMatches({
 }
 
 function compareRankedMemories(a, b) {
+  const aDirect = a.channel_matches.includes('direct_match') || a.channel_matches.includes('learning_continuity');
+  const bDirect = b.channel_matches.includes('direct_match') || b.channel_matches.includes('learning_continuity');
+
+  if (aDirect !== bDirect) {
+    return bDirect ? 1 : -1;
+  }
+
   if (b.score !== a.score) {
     return b.score - a.score;
   }
@@ -1212,7 +1266,7 @@ function pickDiverseMemories(entries, limit) {
     }
 
     if (selected.length >= limit) {
-      return selected.slice(0, limit);
+      return sortSelectedMemories(selected).slice(0, limit);
     }
   }
 
@@ -1229,7 +1283,19 @@ function pickDiverseMemories(entries, limit) {
     }
   }
 
-  return selected;
+  return sortSelectedMemories(selected);
+}
+
+function sortSelectedMemories(memories) {
+  return [...memories].sort((a, b) => {
+    const scoreDelta = (b.retrieval?.ranking_score || 0) - (a.retrieval?.ranking_score || 0);
+
+    if (scoreDelta !== 0) {
+      return scoreDelta;
+    }
+
+    return (b.salience || 0) - (a.salience || 0);
+  });
 }
 
 function computeEffectivePriority(memory) {

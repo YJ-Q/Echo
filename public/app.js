@@ -120,6 +120,23 @@ const dom = {
   windowClose: document.querySelector("#window-close")
 };
 
+const TTS_UI_COPY = {
+  idle: "朗读最新回复",
+  idleEmpty: "暂无可朗读内容",
+  loading: "正在生成语音",
+  playing: "播放中",
+  error: "重试朗读",
+  unavailable: "朗读不可用"
+};
+
+const TTS_ERROR_COPY = {
+  tts_not_configured: "语音朗读还没有配置，入口已暂时收起。",
+  tts_provider_http_error: "语音服务暂时没有成功响应，稍后可以重试。",
+  tts_provider_json_response: "语音服务返回了非音频内容，已停止播放。",
+  tts_empty_audio: "语音服务返回了空音频，换一句或稍后再试。",
+  tts_provider_request_failed: "还没有连上语音服务，请稍后重试。"
+};
+
 let currentState = structuredClone(FALLBACK_STATE);
 let dashboardData = structuredClone(FALLBACK_DASHBOARD);
 let timelineEntries = [];
@@ -133,9 +150,13 @@ let memoryMutationId = null;
 let summaryRefreshing = false;
 let manualActionSubmitting = false;
 let suggestedActionSubmitting = false;
-let ttsRequesting = false;
 let apiCapabilities = { tts: false };
 let toastTimer = null;
+let ttsUiState = "unavailable";
+let activeTtsAudio = null;
+let activeTtsAudioCleanup = null;
+let activeTtsPlaybackToken = 0;
+let lastTtsText = "";
 
 function unwrapEnvelope(payload) {
   if (payload && typeof payload === "object" && "ok" in payload) {
@@ -370,11 +391,87 @@ function setSuggestedActionSubmitting(nextSubmitting) {
   dom.suggestedActionSubmit.textContent = nextSubmitting ? "生成中..." : "生成建议任务";
 }
 
+function setTtsUiState(nextState) {
+  ttsUiState = nextState;
+  updateTtsAvailability();
+}
+
 function updateTtsAvailability() {
-  const hasText = Boolean(getLatestEchoText());
+  const latestText = getLatestEchoText();
+  const hasText = Boolean(latestText);
+  const isBusy = ttsUiState === "loading" || ttsUiState === "playing";
+
+  if (!apiCapabilities.tts) {
+    ttsUiState = "unavailable";
+  } else if (ttsUiState === "unavailable") {
+    ttsUiState = "idle";
+  } else if (latestText !== lastTtsText && !isBusy) {
+    ttsUiState = "idle";
+  }
+
+  lastTtsText = latestText;
   dom.playLatestEchoButton.classList.toggle("hidden", !apiCapabilities.tts);
-  dom.playLatestEchoButton.disabled = !apiCapabilities.tts || !hasText || ttsRequesting;
-  dom.playLatestEchoButton.textContent = ttsRequesting ? "朗读中..." : "朗读最新回复";
+  dom.playLatestEchoButton.disabled = !apiCapabilities.tts || !hasText || isBusy;
+  dom.playLatestEchoButton.dataset.ttsState = ttsUiState;
+  dom.playLatestEchoButton.setAttribute("aria-busy", isBusy ? "true" : "false");
+  dom.playLatestEchoButton.textContent = hasText
+    ? TTS_UI_COPY[ttsUiState] || TTS_UI_COPY.idle
+    : TTS_UI_COPY.idleEmpty;
+}
+
+function getTtsErrorMessage(error) {
+  return TTS_ERROR_COPY[error?.code] || getErrorMessage(error, "朗读失败，请稍后再试。");
+}
+
+function releaseActiveTtsAudio() {
+  if (activeTtsAudioCleanup) {
+    activeTtsAudioCleanup();
+  }
+  activeTtsAudioCleanup = null;
+  activeTtsAudio = null;
+}
+
+function stopActiveTtsAudio({ resetState = true } = {}) {
+  activeTtsPlaybackToken += 1;
+  const audio = activeTtsAudio;
+  releaseActiveTtsAudio();
+
+  if (audio && !audio.paused) {
+    audio.pause();
+  }
+
+  if (resetState && ttsUiState === "playing") {
+    setTtsUiState("idle");
+  }
+}
+
+function attachTtsAudio(audio, token) {
+  const isCurrent = () => token === activeTtsPlaybackToken && activeTtsAudio === audio;
+  const finishPlayback = () => {
+    if (!isCurrent()) return;
+    releaseActiveTtsAudio();
+    setTtsUiState("idle");
+  };
+  const failPlayback = () => {
+    if (!isCurrent()) return;
+    releaseActiveTtsAudio();
+    setTtsUiState("error");
+    showToast("音频播放被中断，可以再试一次。", "error", 3200);
+  };
+  const pausePlayback = () => {
+    if (!isCurrent() || audio.ended) return;
+    finishPlayback();
+  };
+
+  audio.addEventListener("ended", finishPlayback);
+  audio.addEventListener("pause", pausePlayback);
+  audio.addEventListener("error", failPlayback);
+  activeTtsAudio = audio;
+  activeTtsAudioCleanup = () => {
+    audio.removeEventListener("ended", finishPlayback);
+    audio.removeEventListener("pause", pausePlayback);
+    audio.removeEventListener("error", failPlayback);
+  };
 }
 
 function buildPromptFromContext(kind, payload = {}) {
@@ -1134,26 +1231,35 @@ function bindProductInteractions() {
 
   dom.playLatestEchoButton.addEventListener("click", async () => {
     const text = getLatestEchoText();
-    if (!text || !apiCapabilities.tts || ttsRequesting) return;
+    if (!text || !apiCapabilities.tts || ttsUiState === "loading" || ttsUiState === "playing") return;
 
-    ttsRequesting = true;
-    updateTtsAvailability();
+    stopActiveTtsAudio({ resetState: false });
+    setTtsUiState("loading");
     try {
       const result = await postJson("/tts", { text });
       const audio = result?.audio;
       if (!audio?.data || !audio?.mime_type) {
-        throw new Error("Missing audio payload");
+        const payloadError = new Error("Missing audio payload");
+        payloadError.code = "tts_empty_audio";
+        throw payloadError;
       }
       const player = new Audio(`data:${audio.mime_type};base64,${audio.data}`);
+      activeTtsPlaybackToken += 1;
+      const token = activeTtsPlaybackToken;
+      attachTtsAudio(player, token);
       await player.play();
+      if (token === activeTtsPlaybackToken) {
+        setTtsUiState("playing");
+      }
     } catch (error) {
+      stopActiveTtsAudio({ resetState: false });
       if (error?.code === "tts_not_configured") {
         apiCapabilities.tts = false;
+        setTtsUiState("unavailable");
+      } else {
+        setTtsUiState("error");
       }
-      showToast(getErrorMessage(error, "朗读失败，请稍后再试。"), "error", 3200);
-    } finally {
-      ttsRequesting = false;
-      updateTtsAvailability();
+      showToast(getTtsErrorMessage(error), "error", 3200);
     }
   });
 

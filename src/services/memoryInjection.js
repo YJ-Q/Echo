@@ -11,6 +11,7 @@ export function buildMemoryInjection({
   const recentAction = pendingActions[0] || null;
   const latestReflection = recentSummaries[0] || null;
   const lastEmotionState = userStates.find((state) => state.key === 'last_emotion')?.value || 'neutral';
+  const memoryLayers = buildInjectionMemoryLayers(summary.memory_layers);
 
   const layers = {
     emotional: {
@@ -44,10 +45,11 @@ export function buildMemoryInjection({
       behavioral_pattern: latestReflection?.behavioral_pattern || '',
       note: latestReflection ? '最近已经有一条可回看的回声。' : ''
     },
+    memory: memoryLayers,
     conversation: {
       relevant_memories: relevantMemories.slice(0, 5).map(toMemorySnippet),
       recent_memories: recentMemories.slice(0, 3).map(toMemorySnippet),
-      note: buildConversationNote(relevantMemories, recentMemories)
+      note: buildConversationNote(relevantMemories, recentMemories, memoryLayers)
     }
   };
 
@@ -141,7 +143,11 @@ function buildActionNote(action) {
   return `还有一个未完成动作留在队列里：“${action.title}”。`;
 }
 
-function buildConversationNote(relevantMemories, recentMemories) {
+function buildConversationNote(relevantMemories, recentMemories, memoryLayers = {}) {
+  if ((memoryLayers.core_memories || []).length > 0 && (memoryLayers.working_memories || []).length > 0) {
+    return '长期锚点和当前相关的工作记忆都已接入。';
+  }
+
   if (relevantMemories.length > 0) {
     return '这次输入和过去几段回声是连着的。';
   }
@@ -160,8 +166,60 @@ function buildPromptContext(layers) {
     layers.learning.note,
     layers.action.note,
     layers.reflection.note,
+    layers.memory.note,
     layers.conversation.note
   ].filter(Boolean).join(' ');
+}
+
+function buildInjectionMemoryLayers(memoryLayers = {}) {
+  const coreMemories = (memoryLayers.core || []).slice(0, 2).map(toLayerSnippet);
+  const workingMemories = (memoryLayers.working || []).slice(0, 3).map(toLayerSnippet);
+  const recentMemories = (memoryLayers.recent || []).slice(0, 2).map(toLayerSnippet);
+  const ambientMemories = (memoryLayers.ambient || []).slice(0, 2).map(toLayerSnippet);
+
+  return {
+    core_memories: coreMemories,
+    working_memories: workingMemories,
+    recent_memories: recentMemories,
+    ambient_memories: ambientMemories,
+    note: buildMemoryLayerNote({
+      coreMemories,
+      workingMemories,
+      recentMemories
+    })
+  };
+}
+
+function toLayerSnippet(memory) {
+  return {
+    id: memory.id,
+    label: memory.label || memory.memory_note || memory.user_input || '',
+    priority_bucket: memory.priority_bucket || 'ambient',
+    pinned: Boolean(memory.pinned),
+    retrieval_channels: memory.retrieval_channels || []
+  };
+}
+
+function buildMemoryLayerNote({
+  coreMemories = [],
+  workingMemories = [],
+  recentMemories = []
+}) {
+  const parts = [];
+
+  if (coreMemories.length > 0) {
+    parts.push(`长期锚点：${coreMemories.map((memory) => memory.label).join('；')}`);
+  }
+
+  if (workingMemories.length > 0) {
+    parts.push(`当前工作记忆：${workingMemories.map((memory) => memory.label).join('；')}`);
+  }
+
+  if (recentMemories.length > 0) {
+    parts.push(`近期线程：${recentMemories.map((memory) => memory.label).join('；')}`);
+  }
+
+  return parts.join(' ');
 }
 
 function humanizePattern(value) {

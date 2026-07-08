@@ -56,14 +56,7 @@ export function decideNextAction({
   }
 
   if (recentSummaries.length > 0) {
-    return {
-      type: 'reflect_recent',
-      label: '读一遍最近的回声',
-      detail: recentSummaries[0].echo_reflection,
-      reason: '最近已经有反思记录，可以从那里接上。',
-      source: 'recent_reflection',
-      confidence: 0.64
-    };
+    return buildRecentReflectionAction(recentSummaries[0]);
   }
 
   return {
@@ -77,9 +70,51 @@ export function decideNextAction({
 }
 
 export function explainDecision(action) {
-  return {
+  const decision = {
     source: action.source,
     confidence: action.confidence,
     rule: action.type
+  };
+
+  if (action.reflection_context) {
+    decision.reflection = {
+      used_in_decision: true,
+      date: action.reflection_context.date,
+      emotional_trend: action.reflection_context.emotional_trend,
+      behavioral_pattern: action.reflection_context.behavioral_pattern,
+      summary: action.reflection_context.summary,
+      echo_reflection: action.reflection_context.echo_reflection
+    };
+  }
+
+  return decision;
+}
+
+function buildRecentReflectionAction(summary = {}) {
+  const reflectionContext = {
+    id: summary.id || null,
+    date: summary.date || '',
+    summary: summary.summary || '',
+    emotional_trend: summary.emotional_trend || '',
+    behavioral_pattern: summary.behavioral_pattern || '',
+    echo_reflection: summary.echo_reflection || ''
+  };
+  const detail = reflectionContext.echo_reflection
+    || reflectionContext.summary
+    || reflectionContext.behavioral_pattern
+    || '';
+  const reason = reflectionContext.summary
+    || reflectionContext.behavioral_pattern
+    || reflectionContext.echo_reflection
+    || '';
+
+  return {
+    type: 'reflect_recent',
+    label: '读一遍最近的回声',
+    detail,
+    reason,
+    source: 'recent_reflection',
+    confidence: 0.64,
+    reflection_context: reflectionContext
   };
 }

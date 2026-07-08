@@ -97,20 +97,79 @@ function buildDayFacts({
 function buildSummary(facts) {
   const parts = [];
 
-  if (facts.memories.length > 0) {
-    parts.push(`今日主线：我们留下了 ${facts.memories.length} 次对话，重心落在“${formatTag(facts.dominantTag)}”。`);
+  const memorySummary = buildMemorySummary(facts);
+  const learningSummary = buildLearningSummary(facts);
+  const emotionSummary = buildEmotionSummary(facts);
+
+  if (memorySummary) {
+    parts.push(memorySummary);
   }
 
-  if (facts.learningEvents.length > 0) {
-    const topicText = facts.learningTopics.length ? facts.learningTopics.join('、') : '当前学习线';
-    parts.push(`学习状态：围绕“${topicText}”留下了 ${facts.learningEvents.length} 个行动痕迹，推进 ${facts.completedSteps} 次，尝试 ${facts.attemptedSteps} 次，卡住 ${facts.stuckSteps} 次。`);
+  if (learningSummary) {
+    parts.push(learningSummary);
   }
 
-  if (facts.dominantEmotion !== 'neutral') {
-    parts.push(`情绪底色：更接近“${formatEmotion(facts.dominantEmotion)}”。`);
+  if (emotionSummary) {
+    parts.push(emotionSummary);
   }
 
   return parts.join(' ');
+}
+
+function buildMemorySummary(facts) {
+  if (facts.memories.length === 0) {
+    return '';
+  }
+
+  if (facts.memories.length === 1) {
+    return `今天的记录先落在了“${formatTag(facts.dominantTag)}”上。`;
+  }
+
+  return `今天的记录大多围着“${formatTag(facts.dominantTag)}”展开，一共留下了 ${facts.memories.length} 次对话。`;
+}
+
+function buildLearningSummary(facts) {
+  if (facts.learningEvents.length === 0) {
+    return '';
+  }
+
+  const topicText = facts.learningTopics.length ? facts.learningTopics.join('、') : '当前学习线';
+
+  if (facts.hadCompletion && facts.hadStuckPoint) {
+    return `围绕“${topicText}”一边推进，一边把卡点看清：完成了 ${facts.completedSteps} 步，也标出了 ${facts.stuckSteps} 处阻力。`;
+  }
+
+  if (facts.hadCompletion) {
+    const attemptTail = facts.attemptedSteps > 0 ? '，中间也有继续试着往前推' : '';
+    return `围绕“${topicText}”已经往前走了一段，完成了 ${facts.completedSteps} 步${attemptTail}。`;
+  }
+
+  if (facts.hadStuckPoint) {
+    const attemptLead = facts.attemptedSteps > 0 ? '已经开始上手，' : '';
+    return `围绕“${topicText}”${attemptLead}也碰到了 ${facts.stuckSteps} 个具体卡点。`;
+  }
+
+  if (facts.attemptedSteps > 0) {
+    return `围绕“${topicText}”已经试着动手 ${facts.attemptedSteps} 次，节奏正在形成。`;
+  }
+
+  if (facts.createdSessions > 0) {
+    return `“${topicText}”这条学习线今天被重新拉近，行动还停在起步处。`;
+  }
+
+  return `围绕“${topicText}”留下了一些学习痕迹，节奏还在形成。`;
+}
+
+function buildEmotionSummary(facts) {
+  if (facts.dominantEmotion === 'neutral') {
+    return '';
+  }
+
+  if (facts.dominantEmotion === 'anxious' && facts.learningEvents.length > 0) {
+    return `情绪上更接近“${formatEmotion(facts.dominantEmotion)}”，但注意力还留在手头这条线上。`;
+  }
+
+  return `情绪上更接近“${formatEmotion(facts.dominantEmotion)}”。`;
 }
 
 function detectPattern(facts) {

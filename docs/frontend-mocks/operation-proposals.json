@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "data": {
+    "proposals": [
+      {
+        "id": 1,
+        "scope": "memory",
+        "status": "awaiting_confirmation",
+        "summary": "建议合并 2 条重复的 Node.js 记忆。",
+        "risk_level": "reversible",
+        "operations": [
+          {
+            "operation_type": "merge",
+            "target_type": "memory",
+            "target_id": 12,
+            "target_ids": [12, 18],
+            "reason": "两条记忆都描述了 Node.js 开始前拖延，memory:18 更完整。"
+          }
+        ],
+        "preview": {
+          "before": [
+            "想学 Node.js 但总在开始前拖延",
+            "Node.js 学习入口需要缩小到第一步"
+          ],
+          "after": [
+            "Node.js 学习需要从一个很小的入口开始，避免在开始前耗尽动力。"
+          ]
+        },
+        "created_at": "2026-07-08T00:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "scope": "actions",
+        "status": "draft",
+        "summary": "建议 dismiss 1 个已经过期的任务。",
+        "risk_level": "reversible",
+        "operations": [
+          {
+            "operation_type": "dismiss",
+            "target_type": "action",
+            "target_id": 4,
+            "reason": "这个任务已经被更新后的任务覆盖。"
+          }
+        ],
+        "preview": {
+          "before": ["旧任务仍在 pending 队列中"],
+          "after": ["旧任务从主队列移除，但仍保留历史记录"]
+        },
+        "created_at": "2026-07-08T00:00:00.000Z"
+      }
+    ]
+  }
+}
+

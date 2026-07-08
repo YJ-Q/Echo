@@ -983,6 +983,25 @@ svg {
   background: transparent;
 }
 
+#play-latest-echo {
+  min-width: 112px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+#play-latest-echo[data-tts-state="loading"],
+#play-latest-echo[data-tts-state="playing"] {
+  background: var(--color-blue-soft);
+  color: var(--color-blue-deep);
+}
+
+#play-latest-echo[data-tts-state="error"] {
+  background: rgba(254, 242, 242, 0.9);
+  color: #991b1b;
+}
+
 .primary-button {
   padding: 10px 16px;
   border: 1px solid rgba(87, 95, 157, 0.9);

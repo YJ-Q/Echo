@@ -7,7 +7,7 @@ import {
 import { summarizeProfile } from './profileEngine.js';
 
 export async function overrideProfileSignal({ key, value, confidence = 0.92 }) {
-  await upsertUserProfile(key, value, confidence);
+  await upsertUserProfile(key, value, confidence, { force: true });
   const profile = await getUserProfile();
 
   return {

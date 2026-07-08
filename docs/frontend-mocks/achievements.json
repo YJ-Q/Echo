@@ -1,0 +1,123 @@
+{
+  "ok": true,
+  "data": {
+    "summary": {
+      "total": 8,
+      "unlocked": 3,
+      "hidden": 2
+    },
+    "recent_unlocks": [
+      {
+        "id": 1,
+        "achievement_id": 1,
+        "title": "第一步已经落地",
+        "description": "你把一个模糊主题推进成了可继续的一步。",
+        "rarity": "common",
+        "icon_type": "first_step",
+        "palette_key": "blue_warm",
+        "accent_color": "#6f74b8",
+        "unlocked_at": "2026-07-08T00:00:00.000Z"
+      }
+    ],
+    "groups": [
+      {
+        "key": "learning",
+        "label": "学习线",
+        "count": 4
+      },
+      {
+        "key": "actions",
+        "label": "行动",
+        "count": 2
+      },
+      {
+        "key": "memory",
+        "label": "记忆整理",
+        "count": 2
+      }
+    ],
+    "achievements": [
+      {
+        "id": 1,
+        "key": "learning:first_step",
+        "title": "第一步已经落地",
+        "description": "你把一个模糊主题推进成了可继续的一步。",
+        "locked_description": "完成学习线的第一步后解锁。",
+        "unlocked": true,
+        "hidden": false,
+        "rarity": "common",
+        "source_type": "learning_session",
+        "source_id": 1,
+        "icon_type": "first_step",
+        "palette_key": "blue_warm",
+        "accent_color": "#6f74b8",
+        "unlocked_at": "2026-07-08T00:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "key": "learning:breakthrough",
+        "title": "卡点被松开",
+        "description": "你从一个说不清的卡点里找到了下一步。",
+        "locked_description": "从 stuck 状态恢复推进后解锁。",
+        "unlocked": false,
+        "hidden": false,
+        "rarity": "rare",
+        "source_type": "learning_session",
+        "source_id": 1,
+        "icon_type": "breakthrough",
+        "palette_key": "green_growth",
+        "accent_color": "#6f9f85",
+        "unlocked_at": null
+      },
+      {
+        "id": 3,
+        "key": "learning:completion",
+        "title": "完成一个闭环",
+        "description": "这条学习线已经从想法走到一次完整收束。",
+        "locked_description": "完成学习线最后一步后解锁。",
+        "unlocked": false,
+        "hidden": false,
+        "rarity": "core",
+        "source_type": "learning_session",
+        "source_id": 1,
+        "icon_type": "completion",
+        "palette_key": "gold_soft",
+        "accent_color": "#c8a95c",
+        "unlocked_at": null
+      },
+      {
+        "id": 4,
+        "key": "memory:cleanse",
+        "title": "把旧线索收进抽屉",
+        "description": "你整理了一条不再代表当前自己的旧记忆。",
+        "locked_description": "完成一次记忆整理后解锁。",
+        "unlocked": true,
+        "hidden": false,
+        "rarity": "rare",
+        "source_type": "memory",
+        "source_id": null,
+        "icon_type": "memory_cleanse",
+        "palette_key": "ink_silver",
+        "accent_color": "#8a837c",
+        "unlocked_at": "2026-07-08T00:00:00.000Z"
+      },
+      {
+        "id": 5,
+        "key": "secret:returning",
+        "title": "隐藏成就",
+        "description": null,
+        "locked_description": "还有一件事会在你重新接回旧主线时出现。",
+        "unlocked": false,
+        "hidden": true,
+        "rarity": "secret",
+        "source_type": "global",
+        "source_id": null,
+        "icon_type": "hidden_spark",
+        "palette_key": "violet_secret",
+        "accent_color": "#7d72c7",
+        "unlocked_at": null
+      }
+    ]
+  }
+}
+

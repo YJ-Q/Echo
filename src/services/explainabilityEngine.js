@@ -52,6 +52,7 @@ export function buildStateExplanation({
   context,
   profileSummary,
   currentSession,
+  recentSummaries = [],
   nextAction,
   decision
 }) {
@@ -74,6 +75,7 @@ export function buildStateExplanation({
           step_action: currentStep.action
         }
       : null,
+    reflection_signal: buildReflectionSignal({ recentSummaries, nextAction }),
     decision_trace: {
       rule: decision.rule,
       source: decision.source,
@@ -102,7 +104,7 @@ function buildChatSummary({ analysis, memoryContext, learningSession, decision }
     return '这次回复参考了最近反复出现的模式，所以把重点放在开始动作上。';
   }
 
-  return '这次回复主要依据当前输入和最近记忆，先把我们放回一个更清楚的位置。';
+  return '这次回复主要依据当前输入和最近记忆，先把我们放回一个更清晰的位置。';
 }
 
 function buildStateSummary({ context, currentSession, nextAction }) {
@@ -112,6 +114,17 @@ function buildStateSummary({ context, currentSession, nextAction }) {
 
   if (nextAction.type === 'resume_pending_action') {
     return '当前系统判断队列里已经有未完成动作，所以先接回去，不重新开题。';
+  }
+
+  if (nextAction.type === 'reflect_recent') {
+    const date = nextAction.reflection_context?.date || '';
+    const pattern = nextAction.reflection_context?.behavioral_pattern || '';
+    const reflectionLead = nextAction.reflection_context?.echo_reflection
+      || nextAction.reflection_context?.summary
+      || nextAction.detail
+      || '';
+
+    return [date, pattern, reflectionLead].filter(Boolean).join(' | ');
   }
 
   if (context.summary.recurring_pattern) {
@@ -134,4 +147,25 @@ function inferReplyMode({ analysis, learningSession }) {
   if (analysis.emotion === 'anxious') return 'grounding_reflection';
 
   return 'reflective_chat';
+}
+
+function buildReflectionSignal({ recentSummaries = [], nextAction }) {
+  const latest = recentSummaries[0];
+
+  if (!latest) {
+    return null;
+  }
+
+  return {
+    used_in_decision: nextAction.type === 'reflect_recent',
+    source: 'recent_reflection',
+    date: latest.date,
+    emotional_trend: latest.emotional_trend,
+    behavioral_pattern: latest.behavioral_pattern,
+    summary: latest.summary,
+    echo_reflection: latest.echo_reflection,
+    linkage: nextAction.type === 'reflect_recent'
+      ? 'latest_summary_selected'
+      : 'available_but_overridden'
+  };
 }

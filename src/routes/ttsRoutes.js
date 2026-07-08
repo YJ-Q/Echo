@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sendData, sendError } from '../lib/apiResponse.js';
 import { getTtsProvider } from '../services/ttsProvider.js';
+import { isTtsProviderError } from '../services/ttsErrors.js';
 
 const router = Router();
 
@@ -34,6 +35,10 @@ router.post('/', async (req, res, next) => {
       }
     });
   } catch (error) {
+    if (isTtsProviderError(error)) {
+      return sendError(res, error.status, error.message, error.code);
+    }
+
     return next(error);
   }
 });
