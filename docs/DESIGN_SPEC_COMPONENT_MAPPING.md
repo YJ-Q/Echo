@@ -203,6 +203,8 @@ Gemini 方向可并入的点：
 - 卡片数量克制
 - 强弱明显
 - 不能比中间对话更“像主角”
+- 当前版本中更接近文字型辅助轨，而不是成组白卡工作台
+- 优先通过排版、间距与细分隔线组织信息，不依赖重边框和容器阴影
 
 当前风险：
 
@@ -238,6 +240,8 @@ Gemini 方向可并入的点：
 - 文案短，语气稳
 - 留白充足
 - 不使用强操作型视觉语言
+- 当前版本中，这个部件应缩成页首引子，而不是占据过大高度的首屏主块
+- 不允许再引入百分比、进度条、学习比率、统计标签等推进性量化元素
 
 Gemini 方向可并入的点：
 
@@ -273,13 +277,15 @@ Gemini 方向可并入的点：
 建议方向：
 
 - 如果延续 Gemini 的暖纸方向，这个视觉需要从冷蓝环形收束成更柔和、更低科技感的在场标记
+- 当前实现中，它更适合作为小体积微光存在物，不能重新膨胀成主视觉中心
+- 后续若继续收敛，应优先减少几何仪表感，而不是增加动画戏剧性
 
 ## 4.3 Arrival Focus Card
 
 当前部件：
 
 - `#hero-focus-topic`
-- `#hero-learning-ratio`
+- `#hero-focus-context`
 
 设计定位：
 
@@ -293,6 +299,7 @@ Gemini 方向可并入的点：
 
 - 更像“线索仍在”
 - 不像“项目状态”
+- 使用文字化连续性说明，不使用比分、步数、完成度或量化学习信号
 
 ## 4.4 Arrival Next Card
 
@@ -300,7 +307,7 @@ Gemini 方向可并入的点：
 
 - `#hero-next-action`
 - `#hero-next-copy`
-- `#hero-focus-track-fill`
+- `#hero-next-context`
 - `#hero-start-action`
 
 设计定位：
@@ -317,11 +324,12 @@ Gemini 方向可并入的点：
 
 - 全页唯一主推进点
 - CTA 清楚但不强压
-- 进度提示轻量化
+- 进度提示文字化
+- 行动入口更接近邀请式文字按钮，而不是高压 CTA
 
 当前风险：
 
-- 进度条和百分比如果过强，会让它更像任务推进卡
+- 如果重新引入进度条和百分比，会让它立刻滑回任务推进卡
 
 ## 4.5 Conversation Board
 
@@ -350,6 +358,8 @@ Gemini 方向可并入的点：
 - 气泡节奏舒适
 - 快捷提示贴近输入，不抢主注意力
 - 输入框保持持续可用
+- 当前版本中，对话区应去盒子化，避免被感知为客服聊天组件
+- 结构化边框与厚重阴影必须退后，让“关系空间”而不是“组件容器”成为主感受
 
 Gemini 方向可并入的点：
 
@@ -362,7 +372,7 @@ Gemini 方向可并入的点：
 
 - `.timeline-row`
 - `.timeline-copy`
-- `.typing-dots`
+- `.typing-line`
 
 设计定位：
 
@@ -376,14 +386,16 @@ Gemini 方向可并入的点：
 设计要求：
 
 - Echo 与用户有清楚区分
-- Echo 的回复气泡更柔和
-- typing 反馈应非常轻
+- Echo 的回复更像排版返还，允许仅靠细线、缩进与留白区分
+- 用户消息比 Echo 更接近输入动作，可保留极淡底色但不做硬边框
+- typing 反馈应非常轻，并保持文字化
 
 建议补入规范：
 
 - 支持分段式回复
 - Echo 可先短句出现，再继续展开
 - 正在回应状态不应制造等待焦虑
+- 回合间距应明显大于传统 IM 界面
 
 ## 4.7 Quick Prompts
 
@@ -438,7 +450,7 @@ Gemini 方向可并入的点：
 
 - `#emotion-label`
 - `#emotion-copy`
-- `.waveform`
+- `#emotion-note`
 
 设计定位：
 
@@ -448,15 +460,15 @@ Gemini 方向可并入的点：
 
 - 比 hero 弱
 - 不是监测仪
-- 波形只做轻呼吸，不做医学或音频设备感
+- 当前状态说明以文字复述为主
+- 不使用波形、心电、声纹或设备型状态反馈
 
 ## 5.2 专注卡
 
 当前部件：
 
 - `#focus-title`
-- `#focus-percentage`
-- `#focus-track-fill`
+- `#focus-note`
 
 设计定位：
 
@@ -466,6 +478,7 @@ Gemini 方向可并入的点：
 
 - 保留“当前主线”感觉
 - 弱化“百分比管理”
+- 用一句轻量说明表达“这条线仍在”，不再使用完成度信号
 
 ## 5.3 下一步行动卡
 
@@ -488,9 +501,8 @@ Gemini 方向可并入的点：
 当前部件：
 
 - `#learning-topic`
-- `#learning-ratio`
 - `#learning-step-copy`
-- `#learning-segments`
+- `#learning-note`
 
 设计定位：
 
@@ -500,6 +512,8 @@ Gemini 方向可并入的点：
 
 - 只显示当前主线
 - 不展开完整学习结构
+- 不使用分段格、步数比分或阶段进度条
+- 更像“当前学习还活着的证据”，而不是课程流程追踪器
 
 ## 5.5 连续性卡
 
@@ -626,3 +640,52 @@ Gemini 方向可并入的点：
 2. 再补右侧工作台的强弱与降噪规则
 3. 再补 `学习 / 行动 / 反思 / 记忆` 四页的页面级气质差异
 4. 最后统一整理成完整的视觉规范文档
+---
+
+## Material Mapping Addendum
+
+This addendum records the now-confirmed tactile direction for the current Echo system so later component refinements do not drift back toward dashboard or tool-console language.
+
+### Global Material Decision
+
+- Primary material family: warm cotton paper
+- Secondary overlay family: translucent vellum / tracing paper
+- Micro-state accent family: matte ceramic / diffused frosted glow
+- Explicitly avoid as global language: plaster + raw wood, heavy object blocks, glossy glass, metallic control surfaces
+
+### Component Notes
+
+#### `Now Arrival Card`
+
+- Map to a slightly lifted paper sheet, not a task slab
+- Reinforce emotional holding and current-line continuity through typography and soft paper depth
+
+#### `Hero Orbit Visual`
+
+- Map to embedded warm glow under frosted / paper-like surface
+- Never map to ring gauge, radar, or energy-core visual logic
+
+#### `Conversation Board`
+
+- Map to the main paper ground itself
+- Echo responses should feel printed / returned on the surface, not boxed as equal-strength message cards
+
+#### `Timeline Panel`
+
+- Map continuity to a pressed trace, faint line, or fiber-like continuation mark
+- Do not map continuity to progress rails or illuminated process tracks
+
+#### `Status Column`
+
+- Map to side-layered vellum / note-overlay logic
+- Do not map to a white-card workbench or instrument cluster
+
+#### `Learn / Actions`
+
+- Keep within the same paper family
+- Allow slightly more structured paper segmentation, but not heavier object metaphors
+
+#### `Reflections / Memory`
+
+- Lean further into retained traces, fragments, overlays, and named patterns
+- Avoid archive furniture, drawers, binders, or database-object metaphors

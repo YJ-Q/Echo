@@ -3,57 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Echo 当前系统设计规范</title>
+    <title>Echo 当前系统视觉化设计规范</title>
     <style>
       :root {
-        --color-white: #ffffff;
-        --color-bg: #f5f7fb;
-        --color-bg-soft: #eef3f8;
-        --color-surface: rgba(255, 255, 255, 0.84);
-        --color-surface-strong: rgba(255, 255, 255, 0.95);
-        --color-surface-soft: rgba(250, 252, 255, 0.76);
-        --color-ink: #111827;
-        --color-text: #18212f;
-        --color-text-secondary: #5f6b7c;
-        --color-text-tertiary: #8a94a6;
-        --color-line: rgba(24, 33, 47, 0.08);
-        --color-line-strong: rgba(24, 33, 47, 0.14);
-        --color-line-active: rgba(36, 99, 235, 0.2);
-        --color-blue: #2463eb;
-        --color-blue-hover: #1f57d0;
-        --color-blue-deep: #1544b2;
-        --color-blue-soft: rgba(36, 99, 235, 0.1);
-        --color-blue-surface: rgba(36, 99, 235, 0.06);
-        --shadow-xs: 0 2px 8px rgba(15, 23, 42, 0.04);
-        --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
-        --shadow-md: 0 20px 60px rgba(15, 23, 42, 0.08);
-        --radius-xs: 10px;
+        --bg: #f5efe6;
+        --paper: #fbf7f1;
+        --paper-soft: #f2eadf;
+        --paper-deep: #ebe0d3;
+        --ink: #2f2a26;
+        --ink-soft: #5d534b;
+        --ink-faint: #8c8178;
+        --line: rgba(76, 63, 52, 0.12);
+        --line-strong: rgba(76, 63, 52, 0.2);
+        --accent: #756f9d;
+        --accent-soft: rgba(117, 111, 157, 0.12);
+        --warm: #c8b39a;
+        --warm-soft: rgba(200, 179, 154, 0.18);
+        --glow: rgba(255, 248, 236, 0.88);
+        --shadow-sm: 0 12px 28px rgba(68, 50, 35, 0.06);
+        --shadow-md: 0 22px 50px rgba(68, 50, 35, 0.08);
         --radius-sm: 12px;
-        --radius-md: 16px;
-        --radius-lg: 20px;
-        --radius-xl: 24px;
-        --radius-2xl: 28px;
-        --space-1: 4px;
-        --space-2: 8px;
-        --space-3: 12px;
-        --space-4: 16px;
-        --space-5: 20px;
-        --space-6: 24px;
-        --space-7: 28px;
-        --space-8: 32px;
-        --space-10: 40px;
-        --space-12: 48px;
-        --font-display: 34px;
-        --font-h1: 24px;
-        --font-h2: 18px;
-        --font-h3: 15px;
-        --font-body: 14px;
-        --font-small: 13px;
-        --font-micro: 11px;
-        --motion-fast: 120ms;
-        --motion-base: 180ms;
-        --motion-slow: 260ms;
-        --motion-curve: cubic-bezier(0.22, 1, 0.36, 1);
+        --radius-md: 18px;
+        --radius-lg: 26px;
+        --radius-xl: 34px;
+        --font-sans:
+          "Aptos",
+          "Segoe UI",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          sans-serif;
+        --font-serif:
+          "Iowan Old Style",
+          "Palatino Linotype",
+          "Songti SC",
+          "Noto Serif CJK SC",
+          serif;
       }
 
       * {
@@ -65,1149 +50,3180 @@
         margin: 0;
         min-height: 100%;
         background:
-          radial-gradient(circle at top left, rgba(36, 99, 235, 0.08), transparent 22%),
-          radial-gradient(circle at bottom right, rgba(36, 99, 235, 0.07), transparent 20%),
-          linear-gradient(180deg, #f9fbfe, var(--color-bg));
-        color: var(--color-text);
-        font-family:
-          "SF Pro Display",
-          "SF Pro Text",
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          "PingFang SC",
-          "Hiragino Sans GB",
-          "Microsoft YaHei",
-          sans-serif;
-        font-size: var(--font-body);
-        line-height: 1.65;
+          radial-gradient(circle at top left, rgba(214, 193, 168, 0.22), transparent 24%),
+          radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.66), transparent 16%),
+          linear-gradient(180deg, #fbf8f4, var(--bg));
+        color: var(--ink-soft);
+        font: 14px/1.65 var(--font-sans);
       }
 
       body {
-        padding: 18px;
+        padding: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--ink);
+        font-family: var(--font-serif);
+        font-weight: 500;
       }
 
       a {
-        color: var(--color-blue-deep);
+        color: inherit;
         text-decoration: none;
       }
 
-      a:hover {
-        color: var(--color-blue-hover);
+      code {
+        display: inline-block;
+        padding: 0.1em 0.42em;
+        margin: 0 0.24em 0.24em 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink);
+        font-family: "Cascadia Code", "SF Mono", Consolas, monospace;
+        font-size: 0.92em;
+        line-height: 1.45;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        vertical-align: top;
       }
 
-      .mono {
-        font-family: "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
-      }
-
-      .spec-shell {
-        width: min(1480px, 100%);
+      .page {
+        width: min(1680px, 100%);
         margin: 0 auto;
         display: grid;
-        grid-template-columns: 280px minmax(0, 1fr);
-        gap: 18px;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 22px;
       }
 
-      .spec-sidebar,
-      .spec-main {
-        border: 1px solid rgba(255, 255, 255, 0.38);
-        border-radius: var(--radius-2xl);
-        background: var(--color-surface);
-        backdrop-filter: blur(22px);
+      .side,
+      .main {
+        border: 1px solid rgba(255, 255, 255, 0.46);
+        border-radius: 32px;
+        background: rgba(251, 247, 241, 0.88);
         box-shadow: var(--shadow-md);
+        backdrop-filter: blur(14px);
       }
 
-      .spec-sidebar {
+      .side {
         position: sticky;
-        top: 18px;
+        top: 24px;
         align-self: start;
-        padding: var(--space-7);
+        padding: 28px 24px;
       }
 
-      .brand-mark {
-        width: 28px;
-        height: 40px;
-        display: grid;
-        grid-template-columns: repeat(3, 7px);
-        grid-auto-rows: 6px;
-        gap: 3px;
-        color: var(--color-blue);
-        margin-bottom: var(--space-5);
+      .main {
+        padding: 28px;
       }
 
-      .brand-mark span {
-        background: currentColor;
-      }
-
-      .brand-mark span:nth-child(4),
-      .brand-mark span:nth-child(8) {
-        grid-column: 1;
-      }
-
-      .sidebar-kicker,
-      .section-kicker,
-      .chip-label {
-        margin: 0;
-        color: var(--color-text-tertiary);
-        font-size: var(--font-micro);
+      .kicker {
+        color: var(--ink-faint);
+        font-size: 11px;
         letter-spacing: 0.16em;
         text-transform: uppercase;
       }
 
-      .sidebar-title {
-        margin: 10px 0 8px;
-        font-size: 26px;
-        line-height: 1.2;
+      .side h1 {
+        margin-top: 10px;
+        font-size: 30px;
+        line-height: 1.15;
       }
 
-      .sidebar-copy {
-        margin: 0 0 var(--space-6);
-        color: var(--color-text-secondary);
-      }
-
-      .sidebar-note {
-        margin: var(--space-6) 0 0;
-        padding: var(--space-4);
-        border: 1px solid var(--color-line);
-        border-radius: var(--radius-lg);
-        background: var(--color-surface-soft);
-        color: var(--color-text-secondary);
+      .side p {
+        margin-top: 12px;
       }
 
       .toc {
         display: grid;
         gap: 10px;
+        margin-top: 24px;
       }
 
       .toc a {
         padding: 12px 14px;
-        border: 1px solid transparent;
+        border: 1px solid var(--line);
         border-radius: var(--radius-md);
-        color: var(--color-text-secondary);
-        background: rgba(255, 255, 255, 0.44);
-        transition:
-          border-color var(--motion-base) var(--motion-curve),
-          background var(--motion-base) var(--motion-curve),
-          color var(--motion-base) var(--motion-curve),
-          transform var(--motion-base) var(--motion-curve);
+        background: rgba(255, 255, 255, 0.58);
       }
 
-      .toc a:hover {
-        border-color: var(--color-line-active);
-        background: rgba(255, 255, 255, 0.82);
-        color: var(--color-text);
-        transform: translateX(4px);
-      }
-
-      .spec-main {
-        padding: var(--space-8);
-      }
-
-      .hero-panel {
-        overflow: hidden;
+      .lead {
         position: relative;
-        padding: var(--space-10);
-        border: 1px solid rgba(255, 255, 255, 0.42);
-        border-radius: 32px;
+        overflow: hidden;
+        padding: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 34px;
         background:
-          radial-gradient(circle at top right, rgba(36, 99, 235, 0.12), transparent 26%),
-          linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.78));
+          radial-gradient(circle at 82% 20%, rgba(255, 251, 246, 0.96), transparent 18%),
+          radial-gradient(circle at 75% 32%, rgba(200, 179, 154, 0.16), transparent 26%),
+          linear-gradient(180deg, rgba(255, 253, 250, 0.98), rgba(244, 237, 228, 0.92));
         box-shadow: var(--shadow-sm);
       }
 
-      .hero-panel::after {
+      .lead-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) 360px;
+        gap: 22px;
+        align-items: center;
+      }
+
+      .lead h2 {
+        margin-top: 10px;
+        font-size: clamp(32px, 3vw, 46px);
+        line-height: 1.08;
+      }
+
+      .lead p {
+        margin-top: 14px;
+        max-width: 760px;
+      }
+
+      .hero-mini {
+        position: relative;
+        min-height: 220px;
+        border: 1px solid rgba(255, 255, 255, 0.36);
+        border-radius: 30px;
+        background:
+          radial-gradient(circle at center, rgba(255, 247, 235, 0.92), rgba(255, 247, 235, 0) 46%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(245, 237, 228, 0.76));
+      }
+
+      .hero-mini::before,
+      .hero-mini::after {
         content: "";
         position: absolute;
-        inset: auto -80px -80px auto;
-        width: 220px;
-        height: 220px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(36, 99, 235, 0.14), transparent 68%);
+        inset: 50% auto auto 50%;
+        translate: -50% -50%;
+        border-radius: 999px;
       }
 
-      .hero-grid {
-        position: relative;
-        z-index: 1;
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
-        gap: var(--space-8);
+      .hero-mini::before {
+        width: 148px;
+        height: 148px;
+        background: radial-gradient(circle, rgba(255, 249, 240, 0.98), rgba(200, 179, 154, 0.08) 64%, transparent 72%);
+        filter: blur(6px);
       }
 
-      .hero-title {
-        margin: 12px 0 14px;
-        font-size: clamp(30px, 3.2vw, 42px);
-        line-height: 1.1;
+      .hero-mini::after {
+        width: 28px;
+        height: 28px;
+        background: rgba(255, 251, 244, 0.98);
+        box-shadow:
+          0 0 0 18px rgba(200, 179, 154, 0.08),
+          0 0 44px rgba(200, 179, 154, 0.3);
       }
 
-      .hero-copy {
-        max-width: 680px;
-        margin: 0;
-        color: var(--color-text-secondary);
-        font-size: 15px;
-      }
-
-      .hero-meta {
+      .chips {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        margin-top: var(--space-6);
+        margin-top: 18px;
       }
 
-      .meta-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
-        border: 1px solid var(--color-line);
+      .chip {
+        padding: 8px 12px;
+        border: 1px solid var(--line);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.76);
-        color: var(--color-text-secondary);
+        background: rgba(255, 252, 248, 0.74);
+        color: var(--ink);
       }
 
-      .hero-sample {
-        display: grid;
-        gap: 14px;
-        align-content: start;
-      }
-
-      .sample-card {
-        padding: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.45);
-        border-radius: var(--radius-xl);
-        background: rgba(255, 255, 255, 0.74);
-        box-shadow: var(--shadow-xs);
-      }
-
-      .sample-card strong,
-      .sample-card p {
-        display: block;
-      }
-
-      .sample-card strong {
-        margin: 8px 0 6px;
-        font-size: 16px;
-      }
-
-      .sample-card p {
-        margin: 0;
-        color: var(--color-text-secondary);
-      }
-
-      .spec-section {
-        margin-top: var(--space-12);
+      .section {
+        margin-top: 56px;
+        padding-top: 6px;
       }
 
       .section-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: var(--space-5);
-        margin-bottom: var(--space-6);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        margin-bottom: 28px;
       }
 
       .section-head h2 {
-        margin: 10px 0 0;
-        font-size: 28px;
-        line-height: 1.15;
+        margin-top: 8px;
+        font-size: 30px;
+        line-height: 1.2;
       }
 
-      .section-desc {
-        max-width: 720px;
-        margin: 0;
-        color: var(--color-text-secondary);
+      .caption {
+        max-width: 980px;
+        color: var(--ink-faint);
+        line-height: 1.8;
       }
 
-      .section-tag {
-        padding: 9px 12px;
-        border: 1px solid var(--color-line);
-        border-radius: 999px;
-        color: var(--color-text-secondary);
-        background: var(--color-surface-soft);
-        white-space: nowrap;
-      }
-
-      .card-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-      }
-
-      .info-card,
-      .example-card,
-      .token-card,
-      .wire-card,
-      .check-card {
+      .panel {
         padding: 22px;
-        border: 1px solid rgba(255, 255, 255, 0.38);
-        border-radius: var(--radius-xl);
-        background: rgba(255, 255, 255, 0.78);
-        box-shadow: var(--shadow-xs);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.62);
+        box-shadow: 0 10px 24px rgba(68, 50, 35, 0.04);
       }
 
-      .info-card h3,
-      .example-card h3,
-      .token-card h3,
-      .wire-card h3,
-      .check-card h3 {
-        margin: 8px 0 12px;
-        font-size: 18px;
-      }
-
-      .info-card p,
-      .example-card p,
-      .token-card p,
-      .wire-card p,
-      .check-card p {
-        margin: 0;
-        color: var(--color-text-secondary);
-      }
-
-      .rule-list,
-      .do-dont-list,
-      .mini-list,
-      .check-list {
+      .stack {
         display: grid;
-        gap: 10px;
-        margin: 14px 0 0;
-        padding: 0;
-        list-style: none;
+        gap: 18px;
       }
 
-      .rule-list li,
-      .do-dont-list li,
-      .mini-list li,
-      .check-list li {
-        padding: 12px 14px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--color-line);
-        background: rgba(255, 255, 255, 0.72);
-      }
-
-      .do-dont {
+      .grid-2 {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
+        gap: 24px;
       }
 
-      .do-card {
-        border-color: rgba(27, 94, 32, 0.14);
-        background: linear-gradient(180deg, rgba(236, 253, 245, 0.9), rgba(255, 255, 255, 0.76));
-      }
-
-      .dont-card {
-        border-color: rgba(191, 38, 0, 0.14);
-        background: linear-gradient(180deg, rgba(255, 244, 242, 0.94), rgba(255, 255, 255, 0.78));
-      }
-
-      .token-grid {
+      .grid-3 {
         display: grid;
-        grid-template-columns: 1.2fr 1fr;
-        gap: 18px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
       }
 
-      .swatch-row {
+      .shell-visual {
         display: grid;
-        gap: 12px;
-        margin-top: 14px;
-      }
-
-      .swatch {
-        display: grid;
-        grid-template-columns: 96px minmax(0, 1fr);
+        grid-template-columns: 180px minmax(0, 1fr) 270px;
         gap: 14px;
+        min-height: 500px;
+        padding: 16px;
+        border-radius: 30px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(243, 234, 224, 0.82)),
+          linear-gradient(180deg, var(--paper), var(--paper-soft));
+      }
+
+      .zone {
+        position: relative;
+        border-radius: 24px;
+        border: 1px dashed rgba(88, 72, 58, 0.16);
+        background: rgba(255, 255, 255, 0.32);
+        overflow: hidden;
+      }
+
+      .zone::before {
+        content: attr(data-label);
+        position: absolute;
+        top: 14px;
+        left: 16px;
+        color: var(--ink-faint);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .nav-zone {
+        padding: 54px 14px 14px;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 14px;
+      }
+
+      .mark-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 8px);
+        gap: 5px;
+        width: max-content;
+      }
+
+      .mark-grid span,
+      .mark-grid div {
+        width: 8px;
+        height: 8px;
+        border-radius: 3px;
+        background: rgba(117, 111, 157, 0.34);
+      }
+
+      .presence {
+        display: inline-flex;
         align-items: center;
+        gap: 8px;
+        width: max-content;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.5);
       }
 
-      .swatch-chip {
-        height: 56px;
-        border-radius: 16px;
-        border: 1px solid rgba(17, 24, 39, 0.06);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-      }
-
-      .swatch-meta strong,
-      .swatch-meta span {
-        display: block;
-      }
-
-      .swatch-meta span {
-        color: var(--color-text-secondary);
-      }
-
-      .type-scale {
-        display: grid;
-        gap: 14px;
-        margin-top: 14px;
-      }
-
-      .type-row {
-        display: grid;
-        grid-template-columns: 108px minmax(0, 1fr);
-        gap: 14px;
-        align-items: baseline;
-      }
-
-      .type-size {
-        color: var(--color-text-tertiary);
+      .presence span:last-child {
         font-size: 12px;
       }
 
-      .layout-preview {
-        display: grid;
-        grid-template-columns: 84px minmax(0, 1fr) 260px;
-        gap: 14px;
-        margin-top: 14px;
-        padding: 14px;
-        border-radius: 22px;
-        background: linear-gradient(180deg, rgba(240, 245, 252, 0.92), rgba(255, 255, 255, 0.68));
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(117, 111, 157, 0.7);
+        box-shadow: 0 0 0 8px rgba(117, 111, 157, 0.08);
       }
 
-      .layout-column {
-        min-height: 230px;
-        padding: 16px;
-        border: 1px solid var(--color-line);
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.82);
-      }
-
-      .layout-column strong {
-        display: block;
-        margin-bottom: 10px;
-      }
-
-      .layout-lines {
+      .nav-list-mini,
+      .status-list-mini {
         display: grid;
         gap: 10px;
       }
 
-      .layout-lines span {
-        display: block;
+      .nav-pill {
+        min-height: 42px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.54);
+      }
+
+      .nav-pill.active {
+        background: rgba(255, 248, 240, 0.9);
+        border-color: rgba(117, 111, 157, 0.18);
+      }
+
+      .main-zone {
+        padding: 54px 16px 16px;
+        display: grid;
+        grid-template-rows: 76px 178px minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .topbar-mini,
+      .arrival-mini,
+      .conversation-mini,
+      .status-card-mini,
+      .page-mini,
+      .legend-mini,
+      .component-mini,
+      .state-mini,
+      .rule-mini,
+      .compare-mini {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.56);
+      }
+
+      .topbar-mini {
+        display: grid;
+        grid-template-columns: 1fr 220px;
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .title-lines,
+      .meta-lines,
+      .text-lines {
+        display: grid;
+        gap: 8px;
+      }
+
+      .line {
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(122, 108, 96, 0.14);
+      }
+
+      .line.short {
+        width: 42%;
+      }
+
+      .line.medium {
+        width: 66%;
+      }
+
+      .line.long {
+        width: 88%;
+      }
+
+      .arrival-mini {
+        display: grid;
+        grid-template-columns: 1.1fr 280px;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .arrival-copy-mini {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 12px;
+      }
+
+      .headline {
+        height: 34px;
+        width: 56%;
+        border-radius: 18px;
+        background: rgba(74, 61, 52, 0.08);
+      }
+
+      .orbit-mini {
+        display: grid;
+        place-items: center;
+        position: relative;
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at center, rgba(255, 249, 240, 1), rgba(255, 249, 240, 0) 44%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(245, 237, 228, 0.9));
+      }
+
+      .orbit-mini::before {
+        content: "";
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 251, 246, 1);
+        box-shadow:
+          0 0 0 16px rgba(200, 179, 154, 0.12),
+          0 0 40px rgba(200, 179, 154, 0.26);
+      }
+
+      .arrival-rail-mini {
+        display: grid;
+        gap: 10px;
+      }
+
+      .arrival-note-mini {
+        min-height: 72px;
+        padding: 12px;
+        border-radius: 18px;
+        background: rgba(255, 250, 244, 0.74);
+      }
+
+      .conversation-mini {
+        display: grid;
+        grid-template-rows: 72px minmax(240px, 1fr) 112px;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .timeline-mini {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+        border-radius: 22px;
+        background: rgba(250, 246, 240, 0.82);
+      }
+
+      .msg {
+        max-width: 74%;
+        padding: 16px;
+        border-radius: 20px;
+      }
+
+      .msg.echo {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .msg.user {
+        justify-self: end;
+        background: rgba(255, 250, 244, 0.96);
+      }
+
+      .msg + .msg {
+        margin-top: 10px;
+      }
+
+      .typing-mini {
+        width: 180px;
         height: 12px;
         border-radius: 999px;
-        background: linear-gradient(90deg, rgba(36, 99, 235, 0.16), rgba(36, 99, 235, 0.04));
+        background: rgba(122, 108, 96, 0.12);
+      }
+
+      .composer-mini {
+        display: grid;
+        gap: 12px;
+      }
+
+      .quick-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .quick-chip {
+        min-width: 86px;
+        height: 30px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.66);
+        border: 1px solid rgba(122, 108, 96, 0.1);
+      }
+
+      .input-row {
+        display: grid;
+        grid-template-columns: 1fr 132px;
+        gap: 10px;
+      }
+
+      .input-row div {
+        height: 44px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(122, 108, 96, 0.12);
+      }
+
+      .status-zone {
+        padding: 54px 14px 14px;
+        display: grid;
+        grid-template-rows: 68px repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .status-card-mini {
+        padding: 14px;
+        background: rgba(255, 251, 247, 0.6);
+      }
+
+      .status-card-mini .line.long {
+        width: 100%;
+      }
+
+      .status-card-mini .line.medium {
+        width: 72%;
+      }
+
+      .label-tag {
+        display: inline-flex;
+        width: max-content;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(117, 111, 157, 0.1);
+        color: var(--ink-faint);
+        font-size: 11px;
+      }
+
+      .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .legend-mini {
+        padding: 16px;
+      }
+
+      .legend-block {
+        height: 92px;
+        margin-top: 12px;
+        border-radius: 18px;
+      }
+
+      .focus-1 {
+        background:
+          linear-gradient(180deg, rgba(255, 252, 246, 1), rgba(245, 236, 227, 1)),
+          radial-gradient(circle at center, rgba(200, 179, 154, 0.18), transparent 46%);
+      }
+
+      .focus-2 {
+        background: rgba(255, 250, 244, 0.94);
+      }
+
+      .focus-3 {
+        background: rgba(245, 238, 231, 0.78);
+      }
+
+      .focus-4 {
+        background: rgba(239, 231, 223, 0.62);
+      }
+
+      .heatmap {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr) 240px;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(244, 236, 228, 0.78));
+      }
+
+      .heat {
+        border-radius: 24px;
+        min-height: 300px;
+      }
+
+      .heat.low {
+        background: rgba(233, 223, 212, 0.56);
+      }
+
+      .heat.mid {
+        background:
+          linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(249, 243, 236, 0.94));
+      }
+
+      .heat.high {
+        background:
+          radial-gradient(circle at 50% 52%, rgba(255, 249, 241, 1), rgba(255, 249, 241, 0.52) 22%, rgba(248, 241, 233, 0.96) 68%);
+      }
+
+      .overlay-note {
+        margin-top: 14px;
+        color: var(--ink-faint);
+        line-height: 1.8;
+      }
+
+      .compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .compare-mini {
+        padding: 18px;
+      }
+
+      .compare-mini.bad {
+        background: linear-gradient(180deg, rgba(239, 244, 255, 0.86), rgba(233, 240, 255, 0.62));
+      }
+
+      .compare-mini.good {
+        background: linear-gradient(180deg, rgba(255, 252, 248, 0.92), rgba(244, 236, 228, 0.82));
+      }
+
+      .fake-dashboard {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .metric-card,
+      .text-card {
+        min-height: 74px;
+        border-radius: 16px;
+      }
+
+      .metric-card {
+        background: rgba(255, 255, 255, 0.86);
+        border: 1px solid rgba(102, 123, 196, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+      }
+
+      .progress-bar {
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(133, 149, 214, 0.2);
+      }
+
+      .progress-bar::after {
+        content: "";
+        display: block;
+        width: 72%;
+        height: 100%;
+        border-radius: inherit;
+        background: rgba(104, 125, 214, 0.72);
+      }
+
+      .wave {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 6px;
+        align-items: end;
+        min-height: 70px;
+      }
+
+      .wave span {
+        border-radius: 999px;
+        background: rgba(104, 125, 214, 0.36);
+      }
+
+      .wave span:nth-child(1) { height: 18px; }
+      .wave span:nth-child(2) { height: 36px; }
+      .wave span:nth-child(3) { height: 24px; }
+      .wave span:nth-child(4) { height: 48px; }
+      .wave span:nth-child(5) { height: 30px; }
+      .wave span:nth-child(6) { height: 58px; }
+      .wave span:nth-child(7) { height: 34px; }
+      .wave span:nth-child(8) { height: 44px; }
+      .wave span:nth-child(9) { height: 24px; }
+      .wave span:nth-child(10) { height: 54px; }
+      .wave span:nth-child(11) { height: 28px; }
+      .wave span:nth-child(12) { height: 40px; }
+
+      .soft-rail {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .text-card {
+        padding: 12px 14px;
+        background: rgba(255, 251, 245, 0.72);
+        border: 1px solid rgba(96, 79, 63, 0.08);
       }
 
       .component-showcase {
         display: grid;
-        grid-template-columns: 1.05fr 0.95fr;
-        gap: 18px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .component-mini {
+        padding: 18px;
+      }
+
+      .component-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        margin-bottom: 4px;
+      }
+
+      .component-head p {
+        margin-top: 8px;
+        line-height: 1.75;
+      }
+
+      .component-visual {
+        margin-top: 14px;
+        min-height: 170px;
+        padding: 14px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(244, 235, 226, 0.72));
+        border: 1px solid rgba(96, 79, 63, 0.08);
+      }
+
+      .arrival-visual-demo,
+      .orbit-demo,
+      .conversation-demo,
+      .timeline-demo,
+      .status-demo,
+      .learn-demo,
+      .actions-demo,
+      .reflections-demo,
+      .memory-demo,
+      .shared-demo {
+        height: 100%;
+      }
+
+      .arrival-visual-demo {
+        display: grid;
+        grid-template-columns: 1fr 160px;
+        gap: 12px;
+      }
+
+      .arrival-visual-demo .copy-area,
+      .status-demo,
+      .shared-demo {
+        display: grid;
+        gap: 10px;
+      }
+
+      .mini-box {
+        min-height: 42px;
+        border-radius: 16px;
+        background: rgba(255, 251, 246, 0.88);
+      }
+
+      .mini-box.light {
+        background: rgba(255, 255, 255, 0.46);
+      }
+
+      .ui-card,
+      .ui-strip,
+      .ui-pill,
+      .ui-input,
+      .ui-button,
+      .ui-stack-card,
+      .ui-row-card,
+      .ui-tag,
+      .ui-memory,
+      .ui-summary,
+      .ui-sidebar-card,
+      .ui-note-card {
+        border: 1px solid rgba(96, 79, 63, 0.08);
+        background: rgba(255, 252, 248, 0.84);
+      }
+
+      .ui-card,
+      .ui-stack-card,
+      .ui-row-card,
+      .ui-memory,
+      .ui-summary,
+      .ui-sidebar-card,
+      .ui-note-card {
+        border-radius: 18px;
+      }
+
+      .ui-strip,
+      .ui-pill,
+      .ui-button,
+      .ui-tag {
+        border-radius: 999px;
+      }
+
+      .ui-card,
+      .ui-stack-card,
+      .ui-row-card,
+      .ui-memory,
+      .ui-summary,
+      .ui-sidebar-card,
+      .ui-note-card,
+      .ui-input {
+        padding: 12px;
+      }
+
+      .ui-strip {
+        min-height: 12px;
+      }
+
+      .ui-strip.short {
+        width: 34%;
+      }
+
+      .ui-strip.medium {
+        width: 58%;
+      }
+
+      .ui-strip.long {
+        width: 84%;
+      }
+
+      .ui-pill {
+        width: 62px;
+        height: 24px;
+      }
+
+      .ui-button {
+        min-width: 84px;
+        height: 34px;
+        background: rgba(244, 236, 228, 0.94);
+      }
+
+      .ui-input {
+        min-height: 44px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .ui-tag {
+        width: 56px;
+        height: 24px;
+        background: rgba(117, 111, 157, 0.1);
+      }
+
+      .ui-stack-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .ui-row-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .ui-summary {
+        display: grid;
+        gap: 8px;
+        min-height: 72px;
+      }
+
+      .ui-memory {
+        display: grid;
+        gap: 8px;
+        min-height: 56px;
+      }
+
+      .ui-sidebar-card,
+      .ui-note-card {
+        display: grid;
+        gap: 8px;
+      }
+
+      .ui-dot-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .ui-dot-row span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(117, 111, 157, 0.34);
+      }
+
+      .launch-demo,
+      .window-demo,
+      .topbar-demo,
+      .nav-demo,
+      .panel-demo,
+      .toast-demo,
+      .now-shell-demo {
+        display: grid;
+        gap: 12px;
+        height: 100%;
+      }
+
+      .launch-demo {
+        place-items: center;
+        align-content: center;
+        background:
+          radial-gradient(circle at center, rgba(255, 249, 240, 0.96), rgba(255, 249, 240, 0) 42%);
+      }
+
+      .launch-demo .mark-grid {
+        grid-template-columns: repeat(4, 10px);
+        gap: 6px;
+      }
+
+      .launch-demo .mark-grid span {
+        width: 10px;
+        height: 10px;
+      }
+
+      .window-demo {
+        grid-template-rows: 54px 1fr;
+      }
+
+      .window-bar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .window-brand,
+      .window-status,
+      .topbar-demo .left,
+      .topbar-demo .right,
+      .nav-demo .nav-group,
+      .nav-demo .nav-top,
+      .panel-demo,
+      .toast-demo,
+      .now-shell-demo .now-layers {
+        display: grid;
+        gap: 8px;
+      }
+
+      .window-brand {
+        grid-template-columns: 64px 1fr;
+        align-items: center;
+      }
+
+      .window-status {
+        grid-auto-flow: column;
+        align-items: center;
+      }
+
+      .window-controls-mini {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-controls-mini span {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(96, 79, 63, 0.16);
+      }
+
+      .window-controls-mini span:last-child {
+        background: rgba(179, 110, 93, 0.28);
+      }
+
+      .window-canvas {
+        display: grid;
+        grid-template-columns: 100px 1fr 120px;
+        gap: 10px;
+      }
+
+      .window-canvas > div {
+        border-radius: 16px;
+        background: rgba(255, 251, 246, 0.74);
+      }
+
+      .topbar-demo {
+        grid-template-columns: 1fr 180px;
+        align-items: start;
+      }
+
+      .nav-demo {
+        grid-template-columns: 68px 1fr;
+      }
+
+      .nav-demo .nav-top {
+        align-content: start;
+      }
+
+      .nav-demo .nav-group .ui-card {
+        min-height: 38px;
+      }
+
+      .panel-demo {
+        align-content: start;
+      }
+
+      .panel-demo .grid-2 {
+        gap: 10px;
+      }
+
+      .toast-demo {
+        align-content: end;
+      }
+
+      .toast-demo .ui-note-card {
+        justify-self: end;
+        width: 66%;
+      }
+
+      .status-demo {
+        align-content: start;
+      }
+
+      .status-demo .ui-sidebar-card:nth-child(2n) {
+        background: rgba(255, 255, 255, 0.58);
+      }
+
+      .now-shell-demo {
+        align-content: start;
+      }
+
+      .now-shell-demo .arrival-line {
+        min-height: 68px;
+      }
+
+      .now-shell-demo .conversation-line {
+        min-height: 126px;
+      }
+
+      .now-shell-demo .composer-line {
+        min-height: 54px;
+      }
+
+      .learn-demo,
+      .actions-demo,
+      .reflections-demo,
+      .memory-demo {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .learn-steps-demo,
+      .action-list-demo,
+      .reflection-stack-demo,
+      .memory-stack-demo {
+        display: grid;
+        gap: 10px;
+      }
+
+      .memory-stack-demo .tag-row {
+        margin-bottom: 2px;
+      }
+
+      .orbit-demo {
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+
+      .orbit-demo::before {
+        content: "";
+        width: 148px;
+        height: 148px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 249, 240, 0.98), rgba(200, 179, 154, 0.08) 62%, transparent 72%);
+      }
+
+      .orbit-demo::after {
+        content: "";
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(255, 251, 246, 1);
       }
 
       .conversation-demo {
         display: grid;
-        gap: 12px;
-        margin-top: 14px;
+        grid-template-rows: auto 1fr auto;
+        gap: 10px;
+      }
+
+      .timeline-flow {
+        display: grid;
+        gap: 14px;
+        padding: 10px 4px;
       }
 
       .bubble {
-        max-width: 82%;
-        padding: 14px 16px;
+        min-height: 46px;
+        max-width: 74%;
         border-radius: 18px;
-        border: 1px solid var(--color-line);
-        box-shadow: var(--shadow-xs);
+        background: rgba(255, 251, 246, 0.94);
       }
 
       .bubble.echo {
-        justify-self: start;
-        background: rgba(255, 255, 255, 0.82);
+        background: rgba(255, 255, 255, 0.22);
       }
 
       .bubble.user {
         justify-self: end;
-        background: rgba(36, 99, 235, 0.1);
-        border-color: rgba(36, 99, 235, 0.18);
       }
 
-      .bubble.typing {
-        justify-self: start;
-        background: rgba(248, 250, 253, 0.88);
-        color: var(--color-text-secondary);
+      .timeline-demo {
+        display: grid;
+        gap: 16px;
+        align-content: start;
       }
 
-      .composer-demo {
+      .timeline-beat {
+        display: grid;
+        gap: 8px;
+      }
+
+      .timeline-beat .bubble.echo {
+        width: 68%;
+      }
+
+      .timeline-beat .bubble.user {
+        width: 48%;
+      }
+
+      .status-demo .mini-box {
+        min-height: 34px;
+      }
+
+      .list-grid {
         display: grid;
         gap: 10px;
-        margin-top: 14px;
       }
 
-      .prompt-row,
-      .button-row {
+      .step-item,
+      .task-item,
+      .memory-item {
+        min-height: 48px;
+        border-radius: 16px;
+        background: rgba(255, 251, 246, 0.88);
+      }
+
+      .tag-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
       }
 
-      .prompt-chip,
-      .button-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 38px;
-        padding: 0 14px;
+      .tag-pill {
+        width: 64px;
+        height: 26px;
         border-radius: 999px;
-        border: 1px solid var(--color-line);
-        background: rgba(255, 255, 255, 0.9);
-        color: var(--color-text-secondary);
+        background: rgba(255, 255, 255, 0.86);
       }
 
-      .button-chip.primary {
-        border-color: transparent;
-        background: linear-gradient(135deg, var(--color-blue), #3a78ff);
-        color: var(--color-white);
+      .shared-demo {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
-      .input-demo {
-        min-height: 52px;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        border: 1px solid var(--color-line);
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.9);
-        color: var(--color-text-tertiary);
-      }
-
-      .page-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-      }
-
-      .page-badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 14px;
-      }
-
-      .page-badges span {
-        padding: 8px 12px;
-        border-radius: 999px;
-        border: 1px solid var(--color-line);
-        background: rgba(255, 255, 255, 0.78);
-        color: var(--color-text-secondary);
-      }
-
-      .wire-grid {
+      .rule-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 18px;
       }
 
-      .wire-block {
+      .atlas-grid {
         display: grid;
-        gap: 10px;
-        margin-top: 14px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
       }
 
-      .wire-block span {
-        display: block;
-        min-height: 46px;
-        border: 1px solid var(--color-line);
-        border-radius: 16px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 246, 253, 0.78));
-      }
-
-      .wire-block span:first-child {
-        min-height: 84px;
-      }
-
-      .wire-block.two-up {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .wire-block.two-up span:first-child {
-        grid-column: 1 / -1;
-      }
-
-      .motion-grid,
-      .check-grid {
+      .ritual-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
+        gap: 24px;
       }
 
-      .motion-bars {
+      .atlas-card {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.62);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .ritual-card {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.64);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .atlas-card p {
+        margin-top: 8px;
+        line-height: 1.75;
+      }
+
+      .atlas-visual {
+        margin-top: 16px;
+        min-height: 148px;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(96, 79, 63, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(244, 235, 226, 0.76));
+      }
+
+      .ritual-visual {
+        margin-top: 16px;
+        min-height: 180px;
+        padding: 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(96, 79, 63, 0.08);
+        background:
+          radial-gradient(circle at 30% 20%, rgba(255, 252, 248, 0.72), transparent 24%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(242, 233, 223, 0.84));
+      }
+
+      .ritual-card p,
+      .ritual-card li {
+        line-height: 1.8;
+      }
+
+      .ritual-card ul {
+        margin: 12px 0 0;
+        padding-left: 18px;
+      }
+
+      .ritual-card li + li {
+        margin-top: 8px;
+      }
+
+      .ritual-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .ritual-head p {
+        margin-top: 8px;
+      }
+
+      .composer-ritual {
+        display: grid;
+        gap: 14px;
+        height: 100%;
+      }
+
+      .paperweight-bar {
+        display: grid;
+        grid-template-columns: 68px minmax(0, 1fr) 68px;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .jade-btn,
+      .voice-jade {
+        position: relative;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        border: 1px solid rgba(122, 108, 96, 0.12);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.72),
+          inset 0 -6px 14px rgba(96, 79, 63, 0.06),
+          0 8px 18px rgba(92, 73, 56, 0.08);
+      }
+
+      .jade-btn {
+        background:
+          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.82), transparent 24%),
+          radial-gradient(circle at 52% 56%, rgba(209, 230, 212, 0.92), rgba(181, 211, 184, 0.92) 54%, rgba(152, 185, 156, 0.82) 100%);
+      }
+
+      .voice-jade {
+        background:
+          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.88), transparent 24%),
+          radial-gradient(circle at 50% 52%, rgba(252, 250, 246, 0.98), rgba(243, 239, 232, 0.98) 64%, rgba(228, 221, 212, 0.92) 100%);
+      }
+
+      .voice-jade::after {
+        content: "";
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: 11px;
+        height: 11px;
+        translate: -50% -50%;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle, rgba(170, 57, 48, 0.94), rgba(137, 38, 34, 0.9) 72%, rgba(104, 24, 25, 0.82));
+        box-shadow: 0 0 10px rgba(151, 45, 40, 0.12);
+      }
+
+      .paperweight-input {
+        position: relative;
+        min-height: 74px;
+        border-radius: 10px;
+        border: 1px solid rgba(138, 122, 109, 0.12);
+        background:
+          linear-gradient(180deg, rgba(252, 249, 244, 0.98), rgba(240, 233, 224, 0.98));
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.78),
+          inset 0 -10px 18px rgba(110, 90, 72, 0.04),
+          0 10px 26px rgba(84, 66, 49, 0.08);
+        overflow: hidden;
+      }
+
+      .paperweight-input::before {
+        content: "";
+        position: absolute;
+        inset: auto 18px 14px 18px;
+        height: 14px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 50% 50%, rgba(230, 219, 203, 0.2), rgba(230, 219, 203, 0));
+      }
+
+      .paperweight-lines {
         display: grid;
         gap: 10px;
-        margin-top: 14px;
-      }
-
-      .motion-bar {
-        padding: 12px 14px;
-        border-radius: 16px;
-        border: 1px solid var(--color-line);
-        background: rgba(255, 255, 255, 0.82);
-      }
-
-      .motion-bar strong,
-      .motion-bar span {
-        display: block;
-      }
-
-      .motion-bar span {
-        color: var(--color-text-secondary);
-      }
-
-      .footer-note {
-        margin-top: var(--space-12);
         padding: 18px 20px;
-        border: 1px solid var(--color-line);
-        border-radius: var(--radius-xl);
-        background: linear-gradient(180deg, rgba(240, 247, 255, 0.88), rgba(255, 255, 255, 0.72));
-        color: var(--color-text-secondary);
       }
 
-      @media (max-width: 1120px) {
-        .spec-shell,
-        .hero-grid,
-        .card-grid,
-        .token-grid,
-        .component-showcase,
-        .page-grid,
-        .wire-grid,
-        .motion-grid,
-        .check-grid,
-        .do-dont {
-          grid-template-columns: 1fr;
-        }
-
-        .layout-preview {
-          grid-template-columns: 1fr;
-        }
+      .paperweight-lines .ui-strip {
+        background: rgba(124, 111, 102, 0.12);
       }
 
-      @media (max-width: 860px) {
-        body {
-          padding: 12px;
-        }
+      .paper-crease {
+        position: relative;
+        height: 8px;
+        margin: 2px 12px 0;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(108, 90, 72, 0.05), rgba(255, 255, 255, 0.32));
+      }
 
-        .spec-shell {
+      .caret-gem {
+        width: 4px;
+        height: 20px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(189, 217, 193, 0.98), rgba(153, 187, 159, 0.94));
+        box-shadow: 0 0 10px rgba(171, 206, 176, 0.2);
+      }
+
+      .micro-memory {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .tick-scratch {
+        width: 42px;
+        height: 14px;
+        border-radius: 999px;
+        background:
+          linear-gradient(90deg, rgba(131, 112, 96, 0.08) 0 18%, transparent 18% 30%, rgba(131, 112, 96, 0.08) 30% 48%, transparent 48% 60%, rgba(131, 112, 96, 0.08) 60% 78%, transparent 78%);
+      }
+
+      .forbidden-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .forbidden-row {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+      }
+
+      .forbidden-badge {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(188, 122, 112, 0.14);
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .button-atlas,
+      .input-atlas,
+      .chip-atlas,
+      .message-atlas,
+      .list-atlas,
+      .memory-atlas {
+        display: grid;
+        gap: 12px;
+        height: 100%;
+      }
+
+      .button-row,
+      .chip-row,
+      .message-row,
+      .memory-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .ui-button.ghost {
+        background: rgba(255, 255, 255, 0.44);
+      }
+
+      .ui-button.primaryish {
+        background: rgba(240, 231, 220, 0.98);
+      }
+
+      .ui-button.textish {
+        min-width: 120px;
+        background: transparent;
+        border-style: dashed;
+      }
+
+      .ui-input.large {
+        min-height: 54px;
+      }
+
+      .ui-input.with-tail {
+        display: grid;
+        grid-template-columns: 1fr 96px;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .ui-input.with-tail::after {
+        content: "";
+        height: 32px;
+        border-radius: 14px;
+        background: rgba(244, 236, 228, 0.94);
+      }
+
+      .message-stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .message-stack .bubble {
+        min-height: 54px;
+      }
+
+      .list-atlas .ui-row-card,
+      .memory-atlas .ui-memory {
+        min-height: 54px;
+      }
+
+      .wireframe-panel {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.62);
+        margin-top: 8px;
+      }
+
+      .now-wireframe {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr) 270px;
+        gap: 16px;
+        min-height: 760px;
+        padding: 16px;
+        border-radius: 30px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(243, 233, 223, 0.84)),
+          linear-gradient(180deg, var(--paper), var(--paper-soft));
+      }
+
+      .wire-nav,
+      .wire-main,
+      .wire-side {
+        border-radius: 24px;
+        border: 1px dashed rgba(88, 72, 58, 0.16);
+        background: rgba(255, 255, 255, 0.34);
+        padding: 16px;
+      }
+
+      .wire-nav {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .wire-main {
+        display: grid;
+        grid-template-rows: 74px 150px minmax(0, 1fr);
+        gap: 14px;
+      }
+
+      .wire-side {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+
+      .wire-arrival {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 260px;
+        gap: 12px;
+      }
+
+      .wire-conversation {
+        display: grid;
+        grid-template-rows: 62px minmax(320px, 1fr) 110px;
+        gap: 12px;
+      }
+
+      .wire-timeline {
+        display: grid;
+        gap: 18px;
+        padding: 14px;
+        border-radius: 22px;
+        background: rgba(249, 244, 237, 0.84);
+      }
+
+      .wire-timeline .bubble.user {
+        width: 44%;
+      }
+
+      .wire-timeline .bubble.echo {
+        width: 68%;
+      }
+
+      .wire-rail {
+        display: grid;
+        gap: 10px;
+      }
+
+      .wire-sidebar-title {
+        min-height: 62px;
+      }
+
+      .rule-mini {
+        padding: 18px;
+      }
+
+      .rule-badge {
+        display: inline-flex;
+        margin-bottom: 10px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--warm-soft);
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .inventory-card {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .inventory-card h3 {
+        font-size: 22px;
+      }
+
+      .inventory-card p {
+        margin-top: 8px;
+        color: var(--ink-faint);
+      }
+
+      .selector-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 8px;
+        margin-top: 16px;
+        align-items: flex-start;
+      }
+
+      .selector-list code {
+        background: rgba(245, 239, 232, 0.88);
+      }
+
+      .foot {
+        margin-top: 48px;
+        padding: 18px 20px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.54);
+        color: var(--ink-faint);
+        line-height: 1.85;
+      }
+
+      .atlas-card .overlay-note,
+      .component-mini .overlay-note,
+      .inventory-card p,
+      .rule-mini p {
+        line-height: 1.8;
+      }
+
+      .wireframe-panel + .overlay-note,
+      .section > .overlay-note {
+        margin-top: 18px;
+      }
+
+      .wireframe-panel + p,
+      .atlas-grid + p,
+      .component-showcase + p {
+        margin-top: 18px;
+      }
+
+      .inventory-card p {
+        margin-top: 8px;
+      }
+
+      .inventory-card h3 + p,
+      .rule-mini h3 + p {
+        margin-top: 10px;
+      }
+
+      .rule-mini h3 {
+        line-height: 1.45;
+      }
+
+      .rule-mini p {
+        margin-top: 10px;
+      }
+
+      .section + .section {
+        scroll-margin-top: 28px;
+      }
+
+      @media (max-width: 1280px) {
+        .page {
           grid-template-columns: 1fr;
         }
 
-        .spec-sidebar {
+        .side {
           position: static;
         }
 
-        .spec-main,
-        .spec-sidebar,
-        .hero-panel {
-          padding: var(--space-6);
+        .lead-grid,
+        .shell-visual,
+        .legend-grid,
+        .grid-2,
+        .grid-3,
+        .compare,
+        .component-showcase,
+        .atlas-grid,
+        .ritual-grid,
+        .rule-grid,
+        .inventory-grid {
+          grid-template-columns: 1fr;
         }
 
-        .section-head {
-          align-items: start;
-          flex-direction: column;
+        .heatmap {
+          grid-template-columns: 1fr;
+        }
+
+        .now-wireframe {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 1500px) {
+        .grid-3,
+        .atlas-grid,
+        .inventory-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
     </style>
   </head>
   <body>
-    <div class="spec-shell">
-      <aside class="spec-sidebar">
-        <div class="brand-mark" aria-hidden="true">
-          <span></span><span></span><span></span>
-          <span></span>
-          <span></span><span></span><span></span>
-          <span></span>
-          <span></span><span></span><span></span>
-        </div>
-        <p class="sidebar-kicker">Echo UI System</p>
-        <h1 class="sidebar-title">当前系统设计规范</h1>
-        <p class="sidebar-copy">
-          这不是理想化愿景稿，而是一份围绕当前已实现界面整理出的约束文档。后续所有 UI 优化，都先以这份规范为边界，再逐步做强化与升级。
-        </p>
-
-        <nav class="toc" aria-label="目录导航">
-          <a href="#principles">01 原则与定位</a>
-          <a href="#tokens">02 视觉令牌</a>
-          <a href="#layout">03 布局骨架</a>
-          <a href="#components">04 核心组件</a>
-          <a href="#pages">05 页面规则</a>
-          <a href="#motion">06 动效与响应式</a>
-          <a href="#checklist">07 验收清单</a>
+    <div class="page">
+      <aside class="side">
+        <p class="kicker">Echo UI Spec</p>
+        <h1>当前系统视觉化设计规范</h1>
+        <p>这份规范以“图像表达优先”为目标，直接把当前系统的所有页面、元素、组件和强弱关系，转换成可视化版面、缩略结构图和部件图库。</p>
+        <nav class="toc">
+          <a href="#overview">01 总览图</a>
+          <a href="#hierarchy">02 视觉层级</a>
+          <a href="#compare">03 风格对照</a>
+          <a href="#now">04 Now 页解剖</a>
+          <a href="#pages">05 其他页面</a>
+          <a href="#shared">06 共享部件</a>
+          <a href="#atlas">07 基础部件图册</a>
+          <a href="#wireframe">08 Now 线框</a>
+          <a href="#material">09 材质方向</a>
+          <a href="#ritual">10 输入器物</a>
+          <a href="#rules">11 落地规则</a>
+          <a href="#inventory">12 全量组件清单</a>
         </nav>
-
-        <div class="sidebar-note">
-          <strong>适用范围</strong><br />
-          当前桌面端工作区 UI，尤其是 `Now / 学习 / 行动 / 反思 / 记忆` 五个主视图。
-        </div>
       </aside>
 
-      <main class="spec-main">
-        <section class="hero-panel">
-          <div class="hero-grid">
+      <main class="main">
+        <section class="lead">
+          <div class="lead-grid">
             <div>
-              <p class="section-kicker">Document Snapshot</p>
-              <h2 class="hero-title">把 Echo 约束成一个能接住情绪、承接对话、再轻轻推进行动的桌面空间</h2>
-              <p class="hero-copy">
-                Echo 不应该长成任务控制台，也不应该像数据仪表盘。当前系统最重要的体验目标，是让用户愿意回来、愿意继续说、愿意顺着眼前这条线再往前一点。
-              </p>
-              <div class="hero-meta">
-                <span class="meta-chip"><span class="mono">Updated</span> 2026-07-07</span>
-                <span class="meta-chip"><span class="mono">Tone</span> 安静、温和、清晰、低压</span>
-                <span class="meta-chip"><span class="mono">Priority</span> 对话中心 > 当前主线 > 轻量结构</span>
+              <p class="kicker">Current Direction</p>
+              <h2>温暖纸张、微光在场、对话居中、工作台退后</h2>
+              <p>当前真实系统已经从冷色控制台感，转向“关系空间”方向。规范需要持续保护这几个判断：Arrival 不是任务卡，Hero Orbit 不是状态仪，Conversation Board 不是客服窗，Status Column 不是 dashboard。</p>
+              <div class="chips">
+                <span class="chip">主场是对话</span>
+                <span class="chip">状态先被接住</span>
+                <span class="chip">连续性用文字表达</span>
+                <span class="chip">右侧只保留辅助轨</span>
+              </div>
+            </div>
+            <div class="hero-mini" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <section class="section" id="overview">
+          <div class="section-head">
+            <div>
+              <p class="kicker">01 Overview</p>
+              <h2>系统总览图</h2>
+            </div>
+            <p class="caption">这不是功能树，而是当前真实界面的视觉分区图。它展示的是“谁承担主体验，谁只做陪衬”。</p>
+          </div>
+
+          <div class="panel shell-visual">
+            <div class="zone nav-zone" data-label="Nav Rail">
+              <div class="mark-grid" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div class="presence">
+                <span class="dot" aria-hidden="true"></span>
+                <span>presence-label</span>
+              </div>
+              <div class="nav-list-mini">
+                <div class="nav-pill active"></div>
+                <div class="nav-pill"></div>
+                <div class="nav-pill"></div>
+                <div class="nav-pill"></div>
+                <div class="nav-pill"></div>
               </div>
             </div>
 
-            <div class="hero-sample">
-              <div class="sample-card">
-                <p class="chip-label">Current Focus</p>
-                <strong>先接住此刻，再慢慢续上</strong>
-                <p>主对话永远是第一焦点，信息结构只为承接对话服务。</p>
+            <div class="zone main-zone" data-label="Center Column">
+              <div class="topbar-mini">
+                <div class="title-lines">
+                  <div class="line short"></div>
+                  <div class="line medium"></div>
+                  <div class="line long"></div>
+                </div>
+                <div class="meta-lines">
+                  <div class="line medium"></div>
+                  <div class="line short"></div>
+                </div>
               </div>
-              <div class="sample-card">
-                <p class="chip-label">What Echo Is Not</p>
-                <strong>不是高压推进器</strong>
-                <p>避免 KPI 感、避免面板堆叠、避免“立刻安排你的一天”式控制感。</p>
+
+              <div class="arrival-mini">
+                <div class="arrival-copy-mini">
+                  <div class="line short"></div>
+                  <div class="headline"></div>
+                  <div class="text-lines">
+                    <div class="line long"></div>
+                    <div class="line medium"></div>
+                  </div>
+                </div>
+                <div class="orbit-mini"></div>
+                <div class="arrival-rail-mini">
+                  <div class="arrival-note-mini">
+                    <div class="line short"></div>
+                    <div class="line medium"></div>
+                  </div>
+                  <div class="arrival-note-mini">
+                    <div class="line short"></div>
+                    <div class="line long"></div>
+                    <div class="line medium"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="conversation-mini">
+                <div class="topbar-mini">
+                  <div class="title-lines">
+                    <div class="line short"></div>
+                    <div class="line medium"></div>
+                  </div>
+                  <div class="quick-row">
+                    <div class="quick-chip"></div>
+                    <div class="quick-chip"></div>
+                  </div>
+                </div>
+                <div class="timeline-mini">
+                  <div class="msg echo"></div>
+                  <div class="msg user"></div>
+                  <div class="msg echo"></div>
+                  <div class="typing-mini"></div>
+                </div>
+                <div class="composer-mini">
+                  <div class="quick-row">
+                    <div class="quick-chip"></div>
+                    <div class="quick-chip"></div>
+                    <div class="quick-chip"></div>
+                  </div>
+                  <div class="input-row">
+                    <div></div>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="zone status-zone" data-label="Status Column">
+              <div class="status-card-mini">
+                <div class="line medium"></div>
+                <div class="line long"></div>
+              </div>
+              <div class="status-card-mini">
+                <span class="label-tag">当前状态</span>
+                <div class="text-lines">
+                  <div class="line medium"></div>
+                  <div class="line long"></div>
+                </div>
+              </div>
+              <div class="status-card-mini">
+                <span class="label-tag">专注</span>
+                <div class="text-lines">
+                  <div class="line long"></div>
+                  <div class="line medium"></div>
+                </div>
+              </div>
+              <div class="status-card-mini">
+                <span class="label-tag">下一步</span>
+                <div class="text-lines">
+                  <div class="line long"></div>
+                  <div class="line medium"></div>
+                </div>
+              </div>
+              <div class="status-card-mini">
+                <span class="label-tag">学习线</span>
+                <div class="text-lines">
+                  <div class="line long"></div>
+                  <div class="line medium"></div>
+                </div>
+              </div>
+              <div class="status-card-mini">
+                <span class="label-tag">连续性</span>
+                <div class="text-lines">
+                  <div class="line medium"></div>
+                  <div class="line long"></div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="spec-section" id="principles">
+        <section class="section" id="hierarchy">
           <div class="section-head">
             <div>
-              <p class="section-kicker">01 Principles</p>
-              <h2>原则与定位</h2>
+              <p class="kicker">02 Hierarchy</p>
+              <h2>视觉层级热区图</h2>
             </div>
-            <span class="section-tag">先陪伴，再组织</span>
-          </div>
-          <p class="section-desc">
-            这一部分定义 Echo 的产品气质与 UI 判断标准。只要后续设计方案违背这里的原则，即使视觉更炫，也不应进入主产品。
-          </p>
-
-          <div class="card-grid">
-            <article class="info-card">
-              <p class="chip-label">Product Position</p>
-              <h3>Echo 是陪伴空间，不是任务系统</h3>
-              <p>
-                界面需要同时承接四件事：接住用户状态、保持主对话、保留当前主线、用轻量结构支持学习与成长记录。
-              </p>
-              <ul class="rule-list">
-                <li>判断标准不是“信息更多”，而是“用户更容易回来、更容易继续说、更容易接上当前这条线”。</li>
-                <li>学习、行动、反思、记忆都属于主对话的延伸层，不得夺走系统中心。</li>
-                <li>推荐、提醒、任务安排都要像陪伴式提议，而不是控制式派发。</li>
-              </ul>
-            </article>
-
-            <article class="info-card">
-              <p class="chip-label">Experience Rules</p>
-              <h3>当前版本的四条体验原则</h3>
-              <ul class="rule-list">
-                <li>先接住，再引导。</li>
-                <li>先对话，再管理。</li>
-                <li>先保留主线，再展开信息。</li>
-                <li>先轻量可继续，再补足层级与结构。</li>
-              </ul>
-            </article>
+            <p class="caption">这部分不讲功能先后，而讲用户扫视时的注意力重心。越靠前的层级越应该轻声但明确地占据视线。</p>
           </div>
 
-          <div class="do-dont" style="margin-top: 18px;">
-            <article class="example-card do-card">
-              <p class="chip-label">Should Feel Like</p>
-              <h3>应当呈现的气质</h3>
-              <ul class="do-dont-list">
-                <li>安静，不吵闹。</li>
-                <li>温和，不命令。</li>
-                <li>清晰，但不过度硬朗。</li>
-                <li>轻微活着，有呼吸感，但不过度拟人表演。</li>
-              </ul>
+          <div class="stack">
+            <div class="panel heatmap">
+              <div>
+                <div class="heat low"></div>
+                <p class="overlay-note">左侧导航：常驻，但不要抢戏。它只负责切换，不负责叙事。</p>
+              </div>
+              <div>
+                <div class="heat high"></div>
+                <p class="overlay-note">中间主区：对话面板与输入区是第一视觉中心；Arrival 只做安静引入。</p>
+              </div>
+              <div>
+                <div class="heat mid"></div>
+                <p class="overlay-note">右侧状态栏：退为边栏注释感，提供“还在场”的线索，而不是数据控制台。</p>
+              </div>
+            </div>
+
+            <div class="legend-grid">
+              <div class="legend-mini">
+                <strong>层级 1</strong>
+                <div class="legend-block focus-1"></div>
+                <p class="overlay-note">最新 Echo 回复、输入框、对话流的呼吸节奏。</p>
+              </div>
+              <div class="legend-mini">
+                <strong>层级 2</strong>
+                <div class="legend-block focus-2"></div>
+                <p class="overlay-note">Arrival 的情绪标题和当下承接说明。</p>
+              </div>
+              <div class="legend-mini">
+                <strong>层级 3</strong>
+                <div class="legend-block focus-3"></div>
+                <p class="overlay-note">右侧专注、下一步、学习线等辅助信息。</p>
+              </div>
+              <div class="legend-mini">
+                <strong>层级 4</strong>
+                <div class="legend-block focus-4"></div>
+                <p class="overlay-note">导航、窗口信息、时间与同步状态等系统边缘信息。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="compare">
+          <div class="section-head">
+            <div>
+              <p class="kicker">03 Compare</p>
+              <h2>不该回去的样子 / 当前应该坚持的样子</h2>
+            </div>
+            <p class="caption">这一组对照图专门用来压住 dashboard 回潮。左边是应避免的控制台语言，右边是当前系统要坚持的纸张与关系空间语言。</p>
+          </div>
+
+          <div class="compare">
+            <article class="compare-mini bad">
+              <strong>不要回到 Dashboard</strong>
+              <div class="fake-dashboard">
+                <div class="metric-row">
+                  <div class="metric-card"></div>
+                  <div class="metric-card"></div>
+                  <div class="metric-card"></div>
+                </div>
+                <div class="metric-card" style="padding: 14px;">
+                  <div class="progress-bar"></div>
+                </div>
+                <div class="metric-card" style="padding: 14px;">
+                  <div class="wave">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">禁止进度条、百分比环、波形、分数卡、重边框卡堆叠、过亮蓝色状态器。</p>
             </article>
 
-            <article class="example-card dont-card">
-              <p class="chip-label">Must Avoid</p>
-              <h3>明确要排除的表达</h3>
-              <ul class="do-dont-list">
-                <li>仪表盘式任务管理感。</li>
-                <li>炫技 AI 面板感。</li>
-                <li>情绪表演过重的“陪聊宠物”感。</li>
-                <li>多个同等级焦点同时争夺注意力。</li>
-              </ul>
+            <article class="compare-mini good">
+              <strong>保持 Relationship Space</strong>
+              <div class="soft-rail">
+                <div class="text-card">
+                  <div class="line short"></div>
+                  <div class="line long"></div>
+                </div>
+                <div class="text-card">
+                  <div class="line medium"></div>
+                  <div class="line long"></div>
+                  <div class="line medium"></div>
+                </div>
+                <div class="text-card">
+                  <div class="line short"></div>
+                  <div class="line medium"></div>
+                </div>
+              </div>
+              <p class="overlay-note">用文字承接状态，用留白表达节奏，用微光而非仪表表达在场。</p>
             </article>
           </div>
         </section>
 
-        <section class="spec-section" id="tokens">
+        <section class="section" id="now">
           <div class="section-head">
             <div>
-              <p class="section-kicker">02 Tokens</p>
-              <h2>视觉令牌</h2>
+              <p class="kicker">04 Now</p>
+              <h2>Now 页全景解剖</h2>
             </div>
-            <span class="section-tag">来自当前已实现样式</span>
-          </div>
-
-          <div class="token-grid">
-            <article class="token-card">
-              <p class="chip-label">Color Palette</p>
-              <h3>颜色不是装饰，而是压力管理工具</h3>
-              <p>当前系统以雾白和冷蓝为主，蓝色只用于“轻度聚焦”和“被温柔提起”的位置，不用于制造强迫推进感。</p>
-              <div class="swatch-row">
-                <div class="swatch">
-                  <div class="swatch-chip" style="background:#f5f7fb;"></div>
-                  <div class="swatch-meta">
-                    <strong>Background</strong>
-                    <span class="mono">#f5f7fb</span>
-                  </div>
-                </div>
-                <div class="swatch">
-                  <div class="swatch-chip" style="background:rgba(255,255,255,0.84);"></div>
-                  <div class="swatch-meta">
-                    <strong>Surface</strong>
-                    <span class="mono">rgba(255,255,255,0.84)</span>
-                  </div>
-                </div>
-                <div class="swatch">
-                  <div class="swatch-chip" style="background:#2463eb;"></div>
-                  <div class="swatch-meta">
-                    <strong>Accent Blue</strong>
-                    <span class="mono">#2463eb</span>
-                  </div>
-                </div>
-                <div class="swatch">
-                  <div class="swatch-chip" style="background:#18212f;"></div>
-                  <div class="swatch-meta">
-                    <strong>Primary Text</strong>
-                    <span class="mono">#18212f</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            <article class="token-card">
-              <p class="chip-label">Type Scale</p>
-              <h3>排版以“低压阅读”优先</h3>
-              <p>标题层级存在，但不靠极端大小差制造压迫。主阅读区始终要保持舒适和可停留。</p>
-              <div class="type-scale">
-                <div class="type-row">
-                  <span class="type-size mono">34px</span>
-                  <strong style="font-size:34px; line-height:1.08;">规范页主标题 / 气质陈述</strong>
-                </div>
-                <div class="type-row">
-                  <span class="type-size mono">24px</span>
-                  <strong style="font-size:24px;">页面主标题 / 重要分区</strong>
-                </div>
-                <div class="type-row">
-                  <span class="type-size mono">18px</span>
-                  <strong style="font-size:18px;">卡片标题 / 次级标题</strong>
-                </div>
-                <div class="type-row">
-                  <span class="type-size mono">14px</span>
-                  <span style="font-size:14px;">正文基准字号，用于大多数说明与对话文本。</span>
-                </div>
-                <div class="type-row">
-                  <span class="type-size mono">11-13px</span>
-                  <span style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase;">Kicker / Label / Meta</span>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section class="spec-section" id="layout">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">03 Layout</p>
-              <h2>布局骨架</h2>
-            </div>
-            <span class="section-tag">三层桌面结构</span>
-          </div>
-          <p class="section-desc">
-            当前桌面端使用稳定的三层骨架。这个结构不是为了“信息最大化”，而是为了让产品存在感、对话空间与连续性提示各司其职。
-          </p>
-
-          <div class="card-grid">
-            <article class="info-card">
-              <p class="chip-label">Shell Structure</p>
-              <h3>主骨架职责</h3>
-              <ul class="rule-list">
-                <li><span class="mono">nav-rail</span>：页面切换与产品存在感，宽度固定，视觉上更像呼吸中的书签，而不是功能树。</li>
-                <li><span class="mono">main-window</span>：承载所有核心信息，是用户主要停留区域。</li>
-                <li><span class="mono">status-column</span>：只在 Now 页作为轻量侧轨出现，用来保留连续性，不承接主任务流。</li>
-              </ul>
-            </article>
-
-            <article class="info-card">
-              <p class="chip-label">Window Logic</p>
-              <h3>主窗口结构</h3>
-              <ul class="rule-list">
-                <li><span class="mono">app-titlebar</span>：桌面身份与同步状态。</li>
-                <li><span class="mono">topbar</span>：当前视图名称、说明与时钟信息。</li>
-                <li><span class="mono">workspace-view</span>：页面实际内容区，各视图布局遵守同一节奏。</li>
-              </ul>
-            </article>
-          </div>
-
-          <article class="example-card" style="margin-top:18px;">
-            <p class="chip-label">Layout Preview</p>
-            <h3>推荐的空间优先级</h3>
-            <p>左侧稳定，中央最重，右侧轻量。任何新增功能都不应破坏这个注意力流向。</p>
-            <div class="layout-preview">
-              <div class="layout-column">
-                <strong>Nav Rail</strong>
-                <div class="layout-lines">
-                  <span></span><span style="width:82%;"></span><span style="width:70%;"></span>
-                </div>
-              </div>
-              <div class="layout-column">
-                <strong>Main Window</strong>
-                <div class="layout-lines">
-                  <span style="width:64%;"></span>
-                  <span></span>
-                  <span style="width:92%;"></span>
-                  <span style="width:76%;"></span>
-                  <span style="width:88%;"></span>
-                </div>
-              </div>
-              <div class="layout-column">
-                <strong>Status Column</strong>
-                <div class="layout-lines">
-                  <span style="width:78%;"></span>
-                  <span style="width:66%;"></span>
-                  <span style="width:84%;"></span>
-                </div>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section class="spec-section" id="components">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">04 Components</p>
-              <h2>核心组件规则</h2>
-            </div>
-            <span class="section-tag">对话必须是系统主角</span>
+            <p class="caption">Now 页是整个系统的主场。这里必须同时表达四件事：先接住、再续上、可开口、但不被催促。</p>
           </div>
 
           <div class="component-showcase">
-            <article class="example-card">
-              <p class="chip-label">Conversation Board</p>
-              <h3>主对话板</h3>
-              <p>对话区必须始终像一个可停留、可继续、可回来的空间，而不是即时消息列表或客服工单面板。</p>
-              <div class="conversation-demo">
-                <div class="bubble echo">先接住你现在的状态，我们沿着刚才那条线慢慢续上。</div>
-                <div class="bubble user">我有点卡住了，但还是想继续往前推一点。</div>
-                <div class="bubble echo">那就不扩太大，先把下一步缩成一个现在就能做的动作。</div>
-                <div class="bubble typing">Echo 正在回应...</div>
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Now Arrival Card</h3>
+                  <p>页首承接区，不是主 hero，不是任务推进卡。</p>
+                </div>
+                <span class="label-tag">小一号</span>
               </div>
-              <ul class="mini-list">
-                <li>Echo 气泡左侧落位，用户气泡右侧落位，强化“陪伴式并行”而非对抗问答。</li>
-                <li>消息宽度不满屏，保留呼吸边界。</li>
-                <li>打字态必须轻，不做夸张动画和高频闪烁。</li>
-              </ul>
+              <div class="component-visual arrival-visual-demo">
+                <div class="copy-area">
+                  <div class="line short"></div>
+                  <div class="headline"></div>
+                  <div class="line long"></div>
+                  <div class="line medium"></div>
+                </div>
+                <div class="orbit-demo"></div>
+                <div class="mini-box"></div>
+                <div class="mini-box"></div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.now-arrival-card</code> <code>#hero-emotion</code> <code>#hero-copy</code> <code>#hero-focus-topic</code> <code>#hero-focus-context</code> <code>#hero-next-action</code> <code>#hero-next-copy</code> <code>#hero-next-context</code> <code>#hero-start-action</code></p>
             </article>
 
-            <article class="example-card">
-              <p class="chip-label">Composer</p>
-              <h3>输入区与快捷提词</h3>
-              <p>输入区是延续对话的入口，不是命令行。快捷提词要像“给用户搭把手”，而不是催促按钮。</p>
-              <div class="composer-demo">
-                <div class="prompt-row">
-                  <span class="prompt-chip">已完成上一步</span>
-                  <span class="prompt-chip">我卡住了</span>
-                  <span class="prompt-chip">继续当前线索</span>
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Hero Orbit Visual</h3>
+                  <p>Presence 微光，不是科技状态环。</p>
                 </div>
-                <div class="input-demo">继续输入你现在最想先理清的一件事...</div>
+                <span class="label-tag">弱辅助</span>
+              </div>
+              <div class="component-visual orbit-demo"></div>
+              <p class="overlay-note">真实节点：<code>.now-arrival-visual</code> <code>.hero-orbit</code> <code>.hero-orbit-core</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Conversation Board</h3>
+                  <p>这里不是被嵌入的聊天模块，而是页面主空间本身。</p>
+                </div>
+                <span class="label-tag">主场</span>
+              </div>
+              <div class="component-visual conversation-demo">
+                <div class="mini-box light"></div>
+                <div class="timeline-flow">
+                  <div class="bubble echo"></div>
+                  <div class="bubble user"></div>
+                  <div class="bubble echo"></div>
+                </div>
+                <div class="mini-box"></div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.conversation-board</code> <code>.conversation-header</code> <code>#board-badges</code> <code>.composer</code> <code>#composer-form</code> <code>.composer-meta</code> <code>.composer-row</code> <code>#composer-input</code> <code>#composer-submit</code> <code>#composer-submit-label</code> <code>#play-latest-echo</code> <code>.quick-prompt</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Timeline Panel</h3>
+                  <p>对话节奏要慢，要留白，要允许停顿，不要像 IM 消息堆叠。</p>
+                </div>
+                <span class="label-tag">节奏核心</span>
+              </div>
+              <div class="component-visual timeline-demo">
+                <div class="timeline-beat">
+                  <div class="bubble echo"></div>
+                  <div class="bubble user"></div>
+                </div>
+                <div class="timeline-beat">
+                  <div class="bubble echo"></div>
+                </div>
+                <div class="typing-mini"></div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#timeline-panel</code> <code>.timeline-row</code> <code>.timeline-copy</code> <code>.typing-line</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Status Column</h3>
+                  <p>像边栏批注，而不是右侧工作台。信息保留，但语气后退。</p>
+                </div>
+                <span class="label-tag">退后</span>
+              </div>
+              <div class="component-visual status-demo">
+                <div class="ui-note-card">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-tag"></div>
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-tag"></div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-tag"></div>
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-row-card">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                  <div class="ui-strip long"></div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.status-column</code> <code>.status-column-intro</code> <code>.instrument-panel</code> <code>.state-panel-card</code> <code>.focus-panel-card</code> <code>.next-panel-card</code> <code>.learning-panel-card</code> <code>.continuity-panel-card</code> <code>#emotion-label</code> <code>#emotion-copy</code> <code>#emotion-note</code> <code>#focus-title</code> <code>#focus-note</code> <code>#action-title</code> <code>#action-copy</code> <code>#start-next-action</code> <code>#learning-topic</code> <code>#learning-step-copy</code> <code>#learning-note</code> <code>#reflection-side-trend</code> <code>#reflection-side-copy</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Now 页骨架</h3>
+                  <p>主区顺序必须稳定：Arrival → Conversation → Composer。</p>
+                </div>
+                <span class="label-tag">结构保留</span>
+              </div>
+              <div class="component-visual">
+                <div class="now-shell-demo">
+                  <div class="ui-note-card arrival-line">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip medium"></div>
+                    <div class="ui-strip long"></div>
+                  </div>
+                  <div class="ui-note-card conversation-line">
+                    <div class="ui-strip medium"></div>
+                    <div class="ui-strip long"></div>
+                    <div class="ui-strip short" style="justify-self: end;"></div>
+                    <div class="ui-strip medium"></div>
+                  </div>
+                  <div class="ui-note-card composer-line">
+                    <div class="ui-row-card">
+                      <div class="ui-input" style="flex: 1;"></div>
+                      <div class="ui-button"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.workspace-view[data-view-panel="now"]</code> <code>.now-shell</code></p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="pages">
+          <div class="section-head">
+            <div>
+              <p class="kicker">05 Pages</p>
+              <h2>其他页面缩略图库</h2>
+            </div>
+            <p class="caption">这些页面仍在当前系统中，虽然气质上不应抢过 Now，但都要进入规范。这里以页面缩略图方式记录结构，而不是长文字列表。</p>
+          </div>
+
+          <div class="grid-2">
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Learn</h3>
+                  <p>单 Hero + 两列内容：步骤序列 / 当前一步。</p>
+                </div>
+              </div>
+              <div class="component-visual learn-demo">
+                <div class="ui-summary">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-row-card">
+                    <div class="ui-pill"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                </div>
+                <div class="grid-2" style="margin-top: 10px;">
+                  <div class="learn-steps-demo">
+                    <div class="ui-stack-card">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-stack-card">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                    <div class="ui-stack-card">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                  </div>
+                  <div class="list-grid">
+                    <div class="ui-summary" style="min-height: 84px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-row-card">
+                      <div class="ui-button"></div>
+                      <div class="ui-button"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#learn-topic</code> <code>#learn-summary</code> <code>#learn-progress-chip</code> <code>#learn-pattern-chip</code> <code>#learn-steps-list</code> <code>#learn-current-step-title</code> <code>#learn-current-step-copy</code> <code>#learn-current-actions</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Actions</h3>
+                  <p>Hero + 当前任务 + 建议生成 + 手动创建 + 列表。</p>
+                </div>
+              </div>
+              <div class="component-visual actions-demo">
+                <div class="ui-summary">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-row-card">
+                    <div class="ui-pill"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                </div>
+                <div class="list-grid" style="margin-top: 10px;">
+                  <div class="ui-summary" style="min-height: 74px;">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip long"></div>
+                    <div class="ui-strip medium"></div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="ui-stack-card" style="min-height: 86px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-input"></div>
+                      <div class="ui-button"></div>
+                    </div>
+                    <div class="ui-stack-card" style="min-height: 106px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-input"></div>
+                      <div class="ui-input"></div>
+                      <div class="ui-button"></div>
+                    </div>
+                  </div>
+                  <div class="action-list-demo">
+                    <div class="ui-row-card">
+                      <div class="ui-strip medium"></div>
+                      <div class="ui-pill"></div>
+                    </div>
+                    <div class="ui-row-card">
+                      <div class="ui-strip long"></div>
+                      <div class="ui-pill"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#actions-headline</code> <code>#actions-summary</code> <code>#actions-open-chip</code> <code>#actions-active-chip</code> <code>#actions-current-task</code> <code>#suggested-action-form</code> <code>#suggested-action-query</code> <code>#suggested-action-submit</code> <code>#manual-action-form</code> <code>#manual-action-title</code> <code>#manual-action-detail</code> <code>#manual-action-submit</code> <code>#action-list</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Reflections</h3>
+                  <p>Hero + 总结卡组 + 趋势区；动态插入历史区。</p>
+                </div>
+              </div>
+              <div class="component-visual reflections-demo">
+                <div class="ui-summary">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-row-card">
+                    <div class="ui-pill"></div>
+                    <div class="ui-button"></div>
+                  </div>
+                </div>
+                <div class="grid-2" style="margin-top: 10px;">
+                  <div class="reflection-stack-demo">
+                    <div class="ui-stack-card" style="min-height: 56px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                    <div class="ui-stack-card" style="min-height: 56px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-stack-card" style="min-height: 56px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                  </div>
+                  <div class="list-grid">
+                    <div class="ui-summary" style="min-height: 92px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-note-card" style="min-height: 56px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#reflection-headline</code> <code>#reflection-summary</code> <code>#reflection-theme-chip</code> <code>#refresh-summary</code> <code>#reflection-summary-copy</code> <code>#reflection-echo-copy</code> <code>#reflection-pattern-copy</code> <code>#reflection-theme-title</code> <code>#reflection-history</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Memory</h3>
+                  <p>Hero + 标签/聚类 + 关键片段；动态插入画像摘要。</p>
+                </div>
+              </div>
+              <div class="component-visual memory-demo">
+                <div class="ui-summary">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-row-card">
+                    <div class="ui-pill"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                </div>
+                <div class="grid-2" style="margin-top: 10px;">
+                  <div class="memory-stack-demo">
+                    <div class="tag-row">
+                      <div class="ui-tag"></div>
+                      <div class="ui-tag"></div>
+                      <div class="ui-tag"></div>
+                      <div class="ui-tag"></div>
+                    </div>
+                    <div class="ui-summary" style="min-height: 96px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-summary" style="min-height: 78px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                  </div>
+                  <div class="memory-stack-demo">
+                    <div class="ui-memory">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                    <div class="ui-memory">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-memory">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#memory-headline</code> <code>#memory-summary</code> <code>#memory-total-chip</code> <code>#memory-tags-chip</code> <code>#memory-tags</code> <code>#memory-clusters</code> <code>#memory-list</code> <code>#memory-profile-summary</code></p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="shared">
+          <div class="section-head">
+            <div>
+              <p class="kicker">06 Shared</p>
+              <h2>共享部件与系统边缘层</h2>
+            </div>
+            <p class="caption">这些元素出现在全站多个页面中，不是主视觉中心，但它们决定整套界面的“壳”和细节气质。</p>
+          </div>
+
+          <div class="grid-3">
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Launch Screen</h3>
+                  <p>进入前的短暂停留，需要轻，不要赛博开机动画。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="launch-demo">
+                  <div class="mark-grid" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                  </div>
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#launch-screen</code> <code>.launch-mark</code> <code>.launch-title</code> <code>.launch-copy</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Window Shell</h3>
+                  <p>桌面窗体层决定“这是桌面陪伴体”，但不应压过内容。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="window-demo">
+                  <div class="window-bar">
+                    <div class="window-brand">
+                      <div class="ui-pill"></div>
+                      <div class="ui-stack-card">
+                        <div class="ui-strip medium"></div>
+                        <div class="ui-strip long"></div>
+                      </div>
+                    </div>
+                    <div class="window-status">
+                      <div class="ui-pill"></div>
+                      <div class="ui-pill"></div>
+                      <div class="window-controls-mini">
+                        <span></span><span></span><span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="window-canvas">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.app-shell</code> <code>.main-window</code> <code>.app-titlebar</code> <code>.titlebar-brand</code> <code>.desktop-badge</code> <code>.titlebar-copy</code> <code>.titlebar-status</code> <code>#sync-chip</code> <code>#data-chip</code> <code>.window-controls</code> <code>#window-minimize</code> <code>#window-maximize</code> <code>#window-close</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Topbar + Time Strip</h3>
+                  <p>系统状态要存在，但不要抢成仪表板头部。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="topbar-demo">
+                  <div class="left">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip medium"></div>
+                    <div class="ui-strip long"></div>
+                  </div>
+                  <div class="right">
+                    <div class="ui-row-card">
+                      <div class="ui-pill"></div>
+                      <div class="ui-pill"></div>
+                    </div>
+                    <div class="ui-row-card">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip short"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.topbar</code> <code>.title-stack</code> <code>#toolbar-label</code> <code>#view-title</code> <code>#view-subtitle</code> <code>.header-meta</code> <code>.signal-strip</code> <code>#active-view-chip</code> <code>#secondary-view-chip</code> <code>.time-strip</code> <code>#clock</code> <code>#date-label</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Navigation</h3>
+                  <p>导航是稳定器，不是主角。高亮只需足够辨认。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="nav-demo">
+                  <div class="nav-top">
+                    <div class="ui-dot-row"><span></span><span></span><span></span></div>
+                    <div class="ui-dot-row"><span></span><span></span><span></span></div>
+                    <div class="ui-dot-row"><span></span><span></span><span></span></div>
+                  </div>
+                  <div class="nav-group">
+                    <div class="ui-row-card">
+                      <div class="ui-pill"></div>
+                      <div class="ui-strip short"></div>
+                    </div>
+                    <div class="ui-card"></div>
+                    <div class="ui-card"></div>
+                    <div class="ui-card"></div>
+                    <div class="ui-card"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.nav-rail</code> <code>.echo-mark</code> <code>.nav-presence</code> <code>.presence-dot</code> <code>#presence-label</code> <code>.nav-stack</code> <code>.nav-item</code> <code>.nav-label</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Hero / Panel Shell</h3>
+                  <p>各页通用的容器语言，必须继续去 dashboard 化。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="panel-demo">
+                  <div class="ui-summary">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip long"></div>
+                    <div class="ui-row-card">
+                      <div class="ui-pill"></div>
+                      <div class="ui-pill"></div>
+                    </div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="ui-summary" style="min-height: 84px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                    <div class="ui-summary" style="min-height: 84px;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>.hero-band</code> <code>.single-hero</code> <code>.panel</code> <code>.panel-kicker</code> <code>.summary-row</code> <code>.summary-chip</code> <code>.workspace-grid</code> <code>.two-up</code> <code>.single-column</code> <code>.content-card</code> <code>.board-header</code> <code>.compact</code></p>
+            </article>
+
+            <article class="component-mini">
+              <div class="component-head">
+                <div>
+                  <h3>Toast</h3>
+                  <p>状态反馈应短而轻，只提示，不惊扰。</p>
+                </div>
+              </div>
+              <div class="component-visual shared-demo">
+                <div class="toast-demo">
+                  <div class="ui-note-card">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip medium"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="overlay-note">真实节点：<code>#app-toast</code> <code>#app-toast-message</code> <code>.hidden</code></p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="atlas">
+          <div class="section-head">
+            <div>
+              <p class="kicker">07 Atlas</p>
+              <h2>基础部件图册</h2>
+            </div>
+            <p class="caption">这一组专门解决“细部还是空的”问题。它把当前系统里最常用、最容易反复调的基础部件拆出来，做成可直接对照的视觉图库。</p>
+          </div>
+
+          <div class="atlas-grid">
+            <article class="atlas-card">
+              <h3>Buttons</h3>
+              <p>按钮要保留明确层级，但避免命令感过强。</p>
+              <div class="atlas-visual button-atlas">
                 <div class="button-row">
-                  <span class="button-chip">朗读最新回复</span>
-                  <span class="button-chip primary">发送</span>
+                  <div class="ui-button primaryish"></div>
+                  <div class="ui-button ghost"></div>
+                  <div class="ui-button textish"></div>
+                </div>
+                <div class="button-row">
+                  <div class="ui-pill"></div>
+                  <div class="ui-pill"></div>
+                  <div class="ui-pill"></div>
                 </div>
               </div>
-              <ul class="mini-list">
-                <li>快捷提词不超过 3 个，且必须贴近当前情境。</li>
-                <li>主按钮清晰可见，但不应做出强推进感的高饱和强调。</li>
-                <li>任何“推荐任务”都优先通过对话语境进入，而不是直接替换输入区中心地位。</li>
-              </ul>
-            </article>
-          </div>
-
-          <div class="card-grid" style="margin-top:18px;">
-            <article class="info-card">
-              <p class="chip-label">Arrival Cards</p>
-              <h3>Now 页到达卡片</h3>
-              <ul class="rule-list">
-                <li>到达卡负责承接“你现在在哪里”，不是展示所有统计。</li>
-                <li>左侧为情绪与状态陈述，右侧为当前焦点与下一步。</li>
-                <li>卡片中的 CTA 只允许一条主延续动作，例如“把这一步带回对话”。</li>
-              </ul>
+              <p class="overlay-note">对应：<code>.primary-button</code> <code>.secondary-button</code> <code>.link-button</code> <code>.quick-prompt</code></p>
             </article>
 
-            <article class="info-card">
-              <p class="chip-label">Status Column</p>
-              <h3>右侧侧轨</h3>
-              <ul class="rule-list">
-                <li>右侧只保留“还活着的线”，不堆叠冗余模块。</li>
-                <li>用于轻提醒、连续性提示、成就回声，不用于主操作。</li>
-                <li>在较窄屏幕下可以隐藏，证明它不是主体验依赖项。</li>
-              </ul>
+            <article class="atlas-card">
+              <h3>Inputs</h3>
+              <p>输入框应更像邀请开口，而不是命令行或后台表单。</p>
+              <div class="atlas-visual input-atlas">
+                <div class="ui-input large"></div>
+                <div class="ui-input with-tail"></div>
+                <div class="ui-row-card">
+                  <div class="ui-input" style="flex: 1;"></div>
+                  <div class="ui-button"></div>
+                </div>
+              </div>
+              <p class="overlay-note">对应：<code>#composer-input</code> <code>#suggested-action-query</code> <code>#manual-action-title</code> <code>#manual-action-detail</code></p>
+            </article>
+
+            <article class="atlas-card">
+              <h3>Chips / Tags</h3>
+              <p>标签应轻，只做信息附着，不抢戏。</p>
+              <div class="atlas-visual chip-atlas">
+                <div class="chip-row">
+                  <div class="ui-tag"></div>
+                  <div class="ui-tag"></div>
+                  <div class="ui-tag"></div>
+                  <div class="ui-tag"></div>
+                </div>
+                <div class="chip-row">
+                  <div class="ui-pill"></div>
+                  <div class="ui-pill"></div>
+                  <div class="ui-pill"></div>
+                </div>
+              </div>
+              <p class="overlay-note">对应：<code>.summary-chip</code> <code>.signal-chip</code> <code>.titlebar-chip</code> <code>.arrival-label</code></p>
+            </article>
+
+            <article class="atlas-card">
+              <h3>Messages</h3>
+              <p>Echo 更轻，User 更实；靠留白与对位形成关系节奏。</p>
+              <div class="atlas-visual message-atlas">
+                <div class="message-stack">
+                  <div class="bubble echo"></div>
+                  <div class="bubble user"></div>
+                  <div class="bubble echo"></div>
+                </div>
+                <div class="typing-mini"></div>
+              </div>
+              <p class="overlay-note">对应：<code>.timeline-row</code> <code>.timeline-copy</code> <code>.typing-line</code></p>
+            </article>
+
+            <article class="atlas-card">
+              <h3>Lists / Task Rows</h3>
+              <p>列表项应清楚但不要过重，重点是可扫视与温和层级。</p>
+              <div class="atlas-visual list-atlas">
+                <div class="ui-row-card">
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-pill"></div>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-strip long"></div>
+                  <div class="ui-pill"></div>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-button ghost"></div>
+                </div>
+              </div>
+              <p class="overlay-note">对应：<code>#learn-steps-list</code> <code>#action-list</code> <code>.inline-actions</code></p>
+            </article>
+
+            <article class="atlas-card">
+              <h3>Memory / Reflection Items</h3>
+              <p>记忆与反思项更像片段卡，不像数据单元。</p>
+              <div class="atlas-visual memory-atlas">
+                <div class="ui-memory">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-memory">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+                <div class="memory-row">
+                  <div class="ui-tag"></div>
+                  <div class="ui-tag"></div>
+                  <div class="ui-tag"></div>
+                </div>
+              </div>
+              <p class="overlay-note">对应：<code>.reflection-card</code> <code>#memory-list</code> <code>#memory-tags</code> <code>#memory-clusters</code></p>
             </article>
           </div>
         </section>
 
-        <section class="spec-section" id="pages">
+        <section class="section" id="wireframe">
           <div class="section-head">
             <div>
-              <p class="section-kicker">05 Pages</p>
-              <h2>页面规则</h2>
+              <p class="kicker">08 Wireframe</p>
+              <h2>Now 页 1:1 线框图</h2>
             </div>
-            <span class="section-tag">一个页面只保留一个最强焦点</span>
+            <p class="caption">这张图比前面的缩略结构更接近真实页面，用来直接指导布局、比例和主次关系。它不是高保真视觉稿，但已经足够作为前端调整参照。</p>
           </div>
 
-          <div class="page-grid">
-            <article class="example-card">
-              <p class="chip-label">Now</p>
-              <h3>此刻页是系统中心</h3>
-              <p>Now 页负责承接状态、继续主对话、保留当前主线，是整个产品最重要的一页。</p>
-              <div class="page-badges">
-                <span>状态到达</span>
-                <span>主对话流</span>
-                <span>轻量连续性侧轨</span>
+          <div class="wireframe-panel">
+            <div class="now-wireframe">
+              <div class="wire-nav">
+                <div class="mark-grid" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-pill"></div>
+                  <div class="ui-strip short"></div>
+                </div>
+                <div class="ui-card"></div>
+                <div class="ui-card"></div>
+                <div class="ui-card"></div>
+                <div class="ui-card"></div>
+                <div class="ui-card"></div>
               </div>
-              <ul class="mini-list">
-                <li>主对话必须处于页面视觉中心，并且留出足够纵深。</li>
-                <li>任何学习、任务、记忆信息进入 Now 页时都只能以“下一条线索”形式出现。</li>
-              </ul>
-            </article>
 
-            <article class="example-card">
-              <p class="chip-label">Learn / Actions / Reflections / Memory</p>
-              <h3>四个专题页是延伸层</h3>
-              <p>这些页面允许结构化信息更完整，但仍然必须保持“当前一步”逻辑，不能长成独立的管理后台。</p>
-              <div class="page-badges">
-                <span>当前学习线</span>
-                <span>当前任务队列</span>
-                <span>近期反思</span>
-                <span>重要记忆层</span>
-              </div>
-              <ul class="mini-list">
-                <li>每页只强调一个当前动作或当前主题。</li>
-                <li>允许从专题页把内容“带回对话”，不鼓励在专题页内闭环一切。</li>
-              </ul>
-            </article>
-          </div>
+              <div class="wire-main">
+                <div class="topbar-mini">
+                  <div class="title-lines">
+                    <div class="line short"></div>
+                    <div class="line medium"></div>
+                    <div class="line long"></div>
+                  </div>
+                  <div class="meta-lines">
+                    <div class="line medium"></div>
+                    <div class="line short"></div>
+                  </div>
+                </div>
 
-          <div class="wire-grid" style="margin-top:18px;">
-            <article class="wire-card">
-              <p class="chip-label">Wireframe</p>
-              <h3>Now 页</h3>
-              <p>顶部状态卡 + 对话板 + 轻侧轨</p>
-              <div class="wire-block">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </article>
+                <div class="wire-arrival">
+                  <div class="ui-summary">
+                    <div class="ui-strip short"></div>
+                    <div class="headline"></div>
+                    <div class="ui-strip long"></div>
+                    <div class="ui-strip medium"></div>
+                  </div>
+                  <div class="wire-rail">
+                    <div class="ui-summary">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="ui-summary">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip long"></div>
+                      <div class="ui-strip medium"></div>
+                      <div class="ui-button ghost"></div>
+                    </div>
+                  </div>
+                </div>
 
-            <article class="wire-card">
-              <p class="chip-label">Wireframe</p>
-              <h3>学习 / 行动页</h3>
-              <p>主题英雄区 + 双栏内容或单栏队列</p>
-              <div class="wire-block two-up">
-                <span></span>
-                <span></span>
-                <span></span>
+                <div class="wire-conversation">
+                  <div class="ui-row-card">
+                    <div class="ui-stack-card" style="flex: 1;">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                    <div class="quick-row">
+                      <div class="quick-chip"></div>
+                      <div class="quick-chip"></div>
+                    </div>
+                  </div>
+                  <div class="wire-timeline">
+                    <div class="bubble echo"></div>
+                    <div class="bubble user"></div>
+                    <div class="bubble echo"></div>
+                    <div class="typing-mini"></div>
+                  </div>
+                  <div class="composer-mini">
+                    <div class="quick-row">
+                      <div class="quick-chip"></div>
+                      <div class="quick-chip"></div>
+                      <div class="quick-chip"></div>
+                    </div>
+                    <div class="ui-row-card">
+                      <div class="ui-input" style="flex: 1;"></div>
+                      <div class="ui-button ghost"></div>
+                      <div class="ui-button primaryish"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </article>
 
-            <article class="wire-card">
-              <p class="chip-label">Wireframe</p>
-              <h3>反思 / 记忆页</h3>
-              <p>总结、模式、片段三者分层，但焦点仍然单一</p>
-              <div class="wire-block">
-                <span></span>
-                <span></span>
-                <span></span>
+              <div class="wire-side">
+                <div class="ui-note-card wire-sidebar-title">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-row-card">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-row-card">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-button textish"></div>
+                  </div>
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-strip long"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+                <div class="ui-sidebar-card">
+                  <div class="ui-row-card">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                  <div class="ui-strip long"></div>
+                </div>
               </div>
-            </article>
+            </div>
           </div>
         </section>
 
-        <section class="spec-section" id="motion">
+        <section class="section" id="material">
           <div class="section-head">
             <div>
-              <p class="section-kicker">06 Motion</p>
-              <h2>动效与响应式</h2>
+              <p class="kicker">09 Material</p>
+              <h2>材质方向正式决策</h2>
             </div>
-            <span class="section-tag">轻微活着，不喧宾夺主</span>
+            <p class="caption">当前系统的实物质感正式收敛为“纸面主方向 + 匀光辅方向”。这里不是情绪词，而是后续所有组件调整都要共同服从的材质判断标准。</p>
           </div>
 
-          <div class="motion-grid">
-            <article class="check-card">
-              <p class="chip-label">Motion Rules</p>
-              <h3>动效规范</h3>
-              <div class="motion-bars">
-                <div class="motion-bar">
-                  <strong>Fast / 120ms</strong>
-                  <span>按钮 hover、chip 切换、轻微状态反馈。</span>
+          <div class="grid-3">
+            <article class="atlas-card">
+              <h3>主方向</h3>
+              <p>温润棉纸、暖白纸面、轻微纤维噪点、半透明描图纸 / vellum 覆层。</p>
+              <div class="atlas-visual memory-atlas">
+                <div class="ui-summary">
+                  <div class="ui-strip short"></div>
+                  <div class="ui-strip long"></div>
                 </div>
-                <div class="motion-bar">
-                  <strong>Base / 180ms</strong>
-                  <span>卡片层级变化、导航切换、输入反馈。</span>
-                </div>
-                <div class="motion-bar">
-                  <strong>Slow / 260ms</strong>
-                  <span>页面级淡入、启动页消退、情绪光晕等呼吸感动画。</span>
+                <div class="ui-note-card">
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-strip long"></div>
                 </div>
               </div>
-              <ul class="mini-list">
-                <li>曲线统一采用柔和减速，不使用弹跳或激进位移。</li>
-                <li>动画的目的应是“让状态被感觉到”，而不是“展示产品很聪明”。</li>
-              </ul>
+              <p class="overlay-note">这套材质负责“接住、续上、痕迹、可返回”，也是当前 Echo 的全局主表面。</p>
             </article>
 
-            <article class="check-card">
-              <p class="chip-label">Responsive Rules</p>
-              <h3>响应式优先级</h3>
-              <ul class="check-list">
-                <li>先保留主对话与主内容，再考虑压缩装饰区。</li>
-                <li>窄屏下右侧侧轨可隐藏，证明其始终是从属结构。</li>
-                <li>多栏页面收束为单栏时，保持内容顺序不打乱“当前一步”的逻辑。</li>
-                <li>移动端如果后续单做版本，应重新定义骨架，而不是机械缩放桌面布局。</li>
-              </ul>
+            <article class="atlas-card">
+              <h3>局部吸收</h3>
+              <p>哑光陶瓷 / 磨砂匀光，只用于在场感、hover、focus、typing、Hero Orbit。</p>
+              <div class="atlas-visual orbit-demo"></div>
+              <p class="overlay-note">这套材质不做主背景，只做“从材质下方透出来的微光”，避免重新变回科技状态仪。</p>
+            </article>
+
+            <article class="atlas-card">
+              <h3>明确排除</h3>
+              <p>石膏 + 原木、厚木板、玻璃、高光塑料、金属控制台、重器物拼装逻辑。</p>
+              <div class="atlas-visual list-atlas">
+                <div class="ui-row-card">
+                  <div class="ui-strip long"></div>
+                  <div class="ui-pill"></div>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-strip medium"></div>
+                  <div class="ui-pill"></div>
+                </div>
+              </div>
+              <p class="overlay-note">这些方向会把 Echo 拉回 dashboard、工作台、效率工具或器物展台感，不适合作为当前主路线。</p>
             </article>
           </div>
         </section>
 
-        <section class="spec-section" id="checklist">
+        <section class="section" id="ritual">
           <div class="section-head">
             <div>
-              <p class="section-kicker">07 Checklist</p>
-              <h2>验收清单</h2>
+              <p class="kicker">10 Input Ritual</p>
+              <h2>对话输入区器物化</h2>
             </div>
-            <span class="section-tag">讨论新方案前先过这一轮</span>
+            <p class="caption">这组器物语言只属于对话输入区。它不是新的全局材质系统，而是压在纸面之上的识别锚点：用极少量、极克制的器物感，把“这里可以慢下来开口”变得更可触、更可记住。</p>
           </div>
 
-          <div class="check-grid">
-            <article class="check-card">
-              <p class="chip-label">Function + Experience</p>
-              <h3>功能落地时要检查</h3>
-              <ul class="check-list">
-                <li>是否仍然以主对话为中心，而不是让新功能夺走主舞台。</li>
-                <li>是否帮助用户更容易回来、继续说、继续做，而不是增加额外理解成本。</li>
-                <li>是否把推荐、提醒、任务安排表达成提议，而不是指令。</li>
-                <li>是否保留了“当前主线”这一唯一最强焦点。</li>
+          <div class="ritual-grid">
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>发送按钮</h3>
+                  <p>圆形、淡绿色、玉质、可轻按，但绝不珠宝化。</p>
+                </div>
+                <span class="label-tag">主识别点</span>
+              </div>
+              <div class="ritual-visual composer-ritual">
+                <div class="paperweight-bar">
+                  <div class="voice-jade"></div>
+                  <div class="paperweight-input">
+                    <div class="paperweight-lines">
+                      <div class="ui-strip medium"></div>
+                      <div class="ui-strip long"></div>
+                    </div>
+                  </div>
+                  <div class="jade-btn"></div>
+                </div>
+                <div class="micro-memory">
+                  <div class="caret-gem"></div>
+                  <div class="tick-scratch"></div>
+                </div>
+              </div>
+              <ul>
+                <li>应更像低饱和冰种软玉，带乳白微浊感和内部匀光，而不是高饱和翡翠珠宝。</li>
+                <li>边缘应微钝、略圆、极浅厚度，像经打磨后的按压面，不应出现金属包边或玻璃高光。</li>
+                <li>按下反馈应表现为轻阻尼和极小下沉，不应像机械按钮那样脆弹。</li>
               </ul>
             </article>
 
-            <article class="check-card">
-              <p class="chip-label">Visual + Tone</p>
-              <h3>界面更新时要检查</h3>
-              <ul class="check-list">
-                <li>有没有产生仪表盘感、管理后台感、AI 炫技面板感。</li>
-                <li>颜色、动效、文案有没有把产品变得太兴奋、太命令、太表演。</li>
-                <li>页面焦点是否过多，是否存在多个区域同时大声说话。</li>
-                <li>新增样式是否仍与当前白雾蓝调、圆角玻璃层级保持一致。</li>
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>语音按钮</h3>
+                  <p>白底、中间一点红、像白玉中嵌着一个收音核。</p>
+                </div>
+                <span class="label-tag">次识别点</span>
+              </div>
+              <div class="ritual-visual composer-ritual">
+                <div class="paperweight-bar">
+                  <div class="voice-jade"></div>
+                  <div class="paperweight-input">
+                    <div class="paperweight-lines">
+                      <div class="ui-strip short"></div>
+                      <div class="ui-strip medium"></div>
+                    </div>
+                  </div>
+                  <div class="jade-btn"></div>
+                </div>
+                <div class="micro-memory">
+                  <div class="voice-jade" style="width: 34px; height: 34px;"></div>
+                  <div class="ui-strip medium"></div>
+                </div>
+              </div>
+              <ul>
+                <li>白底应偏羊脂白瓷 / 白玉，中心红点应像朱砂核晕在材质内部，而不是硬边红色图标。</li>
+                <li>录音中的反馈更适合内部微弱扩散，不适合 LED 闪烁、波形图或工业录音按钮逻辑。</li>
+                <li>最该避免的是印章化、国旗化、工业麦克风化。</li>
+              </ul>
+            </article>
+
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>镇纸输入框</h3>
+                  <p>整体更方正，只有一点倒角，像压平纸面的轻质案头器物。</p>
+                </div>
+                <span class="label-tag">稳定器</span>
+              </div>
+              <div class="ritual-visual">
+                <div class="paperweight-input" style="min-height: 112px;">
+                  <div class="paperweight-lines">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip long"></div>
+                    <div class="ui-strip medium"></div>
+                  </div>
+                </div>
+                <div class="paper-crease"></div>
+              </div>
+              <ul>
+                <li>更适合“压平纸器 + 极轻陶”的混合感，而不是石碑、钢条或大理石条。</li>
+                <li>focus 不应靠粗描边，而应靠镇纸下方纸面被唤醒的柔和匀光。</li>
+                <li>最该避免重石材纹理、深灰玄武岩感、强 inset shadow 和办公桌工具气质。</li>
+              </ul>
+            </article>
+
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>还能独特化的点</h3>
+                  <p>只挑极小部件做记忆点，不把整片对话区做满。</p>
+                </div>
+                <span class="label-tag">点睛</span>
+              </div>
+              <div class="ritual-visual">
+                <div class="micro-memory">
+                  <div class="caret-gem"></div>
+                  <span class="chip">输入光标</span>
+                  <div class="paper-crease" style="flex: 1; margin: 0;"></div>
+                </div>
+                <div class="micro-memory" style="margin-top: 14px;">
+                  <div class="tick-scratch"></div>
+                  <span class="chip">刻度擦痕</span>
+                </div>
+                <div class="micro-memory" style="margin-top: 14px;">
+                  <div class="ui-note-card" style="width: 132px;">
+                    <div class="ui-strip short"></div>
+                  </div>
+                  <span class="chip">纸面压痕线</span>
+                </div>
+              </div>
+              <ul>
+                <li>输入光标：可做成矿物微晶落点式的柔和呼吸，而不是生硬闪烁黑线。</li>
+                <li>输入框与历史对话的分界：可做成纸面盲压痕，而不是工业分割线。</li>
+                <li>状态提示：可做成刻度擦痕或器物表面的轻微痕迹，而不是进度条和数字监控。</li>
+              </ul>
+            </article>
+
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>必须克制的地方</h3>
+                  <p>器物化只在底部输入区成立，不能沿着页面蔓延。</p>
+                </div>
+                <span class="label-tag">红线</span>
+              </div>
+              <div class="ritual-visual forbidden-grid">
+                <div class="forbidden-row">
+                  <span class="forbidden-badge">保持干净</span>
+                  <div class="ui-summary">
+                    <div class="ui-strip short"></div>
+                    <div class="ui-strip long"></div>
+                  </div>
+                </div>
+                <div class="forbidden-row">
+                  <span class="forbidden-badge">不要器物化</span>
+                  <div class="ui-row-card">
+                    <div class="ui-pill"></div>
+                    <div class="ui-pill"></div>
+                    <div class="ui-pill"></div>
+                  </div>
+                </div>
+                <div class="forbidden-row">
+                  <span class="forbidden-badge">不要扩散</span>
+                  <div class="ui-note-card">
+                    <div class="ui-strip medium"></div>
+                    <div class="ui-strip long"></div>
+                  </div>
+                </div>
+              </div>
+              <ul>
+                <li>主对话历史背景必须继续保持纯净温润纸面，不要加大面积纹理或器物影子。</li>
+                <li>小工具、快捷按钮、顶栏、导航栏不能全部玉石化，否则会从“识别点”变成“摆件堆”。</li>
+                <li>器物语言的全屏占比应保持很低，集中在输入区这一处即可。</li>
+              </ul>
+            </article>
+
+            <article class="ritual-card">
+              <div class="ritual-head">
+                <div>
+                  <h3>落地顺序</h3>
+                  <p>先做稳定器，再做识别点，最后做最容易跑偏的红点语音核。</p>
+                </div>
+                <span class="label-tag">优先级</span>
+              </div>
+              <div class="ritual-visual list-atlas">
+                <div class="ui-row-card">
+                  <div class="ui-strip long"></div>
+                  <span class="chip">1</span>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-strip medium"></div>
+                  <span class="chip">2</span>
+                </div>
+                <div class="ui-row-card">
+                  <div class="ui-strip short"></div>
+                  <span class="chip">3</span>
+                </div>
+              </div>
+              <ul>
+                <li>先细化输入框的镇纸感 shadow 系统。</li>
+                <li>再细化发送按钮的淡绿玉质内匀光。</li>
+                <li>最后再细化语音按钮的白玉 + 朱砂核动态晕光。</li>
               </ul>
             </article>
           </div>
         </section>
 
-        <div class="footer-note">
-          这份规范页建议作为后续 UI 讨论的基线文档使用。下一步如果你愿意，我们可以直接在这份 HTML 上继续加两类内容：
-          1. 更细的组件禁用话术与交互守则。
-          2. 每个页面的高保真目标稿约束。
+        <section class="section" id="rules">
+          <div class="section-head">
+            <div>
+              <p class="kicker">11 Rules</p>
+              <h2>最该落实到界面的规则</h2>
+            </div>
+            <p class="caption">这里保留少量文字，是因为它们将直接影响你后续调界面时的判断。规则配图优先，但每条都必须足够明确，能落到 HTML/CSS/DOM 层。</p>
+          </div>
+
+          <div class="rule-grid">
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 01</span>
+              <h3>Arrival 永远小于对话区</h3>
+              <p>页首承接层只能定调，不能重新长成主 hero 卡。视觉体量、底色对比、按钮力度都必须低于 Conversation Board。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 02</span>
+              <h3>禁止进度条化连续性</h3>
+              <p>任何延续、进度、学习推进，都优先用文字状态说明，避免 <code>track</code>、百分比、分段块、完成率环。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 03</span>
+              <h3>Presence 只能是微光</h3>
+              <p><code>.hero-orbit</code> 只能表达轻微在场，不能有旋转环、雷达圈、虚线仪表、科幻核心感。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 04</span>
+              <h3>对话区不做重盒子</h3>
+              <p><code>.conversation-board</code> 要尽量贴近页面本体。容器边界能弱就弱，重点靠留白、排版、层级来成立。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 05</span>
+              <h3>消息回合需要停顿感</h3>
+              <p><code>#timeline-panel</code> 的回合间距要大于传统 IM，Echo 气泡比用户更轻，不要两侧同等硬度。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 06</span>
+              <h3>打字态必须文字化</h3>
+              <p>当前统一使用 <code>.typing-line</code>，它应是低对比、低频、低压力的文本提示，不再使用跳点动画。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 07</span>
+              <h3>右侧栏是批注，不是工作台</h3>
+              <p><code>.status-column</code> 保留信息，但必须削弱卡片感、指标感、执行台感，像页边注释一样安静退后。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 08</span>
+              <h3>主色是纸与墨，不是蓝色系统</h3>
+              <p>蓝色只能作为低浓度陪衬。主感受必须来自纸白、暖灰、墨色和柔和高光。</p>
+            </article>
+            <article class="rule-mini">
+              <span class="rule-badge">Rule 09</span>
+              <h3>按钮优先像邀请，不像命令</h3>
+              <p>Quick prompt、继续动作、侧栏跳转按钮都应该轻。真正强按钮只保留给用户主动提交。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="inventory">
+          <div class="section-head">
+            <div>
+              <p class="kicker">12 Inventory</p>
+              <h2>当前系统全量组件与元素清单</h2>
+            </div>
+            <p class="caption">下面不是规范新增的抽象部件，而是当前真实系统中已经存在、或由脚本动态插入的所有主要页面元素。这样你照规范调样式时，不会漏部件。</p>
+          </div>
+
+          <div class="inventory-grid">
+            <article class="inventory-card">
+              <h3>App Shell</h3>
+              <p>全局壳层、启动层、窗体层、顶部系统层。</p>
+              <div class="selector-list">
+                <code>#launch-screen</code><code>.launch-mark</code><code>.launch-title</code><code>.launch-copy</code>
+                <code>.app-shell</code><code>.main-window</code><code>.app-titlebar</code><code>.titlebar-brand</code>
+                <code>.desktop-badge</code><code>.titlebar-copy</code><code>.titlebar-status</code><code>#sync-chip</code>
+                <code>#data-chip</code><code>.window-controls</code><code>#window-minimize</code><code>#window-maximize</code>
+                <code>#window-close</code><code>#app-toast</code><code>#app-toast-message</code><code>.hidden</code>
+              </div>
+            </article>
+
+            <article class="inventory-card">
+              <h3>Navigation + Topbar</h3>
+              <p>导航与主区页头，负责定位而非抢占主场。</p>
+              <div class="selector-list">
+                <code>.nav-rail</code><code>.echo-mark</code><code>.nav-presence</code><code>.presence-dot</code>
+                <code>#presence-label</code><code>.nav-stack</code><code>.nav-item</code><code>.nav-label</code>
+                <code>.center-column</code><code>.topbar</code><code>.title-stack</code><code>#toolbar-label</code>
+                <code>#view-title</code><code>#view-subtitle</code><code>.header-meta</code><code>.signal-strip</code>
+                <code>#active-view-chip</code><code>#secondary-view-chip</code><code>.time-strip</code><code>#clock</code>
+                <code>#date-label</code><code>.workspace-view</code>
+              </div>
+            </article>
+
+            <article class="inventory-card">
+              <h3>Now</h3>
+              <p>Arrival、Conversation、Timeline、Composer、Status Column。</p>
+              <div class="selector-list">
+                <code>.now-shell</code><code>.now-arrival-card</code><code>.now-arrival-main</code><code>.now-arrival-copy</code>
+                <code>#hero-emotion</code><code>#hero-copy</code><code>.now-arrival-visual</code><code>.hero-orbit</code>
+                <code>.hero-orbit-core</code><code>.now-arrival-rail</code><code>.arrival-card</code><code>.arrival-focus-card</code>
+                <code>.arrival-next-card</code><code>.arrival-label</code><code>#hero-focus-topic</code><code>#hero-focus-context</code>
+                <code>.arrival-next-head</code><code>#hero-next-action</code><code>#hero-next-copy</code><code>#hero-next-context</code>
+                <code>#hero-start-action</code><code>.conversation-board</code><code>.conversation-header</code><code>#board-badges</code>
+                <code>#timeline-panel</code><code>.timeline-row</code><code>.timeline-copy</code><code>.typing-line</code>
+                <code>.composer</code><code>#composer-form</code><code>.composer-meta</code><code>.quick-prompt</code>
+                <code>.composer-row</code><code>#composer-input</code><code>.composer-actions</code><code>#play-latest-echo</code>
+                <code>#composer-submit</code><code>#composer-submit-label</code><code>.status-column</code><code>.status-column-intro</code>
+                <code>.instrument-panel</code><code>.state-panel-card</code><code>.focus-panel-card</code><code>.next-panel-card</code>
+                <code>.learning-panel-card</code><code>.continuity-panel-card</code><code>.panel-head</code><code>.detail-title</code>
+                <code>.detail-copy</code><code>.detail-note</code><code>#emotion-label</code><code>#emotion-copy</code>
+                <code>#emotion-note</code><code>#focus-title</code><code>#focus-note</code><code>#action-title</code>
+                <code>#action-copy</code><code>#start-next-action</code><code>#learning-topic</code><code>#learning-step-copy</code>
+                <code>#learning-note</code><code>#reflection-side-trend</code><code>#reflection-side-copy</code>
+              </div>
+            </article>
+
+            <article class="inventory-card">
+              <h3>Learn</h3>
+              <p>学习页当前骨架与动态区域。</p>
+              <div class="selector-list">
+                <code>.hero-band</code><code>.single-hero</code><code>.panel</code><code>.panel-kicker</code>
+                <code>#learn-topic</code><code>#learn-summary</code><code>.summary-row</code><code>.summary-chip</code>
+                <code>#learn-progress-chip</code><code>#learn-pattern-chip</code><code>.workspace-grid</code><code>.two-up</code>
+                <code>.content-card</code><code>.board-header</code><code>.compact</code><code>.step-list</code>
+                <code>#learn-steps-list</code><code>.detail-stack</code><code>#learn-current-step-title</code><code>#learn-current-step-copy</code>
+                <code>.inline-actions</code><code>#learn-current-actions</code>
+              </div>
+            </article>
+
+            <article class="inventory-card">
+              <h3>Actions</h3>
+              <p>任务页当前表单、当前任务与列表区域。</p>
+              <div class="selector-list">
+                <code>#actions-headline</code><code>#actions-summary</code><code>#actions-open-chip</code><code>#actions-active-chip</code>
+                <code>.single-column</code><code>#actions-current-task</code><code>.action-entry-grid</code><code>.inline-form</code>
+                <code>.input-stack</code><code>#suggested-action-form</code><code>#suggested-action-query</code><code>#suggested-action-submit</code>
+                <code>#manual-action-form</code><code>#manual-action-title</code><code>#manual-action-detail</code><code>#manual-action-submit</code>
+                <code>#action-list</code>
+              </div>
+            </article>
+
+            <article class="inventory-card">
+              <h3>Reflections + Memory</h3>
+              <p>反思页、记忆页及脚本动态插入节点。</p>
+              <div class="selector-list">
+                <code>#reflection-headline</code><code>#reflection-summary</code><code>#reflection-theme-chip</code><code>#refresh-summary</code>
+                <code>.reflection-stack</code><code>.reflection-card</code><code>#reflection-summary-copy</code><code>#reflection-echo-copy</code>
+                <code>#reflection-pattern-copy</code><code>#reflection-theme-title</code><code>#reflection-history</code>
+                <code>#memory-headline</code><code>#memory-summary</code><code>#memory-total-chip</code><code>#memory-tags-chip</code>
+                <code>.tag-cloud</code><code>#memory-tags</code><code>.cluster-grid</code><code>#memory-clusters</code>
+                <code>.memory-list</code><code>#memory-list</code><code>#memory-profile-summary</code>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <div class="foot">
+          本规范对应当前真实前端结构：<code>D:\Echo\public\index.html</code>、<code>D:\Echo\public\styles.css</code>、<code>D:\Echo\public\app.js</code>。如果后续你继续增删真实 DOM，这份 HTML 规范也应同步更新，不然它会重新退化成“气质方向文档”，而不是可直接对照调整界面的系统图谱。
         </div>
       </main>
     </div>

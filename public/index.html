@@ -115,25 +115,22 @@
                   <article class="arrival-card arrival-focus-card">
                     <span class="arrival-label">当前聚焦</span>
                     <strong id="hero-focus-topic">等待状态同步</strong>
-                    <span class="arrival-meta" id="hero-learning-ratio">0 / 0</span>
+                    <span class="arrival-meta" id="hero-focus-context">这条线索已经被留在这里。</span>
                   </article>
 
                   <article class="arrival-card arrival-next-card">
                     <div class="arrival-next-head">
                       <span class="arrival-label">继续这条线</span>
-                      <span class="hero-pill mono" id="hero-focus-percentage">0%</span>
                     </div>
                     <strong id="hero-next-action">等待生成下一步</strong>
                     <p id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</p>
-                    <div class="progress-track">
-                      <span id="hero-focus-track-fill" style="width: 0%"></span>
-                    </div>
+                    <p class="arrival-meta" id="hero-next-context">你准备好时，再把这一步带回对话。</p>
                     <button class="secondary-button" id="hero-start-action" type="button">把这一步带回对话</button>
                   </article>
                 </div>
               </section>
 
-              <section class="content-card conversation-board">
+              <section class="conversation-board">
                 <div class="board-header conversation-header">
                   <div>
                     <p class="panel-kicker">主对话流</p>
@@ -353,22 +350,15 @@
               <span class="mono" id="emotion-label">平静</span>
             </div>
             <p class="detail-copy" id="emotion-copy">等待状态同步。</p>
-            <div class="waveform" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-            </div>
+            <p class="detail-note" id="emotion-note">先把此刻放稳，不急着解释完全部。</p>
           </section>
 
           <section class="instrument-panel focus-panel-card" data-jump-view="actions">
             <div class="panel-head">
               <h2>专注</h2>
-              <span class="mono" id="focus-percentage">0%</span>
             </div>
             <p class="detail-title" id="focus-title">等待专注主题</p>
-            <div class="progress-track">
-              <span id="focus-track-fill" style="width: 0%"></span>
-            </div>
+            <p class="detail-copy" id="focus-note">这条线索已经被轻轻留在旁边。</p>
           </section>
 
           <section class="instrument-panel next-panel-card" data-jump-view="actions">
@@ -383,11 +373,10 @@
           <section class="instrument-panel learning-panel-card" data-jump-view="learn">
             <div class="panel-head">
               <h2>学习线</h2>
-              <span class="mono" id="learning-ratio">0 / 0</span>
             </div>
             <p class="detail-title" id="learning-topic">等待学习主题</p>
             <p class="detail-copy" id="learning-step-copy">当前没有激活的学习步骤。</p>
-            <div class="segments" id="learning-segments"></div>
+            <p class="detail-note" id="learning-note">还没有需要立刻推进的学习步骤。</p>
           </section>
 
           <section class="instrument-panel continuity-panel-card" data-jump-view="reflections">

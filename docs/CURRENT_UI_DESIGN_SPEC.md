@@ -146,7 +146,11 @@ Echo 当前系统的界面本质是：
 - 这里是到场区，不是任务面板
 - 不允许堆叠多个并列动作卡
 - 不允许在首屏制造明显任务压力
+- 当前版本中，这一层应更接近页首引子，而不是首屏主 hero
 - 情绪词、聚焦点、主线动作中，只允许一个作为最强视觉重点
+- 这里优先使用排版、留白与暖纸背景建立气氛，而不是依赖大块功能卡
+- 不允许出现进度条、百分比、分段格、分数比率等推进型信号
+- 到场层允许存在辅助信息，但这些信息必须是文字化连续性提示，而不是量化状态
 
 ### 4.1.2 主对话层 `conversation-board`
 
@@ -168,6 +172,9 @@ Echo 当前系统的界面本质是：
 - 输入区必须稳定可见
 - 快捷提示只作为低压入口，不得像命令菜单
 - 不允许让侧栏或到场区压过主对话区
+- `conversation-board` 在当前版本中不应表现为一个厚重卡片模块
+- 它应更像主背景上的关系空间本身，通过留白、节奏和输入位置建立中心感
+- 不允许把它做成客服窗、消息插件或盒子化聊天面板
 
 ## 4.2 `Learn / 学习`
 
@@ -292,16 +299,19 @@ Echo 当前系统的界面本质是：
 - 采用角色分布，不采用机械交错列表
 - 用户消息靠右，Echo 消息靠左
 - 时间信息弱化，不得抢正文
+- 回合之间保留明显纵向留白，用停顿感替代高效率密排
+- `timeline-panel` 的节奏优先级高于信息密度
 
 ### `timeline-copy`
 
 规范：
 
-- Echo 消息卡比用户消息更像“被接住后的返还”
-- 用户消息气质更简洁、更靠近输入行为
+- Echo 消息应更像“被接住后的返还”，允许弱化背景，甚至仅靠排版与左侧细线区分
+- 用户消息气质更简洁、更靠近输入行为，可使用极淡底色但不使用强描边
 - 文本可读性优先，不做花哨气泡
+- 不允许把 Echo 与用户都做成同强度的 IM 式硬气泡
 
-### `typing-dots`
+### `typing-line`
 
 用途：
 
@@ -309,9 +319,11 @@ Echo 当前系统的界面本质是：
 
 规范：
 
-- 只能轻微存在
+- 使用低对比度、文字化、近乎耳语式的反馈
+- 推荐表达接近“Echo 正在整理这一句……”
 - 不得制造焦虑等待
 - 不能阻塞输入
+- 禁止使用高频跳点、闪烁圆点、旋转 loading 或其他工具型等待动画
 
 ## 5.4 输入组件
 
@@ -383,14 +395,16 @@ Echo 当前系统的界面本质是：
 
 当前系统基于浅色主界面 + 深色导航的对比结构：
 
-- 页面背景：浅、柔和、有空气感
-- 导航背景：深、稳、低干扰
-- 强调色：蓝色，仅用于当前状态、主线和主要交互
+- 页面背景：暖纸、柔和、有空气感
+- 导航背景：深墨、稳定、低干扰
+- 强调色：仅作微光、主线提示与必要交互，不再承担大面积科技感填充
 
 规则：
 
-- 蓝色是注意力信号，不是装饰色
+- 强调色是注意力信号，不是装饰色
 - 不允许大面积使用高饱和强调色
+- 禁止使用大面积冷蓝渐变、强玻璃拟态或高科技能量感底色
+- `Now` 页优先使用暖白、米灰、浅褐、柔和灰紫等低压色域
 - 错误色只用于异常反馈
 
 ## 6.2 圆角与描边
@@ -563,3 +577,106 @@ Echo 当前系统的界面本质是：
 - 作为前端实现与产品讨论的共同基线
 
 如果后续我们要继续迭代，应优先修改本文档，再修改 UI。
+---
+
+## 14. Material Direction Decision
+
+After the latest Gemini material review, Echo's current UI officially adopts this tactile direction:
+
+- Primary direction: warm cotton paper + translucent vellum overlays
+- Secondary accent direction: matte ceramic / diffused frosted glow for micro-presence
+- Explicitly rejected as global direction: plaster + raw wood / heavy object-workbench metaphors
+
+This means Echo's "physicality" should be understood as:
+
+- light-absorbing rather than reflective
+- layered rather than rigidly assembled
+- text-supporting rather than object-performing
+- trace-retaining rather than mechanically archived
+
+Suitable qualities:
+
+- matte
+- softly fibrous
+- lightly translucent
+- gently layered
+- warm-shadowed
+
+Unsuitable qualities:
+
+- glossy glass
+- bright plastic
+- strong metal
+- thick wood blocks
+- heavy stone
+- obvious hardware assembly logic
+
+## 15. Material Rules By Component
+
+### 15.1 `now-arrival-card`
+
+- Should feel like a slightly thicker cotton paper sheet
+- May have a very light lifted edge and warm inter-layer shadow
+- Must not feel like wood, plaster slot, control panel, or hard object plate
+
+### 15.2 `hero-orbit`
+
+- Should default to a weak diffused glow under paper / frosted material
+- Closer to "warm light behind vellum" than to a ring indicator
+- Must not become radar, glass core, energy orb, or metal lamp
+
+### 15.3 `conversation-board`
+
+- Should feel like the main paper ground itself, not a boxed object
+- Echo text should read like ink / returned thought directly on the page
+- User messages may have a slightly more tangible support layer, but still lightweight
+
+### 15.4 `timeline-panel`
+
+- Continuity may be expressed as a very fine pressed trace or fiber-like line
+- Must not read as a progress rail, process line, or glowing track
+
+### 15.5 `status-column`
+
+- Should feel like vellum / tracing paper layered at the side
+- Must stay thinner, lighter, and more overlay-like than the central conversation space
+- Highlighting should prefer soft diffused glow over hard cards or control buttons
+
+### 15.6 `nav-rail`, `topbar`, `app-titlebar`
+
+- Should behave like a quiet shell, ink backing, or subdued frame
+- Must avoid glassy, metallic, sprayed, or hardware-console finishes
+
+### 15.7 `learn`, `actions`, `reflections`, `memory`
+
+- All secondary pages should remain inside the same paper-family material system
+- `reflections` and `memory` should lean more toward traces and retained fragments
+- `learn` and `actions` may lean slightly more structured, but not heavier
+
+## 16. Implementation Priority
+
+### P0
+
+- Make the paper-family surface language the default across the system
+- Unify `Now` arrival, conversation, and side-support surfaces under one material logic
+- Remove any remaining glossy, heavy, or dashboard-like material signals
+
+### P1
+
+- Add the diffused frosted micro-glow to `hero-orbit`, hover, focus, and typing states
+- Refine pressed traces, faint overlays, and soft material transitions
+
+### P2
+
+- Deepen trace language in `reflections` / `memory`
+- Deepen lightweight structured-paper language in `learn` / `actions`
+
+## 17. Acceptance Addendum
+
+A future design direction only counts as aligned with Echo's current material system if:
+
+1. The user feels held before feeling managed.
+2. Text remains the protagonist and material remains support.
+3. Side layers feel retained, not operational.
+4. Glow feels embedded under material, not applied on top of it.
+5. The interface does not drift back toward dashboard, workstation, or efficiency-tool metaphors.

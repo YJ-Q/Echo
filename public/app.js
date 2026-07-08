@@ -233,6 +233,29 @@ function emotionCopy(emotion) {
   }
 }
 
+function describeContinuity(totalSteps, currentStepIndex) {
+  if (!totalSteps) {
+    return "这条线索已经被留在这里。";
+  }
+
+  const safeIndex = Math.min(Math.max(currentStepIndex, 0), Math.max(totalSteps - 1, 0));
+  const remaining = Math.max(totalSteps - safeIndex - 1, 0);
+
+  if (safeIndex === 0) {
+    return `刚刚把开头放稳，后面还有 ${remaining} 小步。`;
+  }
+
+  if (remaining === 0) {
+    return "已经走到收束处，可以慢慢把它说完整。";
+  }
+
+  if (remaining === 1) {
+    return "这条线已经走到后段，再往前一点就能接上。";
+  }
+
+  return `这条线已经走到中段，后面还留着 ${remaining} 小步。`;
+}
+
 function buildTimelineEntries(memories = []) {
   return [...memories]
     .filter((memory) => memory && (memory.user_input || memory.echo_response))
@@ -497,7 +520,7 @@ function renderTimeline() {
         ? "user"
         : "echo";
     const body = entry.typing
-      ? `<div class="typing-dots" aria-label="输入中"><span></span><span></span><span></span></div>`
+      ? `<p class="typing-line" aria-label="输入中"><em>Echo 正在整理这一句...</em></p>`
       : `<p>${escapeHtml(entry.text)}</p>`;
 
     return `
@@ -530,33 +553,37 @@ function renderNowView(state) {
   const session = state?.current_learning || state?.active_learning?.[0] || null;
   const totalSteps = session?.total_steps ?? session?.steps?.length ?? 0;
   const currentStepIndex = session?.current_step_index ?? (Number.isFinite(session?.current_step) ? session.current_step : 0);
-  const ratioText = totalSteps ? `${Math.min(currentStepIndex + 1, totalSteps)} / ${totalSteps}` : "0 / 0";
-  const progress = totalSteps ? Math.max(16, Math.round(((currentStepIndex + 1) / totalSteps) * 100)) : 0;
   const nextActionLabel = state?.next_action?.label || "等待下一步";
   const nextActionDetail = conciseText(state?.next_action?.detail, "先把下一步说清楚。");
+  const continuityText = describeContinuity(totalSteps, currentStepIndex);
+  const focusNote = totalSteps
+    ? `围绕这条线，先照看眼前这一小步。`
+    : "这条线索已经被轻轻留在旁边。";
+  const learningNote = totalSteps
+    ? `学习线还在往前，不需要一次把全部完成。`
+    : "还没有需要立刻推进的学习步骤。";
 
   document.querySelector("#hero-emotion").textContent = preset.hero;
   document.querySelector("#hero-copy").textContent = note;
   document.querySelector("#hero-focus-topic").textContent = focus;
-  document.querySelector("#hero-learning-ratio").textContent = ratioText;
+  document.querySelector("#hero-focus-context").textContent = continuityText;
   document.querySelector("#hero-next-action").textContent = nextActionLabel;
   document.querySelector("#hero-next-copy").textContent = nextActionDetail;
-  document.querySelector("#hero-focus-percentage").textContent = `${progress}%`;
-  document.querySelector("#hero-focus-track-fill").style.width = `${progress}%`;
+  document.querySelector("#hero-next-context").textContent = "你准备好时，再把这一步带回对话。";
 
   document.querySelector("#emotion-label").textContent = preset.label;
   document.querySelector("#emotion-copy").textContent = emotionCopy(emotion);
+  document.querySelector("#emotion-note").textContent = note;
   document.querySelector("#focus-title").textContent = focus;
-  document.querySelector("#focus-percentage").textContent = `${progress}%`;
-  document.querySelector("#focus-track-fill").style.width = `${progress}%`;
+  document.querySelector("#focus-note").textContent = focusNote;
   document.querySelector("#action-title").textContent = nextActionLabel;
   document.querySelector("#action-copy").textContent = nextActionDetail;
-  document.querySelector("#learning-ratio").textContent = ratioText;
   document.querySelector("#learning-topic").textContent = session?.topic || "等待学习主题";
   document.querySelector("#learning-step-copy").textContent =
     session?.current_step?.title
     || session?.steps?.[currentStepIndex]?.title
     || "等待学习步骤。";
+  document.querySelector("#learning-note").textContent = learningNote;
   document.querySelector("#reflection-side-trend").textContent =
     state?.current_reflection?.latest_summary?.emotional_trend
     || dashboardData.summaries[0]?.emotional_trend
@@ -565,15 +592,6 @@ function renderNowView(state) {
     state?.current_reflection?.summary || dashboardData.summaries[0]?.summary,
     "等待趋势摘要。"
   );
-
-  const segments = document.querySelector("#learning-segments");
-  const segmentLength = totalSteps || 6;
-  segments.innerHTML = Array.from({ length: segmentLength }, (_, index) => {
-    if (!totalSteps) return "<span></span>";
-    if (index < currentStepIndex) return '<span class="done"></span>';
-    if (index === currentStepIndex) return '<span class="current"></span>';
-    return "<span></span>";
-  }).join("");
 }
 
 function renderLearnView(state) {
