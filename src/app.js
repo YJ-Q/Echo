@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import achievementRoutes from './routes/achievementRoutes.js';
 import actionRoutes from './routes/actionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import learningRoutes from './routes/learningRoutes.js';
+import managementRoutes from './routes/managementRoutes.js';
 import memoryRoutes from './routes/memoryRoutes.js';
 import stateRoutes from './routes/stateRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
@@ -34,7 +36,7 @@ export async function createApp({ logger } = {}) {
       name: 'Echo',
       status: 'ui-connected',
       message: 'Echo API is running with the local desktop-style frontend.',
-      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/tts'],
+      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/management', '/achievements', '/tts'],
       capabilities: { tts: ttsAvailable }
     });
   });
@@ -46,7 +48,9 @@ export async function createApp({ logger } = {}) {
   app.use('/chat', chatRoutes);
   app.use('/state', stateRoutes);
   app.use('/actions', actionRoutes);
+  app.use('/achievements', achievementRoutes);
   app.use('/learning', learningRoutes);
+  app.use('/management', managementRoutes);
   app.use('/memory', memoryRoutes);
   app.use('/summary', summaryRoutes);
   app.use('/tts', ttsRoutes);

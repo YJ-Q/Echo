@@ -388,7 +388,7 @@ node scripts/inspect-achievement-icons.js --json
    - 本文档即 F0 基础版
 
 2. G1 输出 management overview
-   - 先通过终端/API 验证
+   - 基础版已完成，可通过终端/API 验证
    - 前端只在 `记忆` / `行动` / `学习` 中放轻量提醒
 
 3. G2/G3 输出 proposal
@@ -428,4 +428,3 @@ F0 完成标准：
 - G1 或 ACH1 至少一个 view model 已稳定
 - 对应终端脚本可运行
 - 页面只接 view model，不复制 service 规则
-

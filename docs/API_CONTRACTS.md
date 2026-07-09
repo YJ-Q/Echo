@@ -2,7 +2,7 @@
 
 日期：2026-07-08
 
-本文档约定前端即将使用、后端即将实现的 API contract。真实接口未完成前，前端应使用 `docs/frontend-mocks` 中的 mock JSON。
+本文档约定前端即将使用、后端逐步实现的 API contract。真实接口未完成前，前端应使用 `docs/frontend-mocks` 中的 mock JSON。
 
 ---
 
@@ -37,7 +37,11 @@
 
 Endpoint:
 
-`GET /management/overview?scope=learning|memory|actions`
+`GET /management/overview?scope=learning|memory|actions|all`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -83,6 +87,11 @@ Mock files:
 - `docs/frontend-mocks/management-overview-memory.json`
 - `docs/frontend-mocks/management-overview-actions.json`
 
+说明：
+
+- `scope=all` 返回 `{ scope: "all", scopes: [...] }`
+- 该接口只读，不创建 proposal，不修改任何数据
+
 ---
 
 ## 3. Operation Proposals
@@ -90,6 +99,10 @@ Mock files:
 Endpoint:
 
 `GET /management/proposals`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -136,6 +149,10 @@ Endpoint:
 
 `POST /management/proposals`
 
+状态：
+
+基础版已实现。
+
 用途：
 
 创建 operation proposal，但不执行。
@@ -162,6 +179,12 @@ Response data:
 }
 ```
 
+备注：
+
+- 创建 proposal 只写入 `operation_proposals` 和 `operation_events` 审计记录。
+- 第一版不会执行 archive / dismiss / merge / delete 等修改操作。
+- 可通过 `GET /management/operation-events?proposalId=1` 查询 proposal 相关事件。
+
 ---
 
 ## 5. Confirm Proposal
@@ -169,6 +192,10 @@ Response data:
 Endpoint:
 
 `POST /management/proposals/:id/confirm`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -194,6 +221,12 @@ Response data:
 }
 ```
 
+备注：
+
+- 第一版只执行明确支持的安全操作：`dismiss action`、`archive memory`、`pin memory`、`archive learning_session`，以及 `review / keep` 类 no-op 操作。
+- `delete / remove` 类 destructive proposal 会被拒绝执行并写入拒绝事件。
+- `merge` 暂不执行，后续需要更完整的冲突校验与回滚策略。
+
 ---
 
 ## 6. Achievement Wall
@@ -201,6 +234,10 @@ Response data:
 Endpoint:
 
 `GET /achievements`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -248,6 +285,11 @@ Mock file:
 
 - `docs/frontend-mocks/achievements.json`
 
+备注：
+
+- 第一版由后端固定 achievement definitions 和现有 learning / actions / memory / operation events 推导解锁状态。
+- 暂不持久化 `achievements` / `achievement_unlocks`，后续 ACH2/ACH3 再补生成与事件解锁落库。
+
 ---
 
 ## 7. Recent Achievements
@@ -255,6 +297,10 @@ Mock file:
 Endpoint:
 
 `GET /achievements/recent`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -271,6 +317,10 @@ Mock file:
 Endpoint:
 
 `GET /achievements/icons`
+
+状态：
+
+基础版已实现。
 
 用途：
 
@@ -295,4 +345,3 @@ Response data:
 Mock file:
 
 - `docs/frontend-mocks/achievement-icons.json`
-

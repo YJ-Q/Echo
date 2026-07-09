@@ -127,6 +127,410 @@ test('POST /tts returns a stable code for request failures before any response',
   }
 });
 
+test('GET /management/overview returns a read-only learning overview', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '我想学 Node.js，但总是在开始前拖延。'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/management/overview?scope=learning`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.data.scope, 'learning');
+    assert.equal(body.data.headline, '学习线整理');
+    assert.equal(body.data.risk_level, 'read_only');
+    assert.equal(body.data.stats.total, 1);
+    assert.equal(body.data.stats.active, 1);
+    assert.ok(body.data.stats_items.some((stat) => stat.key === 'active' && stat.value === 1));
+    assert.ok(body.data.candidates.some((candidate) => candidate.target_type === 'learning_session'));
+    assert.ok(Array.isArray(body.data.suggested_operations));
+    assert.ok(body.data.available_operations.includes('archive'));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('GET /management/overview returns action duplicate candidates without executing changes', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '整理 Node.js 学习线'
+      })
+    });
+    await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '整理 Node.js 学习线',
+        source: 'imported'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/management/overview?scope=actions`);
+    const body = await response.json();
+    const actionsResponse = await fetch(`${ctx.baseUrl}/actions`);
+    const actionsBody = await actionsResponse.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.data.scope, 'actions');
+    assert.equal(body.data.headline, '行动整理');
+    assert.equal(body.data.risk_level, 'read_only');
+    assert.equal(body.data.stats.duplicate_candidates, 1);
+    assert.ok(body.data.stats_items.some((stat) => stat.key === 'duplicate_candidates' && stat.value === 1));
+    assert.ok(body.data.candidates.some((candidate) => candidate.suggested_operation === 'merge'));
+    assert.ok(body.data.suggested_operations.some((operation) => operation.operation_type === 'merge'));
+    assert.equal(actionsBody.data.actions.length, 2);
+    assert.ok(actionsBody.data.actions.every((action) => action.status === 'pending'));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('GET /management/overview returns a memory overview with frontend-friendly fields', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '我想把 Node.js 学习入口缩小到第一步。'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/management/overview?scope=memory`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.data.scope, 'memory');
+    assert.equal(body.data.headline, '记忆整理');
+    assert.ok(typeof body.data.summary === 'string');
+    assert.ok(Number.isInteger(body.data.stats.total));
+    assert.ok(body.data.stats_items.some((stat) => stat.key === 'total'));
+    assert.ok(Array.isArray(body.data.candidates));
+    assert.ok(Array.isArray(body.data.suggested_operations));
+    assert.equal(body.data.risk_level, 'read_only');
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /chat returns a management overview for governance requests', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '我想学 Node.js，但总是在开始前拖延。'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '你帮我梳理一下当前的学习线路，我们一起讨论修改或者删除'
+      })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.data.intent, 'management');
+    assert.equal(body.data.management_intent.primary_scope, 'learning');
+    assert.equal(body.data.management_overview.scope, 'learning');
+    assert.equal(body.data.management_overview.risk_level, 'read_only');
+    assert.match(body.data.reply, /只读梳理/);
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('GET /achievements returns a stable achievement wall view model', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '我想学 Node.js，但总是在开始前拖延。'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/achievements`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(body.data.summary.total >= 1);
+    assert.ok(body.data.summary.unlocked >= 1);
+    assert.ok(body.data.groups.some((group) => group.key === 'learning'));
+    assert.ok(body.data.achievements.some((achievement) => achievement.key === 'learning:new_path' && achievement.unlocked));
+    assert.ok(Array.isArray(body.data.recent_unlocks));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('GET /achievements/recent returns recent backend-derived unlocks', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    await fetch(`${ctx.baseUrl}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: '我想学 TypeScript，先建立一条学习线。'
+      })
+    });
+
+    const response = await fetch(`${ctx.baseUrl}/achievements/recent?limit=2`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(body.data.recent_unlocks.length >= 1);
+    assert.ok(body.data.recent_unlocks.length <= 2);
+    assert.ok(body.data.recent_unlocks.every((unlock) => unlock.unlocked_at));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('GET /achievements/icons returns the fixed achievement icon catalog', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const response = await fetch(`${ctx.baseUrl}/achievements/icons`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(body.data.icons.some((icon) => icon.icon_type === 'first_step'));
+    assert.ok(body.data.icons.every((icon) => typeof icon.asset_path === 'string'));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /management/proposals creates an operation proposal without executing it', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const actionResponse = await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '旧任务可以稍后整理',
+        source: 'manual'
+      })
+    });
+    const actionBody = await actionResponse.json();
+    const actionId = actionBody.data.action.id;
+
+    const createResponse = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'actions',
+        operation_intent: 'dismiss',
+        target_ids: [actionId],
+        summary: '建议 dismiss 1 个已经过期的任务。',
+        preview: {
+          before: ['旧任务仍在 pending 队列中'],
+          after: ['旧任务从主队列移除，但仍保留历史记录']
+        }
+      })
+    });
+    const createBody = await createResponse.json();
+    const listResponse = await fetch(`${ctx.baseUrl}/management/proposals?scope=actions&status=awaiting_confirmation`);
+    const listBody = await listResponse.json();
+    const eventsResponse = await fetch(`${ctx.baseUrl}/management/operation-events?proposalId=${createBody.data.proposal.id}`);
+    const eventsBody = await eventsResponse.json();
+    const actionsResponse = await fetch(`${ctx.baseUrl}/actions`);
+    const actionsBody = await actionsResponse.json();
+    const unchangedAction = actionsBody.data.actions.find((action) => action.id === actionId);
+
+    assert.equal(createResponse.status, 201);
+    assert.equal(createBody.ok, true);
+    assert.equal(createBody.data.proposal.status, 'awaiting_confirmation');
+    assert.equal(createBody.data.proposal.scope, 'actions');
+    assert.equal(createBody.data.proposal.risk_level, 'reversible');
+    assert.equal(createBody.data.proposal.operations[0].operation_type, 'dismiss');
+    assert.equal(createBody.data.proposal.operations[0].target_type, 'action');
+    assert.equal(createBody.data.proposal.operations[0].target_id, actionId);
+    assert.equal(createBody.data.proposal.metadata.execution_state, 'not_executed');
+
+    assert.equal(listResponse.status, 200);
+    assert.equal(listBody.data.proposals.length, 1);
+    assert.equal(listBody.data.proposals[0].id, createBody.data.proposal.id);
+
+    assert.equal(eventsResponse.status, 200);
+    assert.equal(eventsBody.data.events.length, 1);
+    assert.equal(eventsBody.data.events[0].event_type, 'proposal_created');
+    assert.equal(eventsBody.data.events[0].proposal_id, createBody.data.proposal.id);
+
+    assert.equal(unchangedAction.status, 'pending');
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /management/proposals rejects invalid target ids', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const response = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'memory',
+        operation_intent: 'archive',
+        target_ids: ['not-a-number']
+      })
+    });
+    const body = await response.json();
+    const listResponse = await fetch(`${ctx.baseUrl}/management/proposals`);
+    const listBody = await listResponse.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.ok, false);
+    assert.equal(body.error.code, 'invalid_target_id');
+    assert.equal(listBody.data.proposals.length, 0);
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /management/proposals/:id/confirm executes a reversible action dismiss once', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const actionResponse = await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '可以被整理掉的旧任务'
+      })
+    });
+    const actionBody = await actionResponse.json();
+    const actionId = actionBody.data.action.id;
+
+    const proposalResponse = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'actions',
+        operation_intent: 'dismiss',
+        target_ids: [actionId]
+      })
+    });
+    const proposalBody = await proposalResponse.json();
+    const proposalId = proposalBody.data.proposal.id;
+
+    const firstConfirm = await fetch(`${ctx.baseUrl}/management/proposals/${proposalId}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation_text: '确认执行' })
+    });
+    const firstBody = await firstConfirm.json();
+    const secondConfirm = await fetch(`${ctx.baseUrl}/management/proposals/${proposalId}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation_text: '确认执行' })
+    });
+    const secondBody = await secondConfirm.json();
+    const actionsResponse = await fetch(`${ctx.baseUrl}/actions`);
+    const actionsBody = await actionsResponse.json();
+    const eventsResponse = await fetch(`${ctx.baseUrl}/management/operation-events?proposalId=${proposalId}`);
+    const eventsBody = await eventsResponse.json();
+    const dismissedAction = actionsBody.data.actions.find((action) => action.id === actionId);
+    const executedEvents = eventsBody.data.events.filter((event) => event.event_type === 'proposal_executed');
+
+    assert.equal(firstConfirm.status, 200);
+    assert.equal(firstBody.ok, true);
+    assert.equal(firstBody.data.proposal.status, 'executed');
+    assert.equal(firstBody.data.results[0].status, 'executed');
+    assert.equal(firstBody.data.results[0].target_id, actionId);
+    assert.equal(dismissedAction.status, 'dismissed');
+
+    assert.equal(secondConfirm.status, 200);
+    assert.equal(secondBody.data.already_executed, true);
+    assert.equal(executedEvents.length, 1);
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /management/proposals/:id/confirm rejects destructive proposals without executing them', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const actionResponse = await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '不能被直接删除的任务'
+      })
+    });
+    const actionBody = await actionResponse.json();
+    const actionId = actionBody.data.action.id;
+    const proposalResponse = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'actions',
+        operation_intent: 'delete',
+        target_ids: [actionId]
+      })
+    });
+    const proposalBody = await proposalResponse.json();
+    const proposalId = proposalBody.data.proposal.id;
+
+    const confirmResponse = await fetch(`${ctx.baseUrl}/management/proposals/${proposalId}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation_text: '确认执行' })
+    });
+    const confirmBody = await confirmResponse.json();
+    const actionsResponse = await fetch(`${ctx.baseUrl}/actions`);
+    const actionsBody = await actionsResponse.json();
+    const eventsResponse = await fetch(`${ctx.baseUrl}/management/operation-events?proposalId=${proposalId}`);
+    const eventsBody = await eventsResponse.json();
+    const unchangedAction = actionsBody.data.actions.find((action) => action.id === actionId);
+
+    assert.equal(confirmResponse.status, 400);
+    assert.equal(confirmBody.ok, false);
+    assert.equal(confirmBody.error.code, 'destructive_proposal_not_supported');
+    assert.equal(unchangedAction.status, 'pending');
+    assert.ok(eventsBody.data.events.some((event) => event.event_type === 'proposal_execution_rejected'));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
 test('GET /state returns a stable empty-state shape', async () => {
   const ctx = await startTestServer();
 

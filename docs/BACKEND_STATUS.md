@@ -22,6 +22,9 @@ This file tracks the current backend completion level for the Echo MVP.
 - lightweight JSON request logging
 - local JSON export and SQLite backup tooling
 - local JSON snapshot import with `merge`, `replace`, and `dry-run`
+- operation proposal storage and audit event recording for management governance
+- confirmed execution for safe reversible management proposals
+- read-only achievement wall, recent unlocks, and icon catalog endpoints
 
 ## In Good Shape For MVP
 
@@ -42,4 +45,6 @@ This file tracks the current backend completion level for the Echo MVP.
 
 1. tighten provider configuration and deployment docs
 2. prepare the first public release checklist and changelog baseline
-3. rebuild frontend against the now-stable backend contracts
+3. add richer management proposal generation and merge/recovery rules
+4. persist generated achievements and unlock events
+5. rebuild frontend against the now-stable backend contracts

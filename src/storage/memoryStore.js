@@ -411,6 +411,28 @@ export async function updateLearningStep(sessionId, stepIndex, status) {
   return getLearningSessionById(sessionId);
 }
 
+export async function updateLearningSessionStatus(sessionId, status) {
+  const db = await getDb();
+  const session = await getLearningSessionById(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  await db.run(
+    `
+      UPDATE learning_sessions
+      SET status = ?, updated_at = ?
+      WHERE id = ?
+    `,
+    status,
+    new Date().toISOString(),
+    sessionId
+  );
+
+  return getLearningSessionById(sessionId);
+}
+
 export async function saveSummary(summary) {
   const db = await getDb();
   const existing = await db.get(
@@ -611,6 +633,180 @@ export async function updateActionStatus(id, status) {
   return getActionById(id);
 }
 
+export async function createOperationProposal({
+  scope,
+  status = 'awaiting_confirmation',
+  summary,
+  riskLevel = 'read_only',
+  operations = [],
+  preview = {},
+  metadata = {}
+}) {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const result = await db.run(
+    `
+      INSERT INTO operation_proposals
+        (scope, status, summary, risk_level, operations, preview, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    scope,
+    status,
+    summary,
+    riskLevel,
+    JSON.stringify(operations || []),
+    JSON.stringify(preview || {}),
+    JSON.stringify(metadata || {}),
+    now,
+    now
+  );
+  const proposal = await getOperationProposalById(result.lastID);
+
+  await addOperationEvent({
+    proposalId: proposal.id,
+    eventType: 'proposal_created',
+    scope: proposal.scope,
+    riskLevel: proposal.risk_level,
+    operationSummary: proposal.summary,
+    payload: {
+      status: proposal.status,
+      operation_count: proposal.operations.length
+    }
+  });
+
+  return proposal;
+}
+
+export async function getOperationProposals({ status, scope, limit = 20 } = {}) {
+  const db = await getDb();
+  const clauses = [];
+  const values = [];
+
+  if (status) {
+    clauses.push('status = ?');
+    values.push(status);
+  }
+
+  if (scope) {
+    clauses.push('scope = ?');
+    values.push(scope);
+  }
+
+  values.push(limit);
+
+  const rows = await db.all(
+    `
+      SELECT id, scope, status, summary, risk_level, operations, preview, metadata, created_at, updated_at
+      FROM operation_proposals
+      ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+      ORDER BY updated_at DESC, created_at DESC, id DESC
+      LIMIT ?
+    `,
+    ...values
+  );
+
+  return rows.map(mapOperationProposalRow);
+}
+
+export async function getOperationProposalById(id) {
+  const db = await getDb();
+  const row = await db.get(
+    `
+      SELECT id, scope, status, summary, risk_level, operations, preview, metadata, created_at, updated_at
+      FROM operation_proposals
+      WHERE id = ?
+    `,
+    id
+  );
+
+  return row ? mapOperationProposalRow(row) : null;
+}
+
+export async function updateOperationProposalStatus(id, status, metadataPatch = {}) {
+  const db = await getDb();
+  const proposal = await getOperationProposalById(id);
+
+  if (!proposal) {
+    return null;
+  }
+
+  const metadata = {
+    ...proposal.metadata,
+    ...metadataPatch
+  };
+
+  await db.run(
+    `
+      UPDATE operation_proposals
+      SET status = ?,
+          metadata = ?,
+          updated_at = ?
+      WHERE id = ?
+    `,
+    status,
+    JSON.stringify(metadata),
+    new Date().toISOString(),
+    id
+  );
+
+  return getOperationProposalById(id);
+}
+
+export async function addOperationEvent({
+  proposalId,
+  eventType,
+  scope,
+  riskLevel = 'read_only',
+  operationSummary,
+  payload = {}
+}) {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const result = await db.run(
+    `
+      INSERT INTO operation_events
+        (proposal_id, event_type, scope, risk_level, operation_summary, payload, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    proposalId || null,
+    eventType,
+    scope,
+    riskLevel,
+    operationSummary || '',
+    JSON.stringify(payload || {}),
+    now
+  );
+
+  return getOperationEventById(result.lastID);
+}
+
+export async function getOperationEvents({ proposalId, limit = 50 } = {}) {
+  const db = await getDb();
+  const rows = proposalId
+    ? await db.all(
+      `
+        SELECT id, proposal_id, event_type, scope, risk_level, operation_summary, payload, created_at
+        FROM operation_events
+        WHERE proposal_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `,
+      proposalId,
+      limit
+    )
+    : await db.all(
+      `
+        SELECT id, proposal_id, event_type, scope, risk_level, operation_summary, payload, created_at
+        FROM operation_events
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `,
+      limit
+    );
+
+  return rows.map(mapOperationEventRow);
+}
+
 async function getDb() {
   if (!dbPromise) {
     dbPromise = openDatabase();
@@ -745,6 +941,43 @@ export async function migrateMemoryStoreDatabase(db) {
 
     CREATE INDEX IF NOT EXISTS idx_actions_priority
       ON actions(priority);
+
+    CREATE TABLE IF NOT EXISTS operation_proposals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'awaiting_confirmation',
+      summary TEXT NOT NULL,
+      risk_level TEXT NOT NULL DEFAULT 'read_only',
+      operations TEXT NOT NULL DEFAULT '[]',
+      preview TEXT NOT NULL DEFAULT '{}',
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_operation_proposals_status
+      ON operation_proposals(status);
+
+    CREATE INDEX IF NOT EXISTS idx_operation_proposals_scope
+      ON operation_proposals(scope);
+
+    CREATE TABLE IF NOT EXISTS operation_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      proposal_id INTEGER,
+      event_type TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      risk_level TEXT NOT NULL DEFAULT 'read_only',
+      operation_summary TEXT NOT NULL DEFAULT '',
+      payload TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(proposal_id) REFERENCES operation_proposals(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_operation_events_proposal
+      ON operation_events(proposal_id);
+
+    CREATE INDEX IF NOT EXISTS idx_operation_events_created_at
+      ON operation_events(created_at);
   `);
 
   await ensureColumn(db, 'user_profile', 'confidence', 'REAL NOT NULL DEFAULT 0.5');
@@ -917,6 +1150,48 @@ function mapActionRow(row) {
     metadata: safeJsonObject(row.metadata),
     created_at: row.created_at,
     updated_at: row.updated_at
+  };
+}
+
+async function getOperationEventById(id) {
+  const db = await getDb();
+  const row = await db.get(
+    `
+      SELECT id, proposal_id, event_type, scope, risk_level, operation_summary, payload, created_at
+      FROM operation_events
+      WHERE id = ?
+    `,
+    id
+  );
+
+  return row ? mapOperationEventRow(row) : null;
+}
+
+function mapOperationProposalRow(row) {
+  return {
+    id: row.id,
+    scope: row.scope,
+    status: row.status,
+    summary: row.summary,
+    risk_level: row.risk_level,
+    operations: safeJsonArray(row.operations),
+    preview: safeJsonObject(row.preview),
+    metadata: safeJsonObject(row.metadata),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+function mapOperationEventRow(row) {
+  return {
+    id: row.id,
+    proposal_id: row.proposal_id,
+    event_type: row.event_type,
+    scope: row.scope,
+    risk_level: row.risk_level,
+    operation_summary: row.operation_summary,
+    payload: safeJsonObject(row.payload),
+    created_at: row.created_at
   };
 }
 

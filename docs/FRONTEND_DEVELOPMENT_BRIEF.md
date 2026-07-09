@@ -89,27 +89,25 @@
 
 ## 5. API 状态
 
-以下接口是设计目标，真实后端可能尚未实现：
+以下接口是设计目标，部分真实后端已经实现：
 
-- `GET /management/overview?scope=learning`
-- `GET /management/overview?scope=memory`
-- `GET /management/overview?scope=actions`
-- `GET /management/proposals`
-- `POST /management/proposals`
-- `POST /management/proposals/:id/confirm`
-- `GET /achievements`
-- `GET /achievements/recent`
-- `GET /achievements/icons`
+- 已实现：`GET /management/overview?scope=learning|memory|actions|all`
+- 已实现：`GET /management/proposals`
+- 已实现：`POST /management/proposals`
+- 已实现：`POST /management/proposals/:id/confirm`
+- 已实现：`GET /achievements`
+- 已实现：`GET /achievements/recent`
+- 已实现：`GET /achievements/icons`
 
-真实接口未完成前，请使用：
+未实现接口请继续使用：
+
+- 暂无。mock 仍可用于离线 UI 开发。
+
+`management overview` 的 mock 仍可用于离线 UI 开发：
 
 - `docs/frontend-mocks/management-overview-learning.json`
 - `docs/frontend-mocks/management-overview-memory.json`
 - `docs/frontend-mocks/management-overview-actions.json`
-- `docs/frontend-mocks/operation-proposals.json`
-- `docs/frontend-mocks/achievements.json`
-- `docs/frontend-mocks/achievements-recent.json`
-- `docs/frontend-mocks/achievement-icons.json`
 
 ---
 
@@ -166,4 +164,3 @@ Echo 是桌面陪伴体，不是通用管理后台。
 - `成就` 页面可用 mock 展示成就墙、最近解锁和图标 catalog
 - 没有把治理/成就业务规则写进前端
 - 文案和布局符合 Echo 的安静、可扫描风格
-

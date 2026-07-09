@@ -613,11 +613,16 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 建议新增核心文件：
 
 - `src/services/managementIntentEngine.js`
+  - 已新增
   - 识别用户是否在请求管理 memory / learning / actions / achievements
 
 - `src/services/operationProposalEngine.js`
   - 基于当前数据生成待确认的操作草案
   - 只产出 proposal，不直接执行
+
+- `src/services/managementOverviewEngine.js`
+  - 已新增
+  - 生成 memory / learning / actions 的只读治理摘要、候选和建议
 
 - `src/services/operationExecutor.js`
   - 在用户确认后执行被允许的操作
@@ -671,7 +676,7 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 
 ### 3.9.2 推荐拆分的小目标
 
-- `G1` 对话治理意图识别与只读梳理
+- `G1` 对话治理意图识别与只读梳理（基础版已完成，后续继续补更细候选规则）
 - `G2` 操作草案 proposal 数据模型
 - `G3` 用户确认后执行安全操作
 - `G4` 记忆清理候选生成
@@ -902,6 +907,7 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 ### Phase 4: 对话治理与成长记录
 
 1. `G1` 对话治理意图识别与只读梳理
+   - 基础版已完成
    - 必须支持终端/API 验证
 2. `G2` 操作草案 proposal 数据模型
    - 必须支持终端/API 验证
@@ -1031,6 +1037,7 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 应该放：
 
 - `src/services/managementIntentEngine.js`
+- `src/services/managementOverviewEngine.js`
 - `src/services/operationProposalEngine.js`
 - `src/services/operationExecutor.js`
 - `src/services/operationViewModel.js`
@@ -1039,6 +1046,10 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 
 - `managementIntentEngine.js`
   - 只判断用户是否在请求治理后台数据，以及治理范围
+
+- `managementOverviewEngine.js`
+  - 只生成只读 overview、candidates 和 recommendations
+  - 不创建 proposal，不执行写操作
 
 - `operationProposalEngine.js`
   - 只生成草案，不执行写操作
@@ -1126,7 +1137,7 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 
 建议 API：
 
-- `GET /management/overview?scope=learning|memory|actions`
+- `GET /management/overview?scope=learning|memory|actions|all`
   - 返回只读治理摘要、候选和建议
 
 - `GET /management/proposals`
@@ -1149,9 +1160,9 @@ Echo 当前不是“通用聊天机器人”，也不是“任务管理器”。
 
 建议终端脚本：
 
-- `scripts/inspect-management.js --scope learning`
-- `scripts/inspect-management.js --scope memory`
-- `scripts/inspect-management.js --scope actions`
+- 已新增 `scripts/inspect-management.js --scope learning`
+- 已新增 `scripts/inspect-management.js --scope memory`
+- 已新增 `scripts/inspect-management.js --scope actions`
 - `scripts/inspect-operation-proposals.js`
 - `scripts/inspect-achievements.js`
 - `scripts/inspect-achievement-icons.js`
@@ -1662,23 +1673,24 @@ F0 不做：
    - 将 chat、actions、learning、memory、summary、tts 的 toast 文案与错误码映射收口到统一前端 helper
 
 24. `G1` 对话治理意图识别与只读梳理
-   - 下一批建议优先执行
-   - 如果前端未实现，先用终端/API 验证
-   - 让用户能通过对话请求梳理 memory / learning / actions，但第一版只返回摘要、候选和建议，不直接修改数据
-   - 提供 `scripts/inspect-management.js` 或等价脚本验证输出
+   - 基础版已完成
+   - 已提供 `GET /management/overview?scope=learning|memory|actions|all`
+   - 已让 chat 治理请求返回 `management_overview`
+   - 已提供 `scripts/inspect-management.js`
 
 25. `G2` 操作草案 proposal 数据模型
-   - G1 后执行
-   - 建立 `operation_proposals` / `operation_events` 的基础结构，为确认后执行和审计记录做准备
+   - 基础版已完成
+   - 已建立 `operation_proposals` / `operation_events` 的基础结构，支持创建、列表过滤和 proposal 创建审计事件
 
 26. `G3` 用户确认后执行安全操作
-   - G2 后执行
-   - 先支持 reversible 操作，如 archive / dismiss / priority 调整；delete 继续要求更明确确认
+   - 基础版已完成
+   - 已支持 action dismiss、memory archive / pin、learning session archive 和只读 no-op 操作
+   - delete / remove 会被拒绝执行并写入拒绝事件；merge 仍留到后续更完整的冲突校验与回滚策略
 
 27. `ACH1` 成就数据模型与基础 API
-   - G1/G2 之后可并行规划
-   - 建立 achievements / achievement_unlocks，先支持查询成就墙和最近解锁
-   - 提供 `scripts/inspect-achievements.js` 或等价脚本验证输出
+   - 基础版只读接口已完成
+   - 已提供 `GET /achievements`、`GET /achievements/recent`、`GET /achievements/icons`
+   - 当前由固定 catalog 和现有 learning / actions / memory / operation events 推导解锁状态；尚未持久化 achievements / achievement_unlocks
 
 28. `ACH2` learning session 创建时生成待解锁成就
    - ACH1 后执行
