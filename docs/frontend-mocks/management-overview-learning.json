@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "data": {
+    "scope": "learning",
+    "summary": "当前有 3 条学习线，其中 1 条正在推进，1 条可能需要回看，1 条可以考虑归档。",
+    "stats": {
+      "total": 3,
+      "active": 1,
+      "completed": 1,
+      "stale": 1
+    },
+    "candidates": [
+      {
+        "id": "learning:1",
+        "target_type": "learning_session",
+        "target_id": 1,
+        "title": "Node.js 入门",
+        "description": "当前步骤停在“说清 Node.js 是什么”。",
+        "reason": "仍有未完成步骤，适合先回看而不是删除。",
+        "suggested_operation": "review",
+        "risk_level": "read_only"
+      },
+      {
+        "id": "learning:2",
+        "target_type": "learning_session",
+        "target_id": 2,
+        "title": "旧的 CSS 动画练习",
+        "description": "长时间没有推进，且最近上下文没有再提到。",
+        "reason": "可能已经不代表当前重点。",
+        "suggested_operation": "archive",
+        "risk_level": "reversible"
+      }
+    ],
+    "recommendations": [
+      {
+        "operation_type": "review",
+        "label": "先回看 Node.js 入门",
+        "reason": "这条学习线仍然活着，直接删除会丢失上下文。"
+      },
+      {
+        "operation_type": "archive",
+        "label": "归档旧的 CSS 动画练习",
+        "reason": "它暂时不像当前主线，可以先从 active 视野移开。"
+      }
+    ],
+    "risk_level": "read_only",
+    "available_operations": ["review", "rename", "archive"]
+  }
+}
+

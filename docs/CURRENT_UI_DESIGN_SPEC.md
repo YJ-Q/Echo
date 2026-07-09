@@ -1,0 +1,682 @@
+# Echo 当前系统设计规范
+
+日期：2026-07-07
+
+## 目标
+
+本文档用于约束 Echo 当前前端系统的 UI 设计与后续迭代方向。
+
+它不是理想化愿景稿，而是基于当前已经落地的界面实现，总结出的可执行设计规范。
+
+后续所有 UI 优化应优先回答三个问题：
+
+1. 是否更符合 Echo 的产品定位
+2. 是否保持界面结构和信息优先级稳定
+3. 是否避免把 Echo 做成任务控制台或数据驾驶舱
+
+---
+
+## 1. 产品界面定位
+
+Echo 当前系统的界面本质是：
+
+> 一个桌面陪伴空间，而不是一个以任务管理为核心的操作系统。
+
+界面需要同时承担四件事：
+
+- 接住用户此刻状态
+- 让主对话持续成为中心
+- 把当前唯一主线留在用户眼前
+- 用轻量结构支持学习、行动、反思、记忆的延续
+
+因此，UI 的核心判断标准不是“信息是否更多”，而是：
+
+- 用户是否更容易回来
+- 用户是否更容易继续说
+- 用户是否更容易接上当前那条线
+
+---
+
+## 2. 全局设计原则
+
+### 2.1 体验原则
+
+- 先接住，再引导
+- 先对话，再管理
+- 先保留主线，再展开信息
+- 先轻量可继续，再补充分层结构
+
+### 2.2 气质原则
+
+当前系统整体气质必须保持：
+
+- 安静
+- 温和
+- 清楚
+- 低压
+- 轻微活着
+
+当前系统不应表现为：
+
+- 高压推进
+- 仪表盘式管理
+- 炫技 AI 面板
+- 吉祥物卖萌
+- 强情绪表演型产品
+
+### 2.3 信息原则
+
+同一时刻只允许一个最强重点：
+
+- `Now / 此刻` 页：主对话与当前延续线
+- 其他页：各自专题页的“当前一步”
+
+任何视觉强化都不能让多个同级焦点同时竞争。
+
+---
+
+## 3. 全局布局规范
+
+## 3.1 桌面骨架
+
+当前系统使用三层桌面骨架：
+
+1. 左侧主导航 `nav-rail`
+2. 中央主窗口 `main-window`
+3. 右侧轻量工作台 `status-column`，仅在 `Now` 页显示
+
+布局职责如下：
+
+- 左侧导航：页面切换与产品存在感
+- 中央主窗口：核心内容区
+- 右侧工作台：补充连续性信息，不承载主任务流
+
+## 3.2 主窗口结构
+
+主窗口固定包含：
+
+1. 窗口标题栏 `app-titlebar`
+2. 页头 `topbar`
+3. 当前激活页面内容 `workspace-view`
+
+标题栏承载：
+
+- 产品身份
+- 同步状态
+- 窗口控制
+
+页头承载：
+
+- 当前页面标题
+- 当前页面副标题
+- 当前模式信号
+- 时间信息
+
+它不承载复杂功能入口。
+
+---
+
+## 4. 页面级规范
+
+## 4.1 `Now / 此刻`
+
+`Now` 页是当前系统的主入口，也是全系统最优先设计对象。
+
+它由两层组成：
+
+1. `now-arrival-card`
+2. `conversation-board`
+
+### 4.1.1 到场层 `now-arrival-card`
+
+职责：
+
+- 接住用户此刻状态
+- 呈现当前聚焦
+- 呈现当前唯一主线
+
+结构：
+
+- 左侧文案区 `now-arrival-copy`
+- 右侧轻视觉存在物 `hero-orbit`
+- 下方信息轨 `now-arrival-rail`
+
+规范：
+
+- 这里是到场区，不是任务面板
+- 不允许堆叠多个并列动作卡
+- 不允许在首屏制造明显任务压力
+- 当前版本中，这一层应更接近页首引子，而不是首屏主 hero
+- 情绪词、聚焦点、主线动作中，只允许一个作为最强视觉重点
+- 这里优先使用排版、留白与暖纸背景建立气氛，而不是依赖大块功能卡
+- 不允许出现进度条、百分比、分段格、分数比率等推进型信号
+- 到场层允许存在辅助信息，但这些信息必须是文字化连续性提示，而不是量化状态
+
+### 4.1.2 主对话层 `conversation-board`
+
+职责：
+
+- 承接主对话
+- 展示正在发生的交流
+- 支持从状态与结构信息回到对话
+
+结构：
+
+- 头部 `conversation-header`
+- 时间线 `timeline-panel`
+- 输入区 `composer`
+
+规范：
+
+- 对话必须是 `Now` 页视觉中心
+- 输入区必须稳定可见
+- 快捷提示只作为低压入口，不得像命令菜单
+- 不允许让侧栏或到场区压过主对话区
+- `conversation-board` 在当前版本中不应表现为一个厚重卡片模块
+- 它应更像主背景上的关系空间本身，通过留白、节奏和输入位置建立中心感
+- 不允许把它做成客服窗、消息插件或盒子化聊天面板
+
+## 4.2 `Learn / 学习`
+
+职责：
+
+- 展示当前学习主线
+- 展示步骤序列
+- 明确当前一步
+
+规范：
+
+- 只强调当前一条学习线
+- 不做复杂课程管理
+- 不把学习页做成课程后台或知识库界面
+
+## 4.3 `Actions / 行动`
+
+职责：
+
+- 展示当前主任务
+- 展示轻量任务队列
+- 支持建议任务与手动添加
+
+规范：
+
+- 行动页允许更结构化，但仍需保持低压
+- 重点是“当前最值得推进的一步”，不是队列总量
+- 不做看板系统，不做复杂任务管理器
+
+## 4.4 `Reflections / 反思`
+
+职责：
+
+- 展示近期总结
+- 命名模式
+- 连接反思与下一步
+
+规范：
+
+- 不做复杂分析大屏
+- 不做诊断界面
+- 反思文案需要像被返还，而不是被分析
+
+## 4.5 `Memory / 记忆`
+
+职责：
+
+- 展示被保留的关键内容
+- 展示标签与分组
+- 支持把记忆带回对话
+
+规范：
+
+- 记忆强调选择性，而不是全量存档
+- 不做数据库展示感
+- 不让用户感到被监控或被量化留档
+
+---
+
+## 5. 组件规范
+
+## 5.1 导航组件
+
+### `nav-rail`
+
+用途：
+
+- 保持产品纵向稳定感
+- 提供五个核心页面切换
+
+规范：
+
+- 导航始终窄而稳
+- 当前页高亮必须清楚
+- 未激活项保持低存在感
+- 导航不应承载说明性大文案
+
+### `nav-item`
+
+规范：
+
+- 激活态用高对比蓝色强调
+- 非激活态保持深色低压
+- hover 只做轻微反馈
+
+## 5.2 信息容器组件
+
+### `content-card`
+
+用途：
+
+- 承载页面主内容
+
+规范：
+
+- 使用统一圆角、描边、轻阴影
+- 卡片不是装饰性堆叠单位，而是结构分区单位
+- 不允许为了“丰富”无意义拆卡
+
+### `instrument-panel`
+
+用途：
+
+- 承载右侧工作台信息
+
+规范：
+
+- 必须比主对话区更轻
+- 只承担辅助视图，不承担主操作流
+- 支持点击跳转到对应专题页
+
+## 5.3 对话组件
+
+### `timeline-panel`
+
+用途：
+
+- 展示当前会话流
+
+规范：
+
+- 采用角色分布，不采用机械交错列表
+- 用户消息靠右，Echo 消息靠左
+- 时间信息弱化，不得抢正文
+- 回合之间保留明显纵向留白，用停顿感替代高效率密排
+- `timeline-panel` 的节奏优先级高于信息密度
+
+### `timeline-copy`
+
+规范：
+
+- Echo 消息应更像“被接住后的返还”，允许弱化背景，甚至仅靠排版与左侧细线区分
+- 用户消息气质更简洁、更靠近输入行为，可使用极淡底色但不使用强描边
+- 文本可读性优先，不做花哨气泡
+- 不允许把 Echo 与用户都做成同强度的 IM 式硬气泡
+
+### `typing-line`
+
+用途：
+
+- 表达 Echo 正在回应
+
+规范：
+
+- 使用低对比度、文字化、近乎耳语式的反馈
+- 推荐表达接近“Echo 正在整理这一句……”
+- 不得制造焦虑等待
+- 不能阻塞输入
+- 禁止使用高频跳点、闪烁圆点、旋转 loading 或其他工具型等待动画
+
+## 5.4 输入组件
+
+### `composer`
+
+职责：
+
+- 提供持续对话入口
+- 支持快捷提示、文本输入、发送、朗读
+
+规范：
+
+- 输入区必须稳定、清楚、可立即使用
+- placeholder 要像邀请，不像命令
+- 回复过程中输入区仍需可操作
+
+### `quick-prompt`
+
+职责：
+
+- 降低继续说话的门槛
+
+规范：
+
+- 话术必须低压、具体
+- 不得出现命令式、说教式、流程式语气
+- 数量保持少，不得膨胀成快捷命令区
+
+## 5.5 按钮组件
+
+### `primary-button`
+
+用途：
+
+- 唯一主要动作
+
+规范：
+
+- 仅用于发送、提交、创建等真正主动作
+- 同一区域内主按钮只能有一个最强强调
+
+### `secondary-button`
+
+用途：
+
+- 低压辅助动作
+
+规范：
+
+- 视觉上必须轻于主按钮
+- 更适合“带回对话”“刷新”“继续这条线”等动作
+
+### `mini-action`
+
+用途：
+
+- 列表项内的细颗粒动作
+
+规范：
+
+- 不得出现过多并列
+- 适合“进行中 / 完成 / 带回对话”等短动作
+
+---
+
+## 6. 视觉语言规范
+
+## 6.1 色彩
+
+当前系统基于浅色主界面 + 深色导航的对比结构：
+
+- 页面背景：暖纸、柔和、有空气感
+- 导航背景：深墨、稳定、低干扰
+- 强调色：仅作微光、主线提示与必要交互，不再承担大面积科技感填充
+
+规则：
+
+- 强调色是注意力信号，不是装饰色
+- 不允许大面积使用高饱和强调色
+- 禁止使用大面积冷蓝渐变、强玻璃拟态或高科技能量感底色
+- `Now` 页优先使用暖白、米灰、浅褐、柔和灰紫等低压色域
+- 错误色只用于异常反馈
+
+## 6.2 圆角与描边
+
+当前系统采用统一较大的圆角体系：
+
+- 外层容器：大圆角
+- 内容卡片：中大圆角
+- 按钮与小组件：中小圆角
+
+规则：
+
+- 圆角用于建立温和感，不用于制造可爱感
+- 描边优先轻而稳定，不应过粗
+
+## 6.3 阴影与层次
+
+当前系统阴影极轻，只用于分层：
+
+- `shadow-xs`：消息与细组件
+- `shadow-sm`：内容卡片
+- `shadow-md`：外层框架与桌面容器
+
+规则：
+
+- 阴影不用于炫技
+- 层次必须来自结构和留白，而不是堆阴影
+
+## 6.4 留白
+
+留白是功能性空间，不是视觉空洞。
+
+规则：
+
+- 首屏必须允许呼吸
+- 对话区必须有纵向缓冲
+- 页面不允许信息密铺
+
+---
+
+## 7. 动效规范
+
+当前系统动效语言应统一为：
+
+- 淡入
+- 轻位移
+- 呼吸式微弱变化
+- 分段出现
+
+禁止：
+
+- 弹跳
+- 高频闪动
+- 强庆祝反馈
+- 炫技 loading
+
+判断标准：
+
+> 动效是在陪用户，还是在抢用户的注意力。
+
+---
+
+## 8. 响应式规范
+
+当前系统的主要使用场景是桌面端。
+
+### 8.1 桌面主断点
+
+- 宽屏桌面：显示右侧 `status-column`
+- 窄桌面：隐藏 `status-column`，保留中央主窗口
+
+### 8.2 当前规则
+
+- `Now` 页在较窄桌面下自动收起右侧工作台
+- `Learn / Actions / Reflections / Memory` 本身默认隐藏右栏
+- 密度紧凑模式下，主内容内部栅格会折为单列
+
+规则：
+
+- 响应式调整优先保证主对话区完整
+- 不能为保留右栏而压缩对话体验
+
+---
+
+## 9. 文案与交互语气规范
+
+当前 UI 必须与产品语气文档保持一致：
+
+- 温和
+- 具体
+- 不催促
+- 不说教
+- 不评判
+
+界面文案应优先使用以下语气类型：
+
+- 邀请式
+- 承接式
+- 继续式
+
+避免：
+
+- “立即去做”
+- “你应该”
+- “请严格完成”
+- “建议您采取以下措施”
+
+---
+
+## 10. 当前系统的明确边界
+
+当前 UI 不追求：
+
+- 完整生产力系统
+- 复杂看板
+- 多维仪表盘
+- 数据密度最大化
+- gamification 优先
+
+当前 UI 明确优先：
+
+- 对话中心
+- 当前主线
+- 轻量连续性
+- 回来即可继续
+
+---
+
+## 11. 设计修改原则
+
+后续所有设计修改必须遵守以下顺序：
+
+1. 先判断是否更贴近 Echo 的产品身份
+2. 再判断是否改善信息优先级
+3. 再判断是否改善阅读、操作和继续说话的流畅度
+4. 最后才考虑视觉新鲜感
+
+如果一个方案：
+
+- 更华丽
+- 更复杂
+- 更像成熟 SaaS
+- 更像 AI 面板
+
+但没有提升“接住”和“续上”，则不应采纳。
+
+---
+
+## 12. 当前版本验收标准
+
+只要一个后续设计方案要替换当前系统，就至少要满足：
+
+1. 用户一眼能知道这里是可以回来的地方
+2. 主对话仍然是 `Now` 页的视觉中心
+3. 当前只保留一条最重要的继续线索
+4. 右侧工作台是辅助，不是主角
+5. 输入区稳定、低压、随时可继续
+6. Echo 的回复看起来像正在发生，而不是整段播报
+7. 学习、行动、反思、记忆四页各自职责清楚，不串位
+8. 整体气质保持温和、清楚、安静、轻微活着
+
+---
+
+## 13. 本文档用途
+
+从现在开始，本文档用于：
+
+- 评审 UI 修改是否偏离方向
+- 约束 Gemini / 其他设计工具的输出
+- 作为前端实现与产品讨论的共同基线
+
+如果后续我们要继续迭代，应优先修改本文档，再修改 UI。
+---
+
+## 14. Material Direction Decision
+
+After the latest Gemini material review, Echo's current UI officially adopts this tactile direction:
+
+- Primary direction: warm cotton paper + translucent vellum overlays
+- Secondary accent direction: matte ceramic / diffused frosted glow for micro-presence
+- Explicitly rejected as global direction: plaster + raw wood / heavy object-workbench metaphors
+
+This means Echo's "physicality" should be understood as:
+
+- light-absorbing rather than reflective
+- layered rather than rigidly assembled
+- text-supporting rather than object-performing
+- trace-retaining rather than mechanically archived
+
+Suitable qualities:
+
+- matte
+- softly fibrous
+- lightly translucent
+- gently layered
+- warm-shadowed
+
+Unsuitable qualities:
+
+- glossy glass
+- bright plastic
+- strong metal
+- thick wood blocks
+- heavy stone
+- obvious hardware assembly logic
+
+## 15. Material Rules By Component
+
+### 15.1 `now-arrival-card`
+
+- Should feel like a slightly thicker cotton paper sheet
+- May have a very light lifted edge and warm inter-layer shadow
+- Must not feel like wood, plaster slot, control panel, or hard object plate
+
+### 15.2 `hero-orbit`
+
+- Should default to a weak diffused glow under paper / frosted material
+- Closer to "warm light behind vellum" than to a ring indicator
+- Must not become radar, glass core, energy orb, or metal lamp
+
+### 15.3 `conversation-board`
+
+- Should feel like the main paper ground itself, not a boxed object
+- Echo text should read like ink / returned thought directly on the page
+- User messages may have a slightly more tangible support layer, but still lightweight
+
+### 15.4 `timeline-panel`
+
+- Continuity may be expressed as a very fine pressed trace or fiber-like line
+- Must not read as a progress rail, process line, or glowing track
+
+### 15.5 `status-column`
+
+- Should feel like vellum / tracing paper layered at the side
+- Must stay thinner, lighter, and more overlay-like than the central conversation space
+- Highlighting should prefer soft diffused glow over hard cards or control buttons
+
+### 15.6 `nav-rail`, `topbar`, `app-titlebar`
+
+- Should behave like a quiet shell, ink backing, or subdued frame
+- Must avoid glassy, metallic, sprayed, or hardware-console finishes
+
+### 15.7 `learn`, `actions`, `reflections`, `memory`
+
+- All secondary pages should remain inside the same paper-family material system
+- `reflections` and `memory` should lean more toward traces and retained fragments
+- `learn` and `actions` may lean slightly more structured, but not heavier
+
+## 16. Implementation Priority
+
+### P0
+
+- Make the paper-family surface language the default across the system
+- Unify `Now` arrival, conversation, and side-support surfaces under one material logic
+- Remove any remaining glossy, heavy, or dashboard-like material signals
+
+### P1
+
+- Add the diffused frosted micro-glow to `hero-orbit`, hover, focus, and typing states
+- Refine pressed traces, faint overlays, and soft material transitions
+
+### P2
+
+- Deepen trace language in `reflections` / `memory`
+- Deepen lightweight structured-paper language in `learn` / `actions`
+
+## 17. Acceptance Addendum
+
+A future design direction only counts as aligned with Echo's current material system if:
+
+1. The user feels held before feeling managed.
+2. Text remains the protagonist and material remains support.
+3. Side layers feel retained, not operational.
+4. Glow feels embedded under material, not applied on top of it.
+5. The interface does not drift back toward dashboard, workstation, or efficiency-tool metaphors.

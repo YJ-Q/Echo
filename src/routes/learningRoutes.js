@@ -6,6 +6,7 @@ import {
   getLearningSessions,
   updateLearningStep
 } from '../storage/memoryStore.js';
+import { buildManualStepEvent } from '../services/learningEvents.js';
 import { buildLearningViewModel, emptyLearningViewModel } from '../services/learningViewModel.js';
 
 const router = Router();
@@ -76,14 +77,11 @@ router.post('/:id/steps/:stepIndex', async (req, res, next) => {
       return sendError(res, 404, 'learning session not found', 'learning_session_not_found');
     }
 
-    await addLearningEvent({
-      sessionId: session.id,
-      topic: session.topic,
-      eventType: `manual_step_${status}`,
+    await addLearningEvent(buildManualStepEvent({
+      session,
       stepIndex,
-      stepTitle: session.steps[stepIndex]?.title,
-      note: 'Step status was changed through the learning API.'
-    });
+      status
+    }));
 
     return sendData(res, { session });
   } catch (error) {

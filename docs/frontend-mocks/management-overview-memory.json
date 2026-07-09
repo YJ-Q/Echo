@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "data": {
+    "scope": "memory",
+    "summary": "当前记忆里有 2 条可能重复，1 条长期锚点值得保留。",
+    "stats": {
+      "total": 24,
+      "core": 3,
+      "working": 7,
+      "duplicate_candidates": 2
+    },
+    "candidates": [
+      {
+        "id": "memory:12",
+        "target_type": "memory",
+        "target_id": 12,
+        "title": "想学 Node.js 但总在开始前拖延",
+        "description": "与 memory:18 的主题高度重叠。",
+        "reason": "内容已被更新、更完整的记忆覆盖。",
+        "suggested_operation": "merge",
+        "risk_level": "reversible"
+      },
+      {
+        "id": "memory:5",
+        "target_type": "memory",
+        "target_id": 5,
+        "title": "长期锚点：需要把入口缩小",
+        "description": "这条记忆反复影响当前行动建议。",
+        "reason": "适合保持置顶，作为长期模式的一部分。",
+        "suggested_operation": "pin",
+        "risk_level": "read_only"
+      }
+    ],
+    "recommendations": [
+      {
+        "operation_type": "merge",
+        "label": "合并重复的 Node.js 记忆",
+        "reason": "保留更完整的版本，减少召回噪音。"
+      },
+      {
+        "operation_type": "pin",
+        "label": "保留入口缩小这条锚点",
+        "reason": "它对当前状态判断仍然有解释力。"
+      }
+    ],
+    "risk_level": "read_only",
+    "available_operations": ["pin", "unpin", "merge", "archive"]
+  }
+}
+

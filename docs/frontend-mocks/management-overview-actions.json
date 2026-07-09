@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "data": {
+    "scope": "actions",
+    "summary": "当前有 5 个任务，其中 2 个可能重复，1 个适合继续推进。",
+    "stats": {
+      "total": 5,
+      "active": 1,
+      "pending": 4,
+      "duplicate_candidates": 2
+    },
+    "candidates": [
+      {
+        "id": "action:7",
+        "target_type": "action",
+        "target_id": 7,
+        "title": "把 Node.js 第一节说清楚",
+        "description": "与 action:9 都指向同一学习步骤。",
+        "reason": "两个任务可以合并，避免队列重复。",
+        "suggested_operation": "merge",
+        "risk_level": "reversible"
+      },
+      {
+        "id": "action:3",
+        "target_type": "action",
+        "target_id": 3,
+        "title": "打开编辑器写第一行",
+        "description": "当前 active action。",
+        "reason": "这是现在最具体的入口。",
+        "suggested_operation": "keep_active",
+        "risk_level": "read_only"
+      }
+    ],
+    "recommendations": [
+      {
+        "operation_type": "merge",
+        "label": "合并重复的 Node.js 任务",
+        "reason": "它们都指向同一个学习步骤。"
+      },
+      {
+        "operation_type": "keep_active",
+        "label": "保留当前 active action",
+        "reason": "它是最小、最可执行的一步。"
+      }
+    ],
+    "risk_level": "read_only",
+    "available_operations": ["merge", "dismiss", "reprioritize"]
+  }
+}
+

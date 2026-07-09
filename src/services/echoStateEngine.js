@@ -8,6 +8,7 @@ import {
 } from '../storage/memoryStore.js';
 import { decideNextAction, explainDecision } from './behaviorDecisionEngine.js';
 import { buildContext } from './contextBuilder.js';
+import { selectCurrentAction, sortActions } from './actionSelectionEngine.js';
 import { buildStateExplanation } from './explainabilityEngine.js';
 import { buildLearningViewModel, emptyLearningViewModel } from './learningViewModel.js';
 import { buildMemoryViewModel } from './memoryViewModel.js';
@@ -45,11 +46,11 @@ export async function getEchoState(query = '') {
   });
   const decision = explainDecision(nextAction);
   const currentAction = buildCurrentAction({
-    activeActions,
-    pendingActions,
+    availableActions: [...activeActions, ...pendingActions],
     nextAction,
     currentSession
   });
+  const orderedPendingActions = sortActions(pendingActions);
   const currentLearning = currentSession
     ? buildLearningViewModel(currentSession)
     : emptyLearningViewModel();
@@ -77,10 +78,11 @@ export async function getEchoState(query = '') {
       context,
       profileSummary,
       currentSession,
+      recentSummaries,
       nextAction,
       decision
     }),
-    action_queue: pendingActions,
+    action_queue: orderedPendingActions,
     active_learning: activeLearningSessions,
     recent_memories: recentMemories,
     recent_reflections: recentSummaries,
@@ -93,12 +95,11 @@ export async function getEchoState(query = '') {
 }
 
 function buildCurrentAction({
-  activeActions = [],
-  pendingActions = [],
+  availableActions = [],
   nextAction,
   currentSession
 }) {
-  const sourceAction = activeActions[0] || pendingActions[0] || null;
+  const sourceAction = selectCurrentAction(availableActions);
 
   if (sourceAction) {
     return {

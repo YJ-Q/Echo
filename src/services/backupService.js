@@ -11,6 +11,8 @@ const TABLES = [
   'learning_sessions',
   'learning_events',
   'actions',
+  'operation_proposals',
+  'operation_events',
   'summaries'
 ];
 
@@ -224,6 +226,10 @@ async function readSnapshot(filePath) {
   }
 
   for (const table of TABLES) {
+    if (parsed.data[table] === undefined) {
+      parsed.data[table] = [];
+    }
+
     if (!Array.isArray(parsed.data[table])) {
       throw new Error(`Invalid Echo snapshot: ${table} is missing or not an array`);
     }

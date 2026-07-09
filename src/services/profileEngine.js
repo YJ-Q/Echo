@@ -1,4 +1,5 @@
 import { upsertUserProfile } from '../storage/memoryStore.js';
+import { humanizeProfileValue } from './profileDictionary.js';
 import { extractLearningTopic } from './topicExtractor.js';
 
 export async function updateProfileFromInteraction(userInput, analysis) {
@@ -189,28 +190,4 @@ function formatProfileSignal(entry) {
     confidence: entry.confidence,
     updated_at: entry.updated_at
   };
-}
-
-function humanizeProfileValue(value) {
-  const values = {
-    'procrastination around starting tasks': '启动任务前的拖延',
-    'learning and study execution': '学习与执行',
-    'small executable steps': '小而可执行的步骤',
-    'difficulty entering the first action': '进入第一个动作很难',
-    'future pressure entering the present': '未来压力提前进入当下',
-    'responds to small starts': '对小启动动作反应更好',
-    'needs one main task and a stop point': '需要一个主任务和一个停止点',
-    'reflective we-perspective with one next action': '我们视角 + 一个下一步动作',
-    focused: '专注',
-    distracted: '分心',
-    anxious: '焦虑',
-    neutral: '平静',
-    motivated: '有动力',
-    'start resistance matters more than task difficulty': '比起任务难度，真正卡住我们的更常常是开始那一下',
-    'small visible action restores momentum': '先做一个看得见的小动作，比继续想更容易把自己带回来',
-    'ground into one visible next step': '先落回一件眼前能做的事',
-    'returns through small executable learning steps': '通过小而可执行的学习动作，更容易重新进入状态'
-  };
-
-  return values[value] || value;
 }
