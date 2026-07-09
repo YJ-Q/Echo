@@ -44,11 +44,14 @@
           <button class="nav-item" type="button" data-view="actions" aria-pressed="false">
             <span class="nav-label">行动</span>
           </button>
-          <button class="nav-item" type="button" data-view="reflections" aria-pressed="false">
-            <span class="nav-label">反思</span>
-          </button>
           <button class="nav-item" type="button" data-view="memory" aria-pressed="false">
             <span class="nav-label">记忆</span>
+          </button>
+          <button class="nav-item" type="button" data-view="management" aria-pressed="false">
+            <span class="nav-label">整理</span>
+          </button>
+          <button class="nav-item" type="button" data-view="achievements" aria-pressed="false">
+            <span class="nav-label">成就</span>
           </button>
         </nav>
       </aside>
@@ -130,6 +133,8 @@
                 </div>
               </section>
 
+              <section class="context-strip" id="now-context-strip" aria-label="近期提醒"></section>
+
               <section class="conversation-board">
                 <div class="board-header conversation-header">
                   <div>
@@ -198,6 +203,16 @@
                   <div class="inline-actions" id="learn-current-actions"></div>
                 </div>
               </article>
+
+              <article class="content-card companion-module">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">学习成就</p>
+                    <h2>这条线附近的记录</h2>
+                  </div>
+                </div>
+                <div class="achievement-summary-list" id="learn-achievement-summary"></div>
+              </article>
             </section>
           </div>
 
@@ -223,6 +238,7 @@
                   </div>
                 </div>
                 <div class="detail-stack" id="actions-current-task"></div>
+                <div class="governance-hint-list" id="actions-governance-hints"></div>
                 <div class="action-entry-grid">
                   <form class="inline-form" id="suggested-action-form" aria-label="生成建议任务">
                     <label class="input-stack">
@@ -324,6 +340,7 @@
                 </div>
                 <div class="tag-cloud" id="memory-tags"></div>
                 <div class="cluster-grid" id="memory-clusters"></div>
+                <div class="management-entry" id="memory-management-entry"></div>
               </article>
 
               <article class="content-card">
@@ -334,6 +351,110 @@
                   </div>
                 </div>
                 <div class="memory-list" id="memory-list"></div>
+              </article>
+
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">近期反思</p>
+                    <h2>作为记忆旁边的轻量回看</h2>
+                  </div>
+                </div>
+                <div class="reflection-stack" id="memory-reflection-list"></div>
+              </article>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="management">
+            <section class="hero-band single-hero">
+              <article class="panel management-hero-panel">
+                <p class="panel-kicker">整理工作台</p>
+                <h2 id="management-headline">等待整理摘要</h2>
+                <p id="management-summary">这里只消费后端或 mock view model，不在前端判断哪些内容应该被修改。</p>
+                <div class="summary-row">
+                  <button class="mini-action selected" type="button" data-management-scope="memory">记忆</button>
+                  <button class="mini-action" type="button" data-management-scope="learning">学习线</button>
+                  <button class="mini-action" type="button" data-management-scope="actions">任务</button>
+                  <button class="mini-action" type="button" data-management-scope="proposals">全部草案</button>
+                </div>
+              </article>
+            </section>
+
+            <section class="workspace-grid management-grid">
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">只读摘要</p>
+                    <h2>当前信号</h2>
+                  </div>
+                  <span class="status-badge" id="management-risk-chip">只读</span>
+                </div>
+                <div class="metric-grid" id="management-stats"></div>
+                <div class="detail-stack" id="management-candidates"></div>
+              </article>
+
+              <article class="content-card proposal-panel">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">待确认草案</p>
+                    <h2>先看 before / after，再确认</h2>
+                  </div>
+                </div>
+                <div class="proposal-list" id="proposal-list"></div>
+              </article>
+            </section>
+          </div>
+
+          <div class="workspace-view" data-view-panel="achievements">
+            <section class="hero-band single-hero">
+              <article class="panel achievement-hero-panel">
+                <p class="panel-kicker">成就墙</p>
+                <h2 id="achievement-headline">成长记录正在整理</h2>
+                <p id="achievement-summary">有一点收藏感，但不做积分、排行或压力式反馈。</p>
+                <div class="summary-row" id="achievement-summary-chips"></div>
+              </article>
+            </section>
+
+            <section class="workspace-grid achievement-layout">
+              <article class="content-card recent-achievement-panel">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">最近解锁</p>
+                    <h2>刚刚亮起来的记录</h2>
+                  </div>
+                </div>
+                <div class="recent-unlocks-strip" id="recent-unlocks-strip"></div>
+              </article>
+
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">筛选</p>
+                    <h2>来源与稀有度</h2>
+                  </div>
+                </div>
+                <div class="filter-row" id="achievement-group-filters"></div>
+                <div class="filter-row" id="achievement-rarity-filters"></div>
+              </article>
+
+              <article class="content-card achievement-wall-panel">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">成就网格</p>
+                    <h2>已解锁与隐藏线索</h2>
+                  </div>
+                </div>
+                <div class="achievement-grid" id="achievement-grid"></div>
+              </article>
+
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">图标目录</p>
+                    <h2>后端提供的 icon type</h2>
+                  </div>
+                </div>
+                <div class="icon-catalog" id="achievement-icon-catalog"></div>
               </article>
             </section>
           </div>
@@ -379,9 +500,9 @@
             <p class="detail-note" id="learning-note">还没有需要立刻推进的学习步骤。</p>
           </section>
 
-          <section class="instrument-panel continuity-panel-card" data-jump-view="reflections">
+          <section class="instrument-panel continuity-panel-card" data-jump-view="memory">
             <div class="panel-head">
-              <h2>连续性</h2>
+              <h2>近期反思</h2>
               <span class="mono" id="reflection-side-trend">等待</span>
             </div>
             <p class="detail-copy" id="reflection-side-copy">联调后，这里只保留轻量趋势摘要。</p>

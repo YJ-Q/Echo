@@ -272,14 +272,18 @@ svg {
 .main-window[data-active-view="learn"],
 .main-window[data-active-view="actions"],
 .main-window[data-active-view="reflections"],
-.main-window[data-active-view="memory"] {
+.main-window[data-active-view="memory"],
+.main-window[data-active-view="management"],
+.main-window[data-active-view="achievements"] {
   grid-template-columns: minmax(0, 1fr);
 }
 
 .main-window[data-active-view="learn"] .status-column,
 .main-window[data-active-view="actions"] .status-column,
 .main-window[data-active-view="reflections"] .status-column,
-.main-window[data-active-view="memory"] .status-column {
+.main-window[data-active-view="memory"] .status-column,
+.main-window[data-active-view="management"] .status-column,
+.main-window[data-active-view="achievements"] .status-column {
   display: none;
 }
 
@@ -572,7 +576,7 @@ svg {
 .now-shell {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -1096,6 +1100,282 @@ svg {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.workspace-grid.management-grid {
+  grid-template-columns: minmax(320px, 0.88fr) minmax(420px, 1.12fr);
+  align-items: start;
+}
+
+.achievement-layout {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1fr);
+  align-items: start;
+}
+
+.achievement-wall-panel {
+  grid-column: 1 / -1;
+}
+
+.companion-module {
+  grid-column: 1 / -1;
+}
+
+.management-hero-panel,
+.achievement-hero-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.management-candidate,
+.proposal-card,
+.achievement-card,
+.recent-unlock-card,
+.icon-catalog-item,
+.context-strip-card,
+.governance-hint-card,
+.management-entry-card,
+.compact-signal-row {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 251, 247, 0.76);
+}
+
+.context-strip {
+  max-width: 920px;
+  width: 100%;
+  justify-self: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.context-strip-card,
+.governance-hint-card,
+.management-entry-card,
+.compact-signal-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.context-strip-card.quiet,
+.governance-hint-card,
+.management-entry-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.context-strip-card p,
+.governance-hint-card p,
+.management-entry-card p,
+.compact-signal-row p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.context-strip-card strong,
+.governance-hint-card strong,
+.management-entry-card strong,
+.compact-signal-row strong {
+  display: block;
+  color: var(--color-text);
+  line-height: 1.45;
+}
+
+.context-strip-card.quiet {
+  opacity: 0.82;
+}
+
+.context-strip-card .mini-action,
+.governance-hint-card .mini-action,
+.management-entry-card .mini-action {
+  min-width: 58px;
+  white-space: nowrap;
+}
+
+.governance-hint-list,
+.achievement-summary-list,
+.management-entry {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.management-entry {
+  margin: 14px 0 0;
+}
+
+.module-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.compact-signal-row.muted {
+  opacity: 0.68;
+}
+
+.recommendation-strip,
+.filter-row,
+.proposal-status-stack {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.proposal-list,
+.achievement-grid,
+.recent-unlocks-strip,
+.icon-catalog {
+  display: grid;
+  gap: 12px;
+}
+
+.proposal-card {
+  display: grid;
+  gap: 12px;
+}
+
+.proposal-card[data-risk="reversible"] {
+  border-color: rgba(200, 169, 92, 0.24);
+}
+
+.proposal-card[data-risk="destructive"] {
+  border-color: rgba(185, 28, 28, 0.28);
+  background: rgba(255, 247, 244, 0.86);
+}
+
+.proposal-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.proposal-preview > div {
+  padding: 12px;
+  border: 1px solid rgba(74, 63, 54, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 253, 250, 0.72);
+}
+
+.proposal-preview p {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+}
+
+.proposal-preview-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-badge[data-risk="reversible"],
+#management-risk-chip[data-risk="reversible"] {
+  border-color: rgba(200, 169, 92, 0.22);
+  background: rgba(250, 244, 226, 0.88);
+}
+
+.status-badge[data-risk="destructive"],
+#management-risk-chip[data-risk="destructive"] {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+}
+
+.recent-unlocks-strip {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.recent-unlock-card,
+.achievement-card,
+.icon-catalog-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.achievement-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.achievement-card.locked {
+  opacity: 0.72;
+}
+
+.achievement-card.hidden-achievement {
+  background:
+    linear-gradient(180deg, rgba(255, 251, 247, 0.76), rgba(246, 241, 248, 0.78));
+}
+
+.achievement-card strong,
+.recent-unlock-card strong,
+.icon-catalog-item strong,
+.management-candidate strong,
+.proposal-card strong,
+.module-summary-line strong {
+  min-width: 0;
+  display: block;
+  color: var(--color-text);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.achievement-card p,
+.recent-unlock-card p,
+.icon-catalog-item p,
+.management-candidate p,
+.proposal-card p,
+.proposal-preview p {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.achievement-glyph {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--achievement-color, #6f74b8) 26%, transparent);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.82), transparent 38%),
+    color-mix(in srgb, var(--achievement-color, #6f74b8) 16%, white);
+  color: color-mix(in srgb, var(--achievement-color, #6f74b8) 86%, #2f2926);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.icon-catalog {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.filter-row .mini-action,
+.summary-row .mini-action,
+.inline-actions .mini-action {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.icon-catalog-item p,
+.achievement-card .detail-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .instrument-panel[data-jump-view] {
   cursor: pointer;
   transition:
@@ -1249,7 +1529,20 @@ body[data-density="compact"] .main-window {
 body[data-density="compact"] .now-arrival-main,
 body[data-density="compact"] .now-arrival-rail,
 body[data-density="compact"] .workspace-grid.two-up,
+body[data-density="compact"] .workspace-grid.management-grid,
+body[data-density="compact"] .achievement-layout,
 body[data-density="compact"] .inline-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-density="compact"] .achievement-wall-panel {
+  grid-column: auto;
+}
+
+body[data-density="compact"] .achievement-grid,
+body[data-density="compact"] .recent-unlocks-strip,
+body[data-density="compact"] .icon-catalog,
+body[data-density="compact"] .proposal-preview {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -1274,6 +1567,19 @@ body[data-density="compact"] .status-column {
 
   .status-column {
     display: none;
+  }
+
+  .workspace-grid.management-grid,
+  .achievement-layout,
+  .achievement-grid,
+  .recent-unlocks-strip,
+  .icon-catalog,
+  .proposal-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .achievement-wall-panel {
+    grid-column: auto;
   }
 }
 

@@ -1,3 +1,14 @@
+import {
+  MANAGEMENT_SCOPE_LABELS,
+  MOCK_ACHIEVEMENTS,
+  MOCK_ACHIEVEMENT_ICONS,
+  MOCK_MANAGEMENT_OVERVIEWS,
+  PROPOSAL_STATUS_LABELS,
+  RARITY_LABELS,
+  RISK_LABELS,
+  fetchSupplementalViewModels
+} from "./viewModels.js";
+
 const FALLBACK_STATE = {
   current_state: {
     emotion: "neutral",
@@ -31,7 +42,17 @@ const FALLBACK_DASHBOARD = {
   currentMemory: null,
   profile: [],
   profileSummary: "",
-  summaries: []
+  summaries: [],
+  managementOverviews: {
+    memory: null,
+    learning: null,
+    actions: null
+  },
+  proposals: [],
+  achievements: null,
+  recentAchievements: [],
+  achievementIcons: [],
+  viewModelMode: "mock"
 };
 
 const STATE_LABELS = {
@@ -75,7 +96,9 @@ const MINIMAL_VIEW_META = {
   learn: { title: "学习", subtitle: "只看当前一步。", chip: "学习主线" },
   actions: { title: "行动", subtitle: "只推进一件事。", chip: "执行推进" },
   reflections: { title: "反思", subtitle: "看清最近发生了什么。", chip: "近期总结" },
-  memory: { title: "记忆", subtitle: "只保留关键线索。", chip: "连续性" }
+  memory: { title: "记忆", subtitle: "只保留关键线索。", chip: "连续性" },
+  management: { title: "整理", subtitle: "先看清风险，再确认动作。", chip: "安全工作台" },
+  achievements: { title: "成就", subtitle: "把已经发生的成长收好。", chip: "成长记录" }
 };
 
 const dom = {
@@ -152,6 +175,10 @@ let manualActionSubmitting = false;
 let suggestedActionSubmitting = false;
 let apiCapabilities = { tts: false };
 let toastTimer = null;
+let activeManagementScope = "memory";
+let activeAchievementSource = "all";
+let activeAchievementRarity = "all";
+const proposalSimulationStatus = {};
 let ttsUiState = "unavailable";
 let activeTtsAudio = null;
 let activeTtsAudioCleanup = null;
@@ -237,6 +264,16 @@ function conciseText(value, fallback, limit = 26) {
   const text = String(value || "").trim();
   if (!text) return fallback;
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
+}
+
+function readableText(value, fallback) {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  const replacementCount = (text.match(/�/g) || []).length;
+  const questionRun = /\?{5,}/.test(text);
+  const replacementHeavy = replacementCount >= 2 && replacementCount / Math.max(text.length, 1) > 0.08;
+
+  return questionRun || replacementHeavy ? fallback : text;
 }
 
 function quoteForPrompt(value, fallback = "这一步") {
@@ -358,7 +395,11 @@ function setActiveView(nextView) {
 function setDashboardLoading(nextLoading) {
   dashboardLoading = nextLoading;
   dom.body.dataset.dashboardLoading = String(nextLoading);
-  dom.dataChip.textContent = nextLoading ? "同步中" : "已同步";
+  dom.dataChip.textContent = nextLoading
+    ? "同步中"
+    : dashboardData.viewModelMode === "mock"
+      ? "Mock 视图"
+      : "API 视图";
   dom.presenceLabel.textContent = nextLoading ? "数据更新中" : "桌面会话";
   setActiveView(activeView);
 }
@@ -689,6 +730,53 @@ function renderNowView(state) {
     state?.current_reflection?.summary || dashboardData.summaries[0]?.summary,
     "等待趋势摘要。"
   );
+  renderNowContextStrip();
+}
+
+function getAwaitingProposals() {
+  return (dashboardData.proposals || []).filter((proposal) => {
+    const status = proposalSimulationStatus[proposal.id] || proposal.status;
+    return status === "awaiting_confirmation" || status === "draft";
+  });
+}
+
+function renderNowContextStrip() {
+  const container = document.querySelector("#now-context-strip");
+  if (!container) return;
+
+  const recent = dashboardData.recentAchievements?.slice(0, 1) || [];
+  const proposals = getAwaitingProposals().slice(0, 1);
+  const items = [];
+
+  if (recent.length) {
+    items.push(...recent.map((item) => `
+      <article class="context-strip-card achievement-context-card">
+        <span class="achievement-glyph" style="--achievement-color: ${escapeHtml(item.accent_color || "#6f74b8")}">${escapeHtml((item.title || "?").slice(0, 1))}</span>
+        <div>
+          <span class="arrival-label">最近解锁</span>
+          <strong>${escapeHtml(item.title || "新成就")}</strong>
+          <p>${escapeHtml(conciseText(item.description, "刚刚亮起来的记录。", 30))}</p>
+        </div>
+      </article>
+    `));
+  }
+
+  if (proposals.length) {
+    items.push(...proposals.map((proposal) => `
+      <article class="context-strip-card proposal-context-card">
+        <div>
+          <span class="arrival-label">待确认整理</span>
+          <strong>${escapeHtml(proposal.summary || "等待确认的整理草案")}</strong>
+          <p>${escapeHtml(RISK_LABELS[proposal.risk_level] || "需要确认后再执行。")}</p>
+        </div>
+        <button class="mini-action" type="button" data-jump-view="management" data-management-target="${escapeHtml(proposal.scope || "proposals")}">查看</button>
+      </article>
+    `));
+  }
+
+  container.innerHTML = items.length
+    ? items.join("")
+    : `<article class="context-strip-card quiet"><span class="arrival-label">近期提醒</span><strong>暂时没有需要额外处理的信号</strong><p>可以继续把注意力放回当前对话。</p></article>`;
 }
 
 function renderLearnView(state) {
@@ -733,6 +821,7 @@ function renderLearnView(state) {
   const stepsList = document.querySelector("#learn-steps-list");
   if (!stepLabels.length) {
     stepsList.innerHTML = `<div class="empty-state">当前没有学习主线。</div>`;
+    renderLearnAchievementSummary(session, learningView);
     return;
   }
 
@@ -753,6 +842,38 @@ function renderLearnView(state) {
       </article>
     `;
   }).join("");
+  renderLearnAchievementSummary(session, learningView);
+}
+
+function renderLearnAchievementSummary(session, learningView) {
+  const container = document.querySelector("#learn-achievement-summary");
+  if (!container) return;
+
+  const achievements = dashboardData.achievements?.achievements || MOCK_ACHIEVEMENTS.achievements || [];
+  const learningAchievements = achievements
+    .filter((achievement) => achievement.source_type === "learning_session")
+    .slice(0, 4);
+  const unlockedCount = learningAchievements.filter((achievement) => achievement.unlocked).length;
+  const topic = learningView?.topic || session?.topic || "当前学习线";
+
+  container.innerHTML = learningAchievements.length
+    ? `
+      <div class="module-summary-line">
+        <strong>${escapeHtml(topic)}</strong>
+        <span class="status-badge">${unlockedCount} / ${learningAchievements.length} 已亮起</span>
+      </div>
+      ${learningAchievements.map((achievement) => `
+        <article class="compact-signal-row${achievement.unlocked ? "" : " muted"}">
+          <span class="achievement-glyph" style="--achievement-color: ${escapeHtml(achievement.accent_color || "#6f74b8")}">${escapeHtml((achievement.hidden && !achievement.unlocked ? "隐" : achievement.title || "?").slice(0, 1))}</span>
+          <div>
+            <strong>${escapeHtml(achievement.hidden && !achievement.unlocked ? "隐藏成就" : achievement.title)}</strong>
+            <p>${escapeHtml(achievement.unlocked ? achievement.description : achievement.locked_description || "继续推进后出现。")}</p>
+          </div>
+        </article>
+      `).join("")}
+      <button class="mini-action" type="button" data-jump-view="achievements" data-achievement-source-target="learning">查看成就墙</button>
+    `
+    : `<div class="empty-state">当前还没有学习线成就记录。</div>`;
 }
 
 function resolveActionDetail(action) {
@@ -852,6 +973,7 @@ function renderActionsView(state) {
 
   const currentTask = document.querySelector("#actions-current-task");
   currentTask.innerHTML = renderPrimaryActionCard(primaryAction, currentAction, state?.next_action);
+  renderActionGovernanceHints();
 
   const actionList = document.querySelector("#action-list");
   if (!queueActions.length) {
@@ -877,6 +999,31 @@ function renderActionsView(state) {
       </article>
     `;
   }).join("");
+}
+
+function renderActionGovernanceHints() {
+  const container = document.querySelector("#actions-governance-hints");
+  if (!container) return;
+
+  const overview = getManagementOverview("actions");
+  const candidates = (overview?.candidates || []).slice(0, 2);
+  const proposals = (dashboardData.proposals || []).filter((proposal) => proposal.scope === "actions").slice(0, 1);
+
+  if (!candidates.length && !proposals.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <article class="governance-hint-card">
+      <div>
+        <span class="arrival-label">队列整理提示</span>
+        <strong>${escapeHtml(overview?.summary || "有一些任务队列信号可以回看。")}</strong>
+        <p>${escapeHtml(candidates[0]?.reason || proposals[0]?.summary || "这里仅展示后端给出的整理候选，不在前端判断任务是否重复。")}</p>
+      </div>
+      <button class="mini-action" type="button" data-jump-view="management" data-management-target="actions">去整理</button>
+    </article>
+  `;
 }
 
 function renderReflectionsView() {
@@ -976,6 +1123,271 @@ function renderMemoryView() {
       `;
     }).join("")
     : `<div class="empty-state">还没有可召回记忆。</div>`;
+
+  const reflectionList = document.querySelector("#memory-reflection-list");
+  if (reflectionList) {
+    const reflections = dashboardData.summaries || [];
+    reflectionList.innerHTML = reflections.length
+      ? reflections.slice(0, 3).map((item) => `
+        <article class="reflection-card">
+          <span class="mono">${escapeHtml(item.date || "recent")}</span>
+          <p>${escapeHtml(conciseText(item.summary || item.echo_reflection, "等待摘要。", 34))}</p>
+          <div class="inline-actions">
+            <button class="mini-action" type="button" data-compose-kind="reflection" data-compose-text="${escapeHtml(item.summary || item.echo_reflection || "")}">带回对话</button>
+          </div>
+        </article>
+      `).join("")
+      : `<div class="empty-state">最近还没有可回看的反思摘要。</div>`;
+  }
+  renderMemoryManagementEntry();
+}
+
+function renderMemoryManagementEntry() {
+  const container = document.querySelector("#memory-management-entry");
+  if (!container) return;
+
+  const overview = getManagementOverview("memory");
+  const awaiting = getAwaitingProposals().filter((proposal) => proposal.scope === "memory");
+  const candidateCount = overview?.candidates?.length || 0;
+
+  container.innerHTML = `
+    <article class="management-entry-card">
+      <div>
+        <span class="arrival-label">记忆整理</span>
+        <strong>${escapeHtml(candidateCount ? `${candidateCount} 条整理信号` : "整理入口已准备好")}</strong>
+        <p>${escapeHtml(overview?.summary || "只查看后端给出的整理建议，不直接删除或合并记忆。")}</p>
+      </div>
+      <div class="inline-actions">
+        ${awaiting.length ? `<span class="status-badge">${awaiting.length} 个草案待确认</span>` : ""}
+        <button class="mini-action" type="button" data-jump-view="management" data-management-target="memory">去整理</button>
+      </div>
+    </article>
+  `;
+}
+
+function getManagementOverview(scope = activeManagementScope) {
+  return dashboardData.managementOverviews?.[scope] || MOCK_MANAGEMENT_OVERVIEWS[scope] || null;
+}
+
+function renderManagementView() {
+  const scope = activeManagementScope === "proposals" ? "memory" : activeManagementScope;
+  const overview = getManagementOverview(scope);
+  const headline = document.querySelector("#management-headline");
+  const summary = document.querySelector("#management-summary");
+  const riskChip = document.querySelector("#management-risk-chip");
+  const statsContainer = document.querySelector("#management-stats");
+  const candidatesContainer = document.querySelector("#management-candidates");
+  const proposalList = document.querySelector("#proposal-list");
+  const scopeButtons = Array.from(document.querySelectorAll("[data-management-scope]"));
+  if (!headline || !summary || !riskChip || !statsContainer || !candidatesContainer || !proposalList) return;
+
+  scopeButtons.forEach((button) => {
+    const selected = button.dataset.managementScope === activeManagementScope;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+
+  headline.textContent = activeManagementScope === "proposals"
+    ? "全部待确认草案"
+    : `${MANAGEMENT_SCOPE_LABELS[scope]}整理信号`;
+  summary.textContent = activeManagementScope === "proposals"
+    ? "这里仅展示后端或 mock 已经生成的草案，确认按钮当前只做前端模拟状态。"
+    : overview?.summary || "等待整理摘要。";
+  riskChip.textContent = RISK_LABELS[overview?.risk_level] || "只读";
+  riskChip.dataset.risk = overview?.risk_level || "read_only";
+
+  const stats = Object.entries(overview?.stats || {});
+  statsContainer.innerHTML = stats.length
+    ? stats.map(([key, value]) => `
+      <article class="metric-card">
+        <span class="metric-key">${escapeHtml(key.replaceAll("_", " "))}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </article>
+    `).join("")
+    : `<div class="empty-state">当前 scope 还没有统计数据。</div>`;
+
+  const candidates = activeManagementScope === "proposals" ? [] : overview?.candidates || [];
+  const recommendations = activeManagementScope === "proposals" ? [] : overview?.recommendations || [];
+  candidatesContainer.innerHTML = candidates.length || recommendations.length
+    ? `
+      ${candidates.map((candidate) => {
+        const title = readableText(candidate.title || candidate.id, "存在一条编码异常的整理候选");
+        const description = readableText(candidate.description, candidate.reason || "等待说明。");
+
+        return `
+          <article class="management-candidate">
+            <div class="board-header compact">
+              <strong>${escapeHtml(title)}</strong>
+              <span class="status-badge">${escapeHtml(RISK_LABELS[candidate.risk_level] || candidate.risk_level || "只读")}</span>
+            </div>
+            <p>${escapeHtml(description)}</p>
+            <p class="detail-note">${escapeHtml(candidate.reason || "")}</p>
+          </article>
+        `;
+      }).join("")}
+      ${recommendations.length ? `<div class="recommendation-strip">${recommendations.map((item) => `
+        <span class="status-badge">${escapeHtml(item.label || item.operation_type)}</span>
+      `).join("")}</div>` : ""}
+    `
+    : `<div class="empty-state">当前没有需要前端展示的候选项。</div>`;
+
+  const proposals = (dashboardData.proposals || []).filter((proposal) => (
+    activeManagementScope === "proposals" || proposal.scope === activeManagementScope
+  ));
+  proposalList.innerHTML = proposals.length
+    ? proposals.map((proposal) => renderProposalCard(proposal)).join("")
+    : `<div class="empty-state">当前没有这个范围内的草案。</div>`;
+}
+
+function renderProposalCard(proposal) {
+  const status = proposalSimulationStatus[proposal.id] || proposal.status || "draft";
+  const before = proposal.preview?.before || [];
+  const after = proposal.preview?.after || [];
+  const canSimulate = status === "awaiting_confirmation" || status === "draft";
+
+  return `
+    <article class="proposal-card" data-risk="${escapeHtml(proposal.risk_level || "read_only")}">
+      <div class="board-header compact">
+        <div>
+          <strong>${escapeHtml(proposal.summary || `Proposal ${proposal.id}`)}</strong>
+          <p class="detail-note">${escapeHtml(MANAGEMENT_SCOPE_LABELS[proposal.scope] || proposal.scope || "整理")}</p>
+        </div>
+        <div class="proposal-status-stack">
+          <span class="status-badge">${escapeHtml(RISK_LABELS[proposal.risk_level] || proposal.risk_level || "只读")}</span>
+          <span class="status-badge">${escapeHtml(PROPOSAL_STATUS_LABELS[status] || status)}</span>
+        </div>
+      </div>
+      <div class="proposal-preview">
+        <div>
+          <span class="proposal-preview-label">Before</span>
+          ${before.length
+            ? before.map((item) => `<p>${escapeHtml(item)}</p>`).join("")
+            : `<p>等待 before 预览。</p>`}
+        </div>
+        <div>
+          <span class="proposal-preview-label">After</span>
+          ${after.length
+            ? after.map((item) => `<p>${escapeHtml(item)}</p>`).join("")
+            : `<p>等待 after 预览。</p>`}
+        </div>
+      </div>
+      <div class="detail-stack">
+        ${(proposal.operations || []).map((operation) => `
+          <p class="detail-note">${escapeHtml(operation.operation_type)} / ${escapeHtml(operation.target_type)}: ${escapeHtml(operation.reason || "等待原因。")}</p>
+        `).join("")}
+      </div>
+      <div class="inline-actions">
+        <button class="mini-action" type="button" data-proposal-action="confirm" data-proposal-id="${proposal.id}"${canSimulate ? "" : " disabled"}>模拟确认</button>
+        <button class="mini-action" type="button" data-proposal-action="cancel" data-proposal-id="${proposal.id}"${canSimulate ? "" : " disabled"}>取消草案</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderAchievementsView() {
+  const achievementData = dashboardData.achievements || MOCK_ACHIEVEMENTS;
+  const recent = dashboardData.recentAchievements?.length
+    ? dashboardData.recentAchievements
+    : achievementData.recent_unlocks || [];
+  const icons = dashboardData.achievementIcons?.length ? dashboardData.achievementIcons : MOCK_ACHIEVEMENT_ICONS;
+  const achievements = achievementData.achievements || [];
+  const summary = achievementData.summary || { total: achievements.length, unlocked: 0, hidden: 0 };
+
+  document.querySelector("#achievement-headline").textContent = `${summary.unlocked || 0} 个记录已经亮起`;
+  document.querySelector("#achievement-summary").textContent = `总计 ${summary.total || achievements.length} 个成就，其中 ${summary.hidden || 0} 个仍保持隐藏。`;
+  document.querySelector("#achievement-summary-chips").innerHTML = [
+    `总计 ${summary.total || achievements.length}`,
+    `已解锁 ${summary.unlocked || 0}`,
+    `隐藏 ${summary.hidden || 0}`
+  ].map((label) => `<span class="summary-chip">${escapeHtml(label)}</span>`).join("");
+
+  document.querySelector("#recent-unlocks-strip").innerHTML = recent.length
+    ? recent.map((item) => renderAchievementMiniCard(item)).join("")
+    : `<div class="empty-state">最近还没有新解锁。</div>`;
+
+  const groups = [{ key: "all", label: "全部", count: achievements.length }, ...(achievementData.groups || [])];
+  document.querySelector("#achievement-group-filters").innerHTML = groups.map((group) => `
+    <button class="mini-action${activeAchievementSource === group.key ? " selected" : ""}" type="button" data-achievement-source="${escapeHtml(group.key)}">
+      ${escapeHtml(group.label)}${Number.isFinite(group.count) ? ` · ${group.count}` : ""}
+    </button>
+  `).join("");
+
+  const rarities = ["all", "common", "rare", "core", "secret"];
+  document.querySelector("#achievement-rarity-filters").innerHTML = rarities.map((rarity) => `
+    <button class="mini-action${activeAchievementRarity === rarity ? " selected" : ""}" type="button" data-achievement-rarity="${escapeHtml(rarity)}">
+      ${escapeHtml(rarity === "all" ? "全部稀有度" : RARITY_LABELS[rarity] || rarity)}
+    </button>
+  `).join("");
+
+  const filtered = achievements.filter((achievement) => {
+    const sourceMatch = activeAchievementSource === "all"
+      || achievement.source_type === activeAchievementSource
+      || (activeAchievementSource === "learning" && achievement.source_type === "learning_session")
+      || (activeAchievementSource === "actions" && achievement.source_type === "action")
+      || (activeAchievementSource === "memory" && achievement.source_type === "memory");
+    const rarityMatch = activeAchievementRarity === "all" || achievement.rarity === activeAchievementRarity;
+    return sourceMatch && rarityMatch;
+  });
+
+  document.querySelector("#achievement-grid").innerHTML = filtered.length
+    ? filtered.map((achievement) => renderAchievementCard(achievement)).join("")
+    : `<div class="empty-state">当前筛选下没有成就。</div>`;
+
+  document.querySelector("#achievement-icon-catalog").innerHTML = icons.length
+    ? icons.map((icon) => `
+      <article class="icon-catalog-item">
+        <span class="achievement-glyph" style="--achievement-color: ${escapeHtml(resolvePaletteColor(icon.default_palette))}">${escapeHtml(icon.label?.slice(0, 1) || "?")}</span>
+        <div>
+          <strong>${escapeHtml(icon.label || icon.icon_type)}</strong>
+          <p>${escapeHtml(icon.icon_type)} / ${escapeHtml(icon.default_palette || "default")}</p>
+        </div>
+      </article>
+    `).join("")
+    : `<div class="empty-state">还没有 icon catalog。</div>`;
+}
+
+function renderAchievementMiniCard(item) {
+  return `
+    <article class="recent-unlock-card">
+      <span class="achievement-glyph" style="--achievement-color: ${escapeHtml(item.accent_color || "#6f74b8")}">${escapeHtml((item.title || "?").slice(0, 1))}</span>
+      <div>
+        <strong>${escapeHtml(item.title || "新成就")}</strong>
+        <p>${escapeHtml(conciseText(item.description, "刚刚解锁。", 28))}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderAchievementCard(achievement) {
+  const locked = !achievement.unlocked;
+  const title = achievement.hidden && locked ? "隐藏成就" : achievement.title;
+  const copy = locked
+    ? achievement.locked_description || "继续推进后会出现。"
+    : achievement.description || "已经记录。";
+
+  return `
+    <article class="achievement-card${locked ? " locked" : ""}${achievement.hidden ? " hidden-achievement" : ""}">
+      <span class="achievement-glyph" style="--achievement-color: ${escapeHtml(achievement.accent_color || "#6f74b8")}">${escapeHtml((title || "?").slice(0, 1))}</span>
+      <div>
+        <div class="board-header compact">
+          <strong>${escapeHtml(title || "成就")}</strong>
+          <span class="status-badge">${escapeHtml(RARITY_LABELS[achievement.rarity] || achievement.rarity || "普通")}</span>
+        </div>
+        <p>${escapeHtml(copy)}</p>
+        <p class="detail-note">${escapeHtml(achievement.source_type || "global")} / ${escapeHtml(achievement.icon_type || "icon")}</p>
+      </div>
+    </article>
+  `;
+}
+
+function resolvePaletteColor(palette) {
+  switch (palette) {
+    case "green_growth": return "#6f9f85";
+    case "gold_soft": return "#c8a95c";
+    case "ink_silver": return "#8a837c";
+    case "violet_secret": return "#7d72c7";
+    default: return "#6f74b8";
+  }
 }
 
 function renderState(state) {
@@ -987,6 +1399,8 @@ function renderState(state) {
   renderActionsView(currentState);
   renderReflectionsView();
   renderMemoryView();
+  renderManagementView();
+  renderAchievementsView();
   updateTtsAvailability();
 }
 
@@ -1005,6 +1419,7 @@ async function fetchDashboardData() {
   ]);
 
   const [actionsResult, learningResult, learningEventsResult, memoryResult, profileResult, summaryResult] = results;
+  const supplementalViewModels = await fetchSupplementalViewModels(fetchJson);
 
   if (results.some((r) => r.status === "rejected")) {
     const failedCount = results.filter((r) => r.status === "rejected").length;
@@ -1020,7 +1435,8 @@ async function fetchDashboardData() {
     currentMemory: memoryResult.status === "fulfilled" ? memoryResult.value?.current_memory || null : null,
     profile: profileResult.status === "fulfilled" ? profileResult.value?.profile || [] : [],
     profileSummary: profileResult.status === "fulfilled" ? profileResult.value?.summary || "" : "",
-    summaries: summaryResult.status === "fulfilled" ? summaryResult.value?.summaries || [] : []
+    summaries: summaryResult.status === "fulfilled" ? summaryResult.value?.summaries || [] : [],
+    ...supplementalViewModels
   };
 }
 
@@ -1264,6 +1680,59 @@ function bindProductInteractions() {
   });
 
   document.addEventListener("click", async (event) => {
+    const jumpTarget = event.target.closest("[data-jump-view]");
+    if (jumpTarget) {
+      const nextView = jumpTarget.dataset.jumpView;
+      if (jumpTarget.dataset.managementTarget) {
+        activeManagementScope = jumpTarget.dataset.managementTarget;
+      }
+      if (jumpTarget.dataset.achievementSourceTarget) {
+        activeAchievementSource = jumpTarget.dataset.achievementSourceTarget;
+        activeAchievementRarity = "all";
+      }
+      if (nextView) {
+        setActiveView(nextView);
+        renderManagementView();
+        renderAchievementsView();
+        return;
+      }
+    }
+
+    const managementScopeButton = event.target.closest("[data-management-scope]");
+    if (managementScopeButton) {
+      activeManagementScope = managementScopeButton.dataset.managementScope || "memory";
+      renderManagementView();
+      return;
+    }
+
+    const proposalButton = event.target.closest("[data-proposal-action]");
+    if (proposalButton) {
+      const proposalId = Number.parseInt(proposalButton.dataset.proposalId, 10);
+      const action = proposalButton.dataset.proposalAction;
+      if (!Number.isFinite(proposalId)) return;
+
+      proposalSimulationStatus[proposalId] = action === "confirm"
+        ? "simulated_confirmed"
+        : "simulated_cancelled";
+      renderManagementView();
+      showToast(action === "confirm" ? "已模拟确认，这不会执行真实整理。" : "草案已在前端标记取消。", "success");
+      return;
+    }
+
+    const achievementSourceButton = event.target.closest("[data-achievement-source]");
+    if (achievementSourceButton) {
+      activeAchievementSource = achievementSourceButton.dataset.achievementSource || "all";
+      renderAchievementsView();
+      return;
+    }
+
+    const achievementRarityButton = event.target.closest("[data-achievement-rarity]");
+    if (achievementRarityButton) {
+      activeAchievementRarity = achievementRarityButton.dataset.achievementRarity || "all";
+      renderAchievementsView();
+      return;
+    }
+
     const composeButton = event.target.closest("[data-compose-next]");
     if (composeButton) {
       setActiveView("now");
