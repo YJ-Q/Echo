@@ -172,6 +172,7 @@
                 <p class="panel-kicker">学习页</p>
                 <h2 id="learn-topic">等待学习主题</h2>
                 <p id="learn-summary">当前版本只保留当前主线、步骤序列和当前一步。</p>
+                <p class="detail-note" id="learn-source-note">等待学习视图来源。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="learn-progress-chip">0 / 0</span>
                   <span class="summary-chip" id="learn-pattern-chip">等待模式信号</span>
@@ -222,6 +223,7 @@
                 <p class="panel-kicker">行动页</p>
                 <h2 id="actions-headline">等待任务队列</h2>
                 <p id="actions-summary">当前版本只强调当前主任务、次任务队列与状态切换。</p>
+                <p class="detail-note" id="actions-source-note">等待行动视图来源。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="actions-open-chip">0 个待处理</span>
                   <span class="summary-chip" id="actions-active-chip">0 个进行中</span>
@@ -265,64 +267,13 @@
             </section>
           </div>
 
-          <div class="workspace-view" data-view-panel="reflections">
-            <section class="hero-band single-hero">
-              <article class="panel">
-                <p class="panel-kicker">反思页</p>
-                <h2 id="reflection-headline">近期总结</h2>
-                <p id="reflection-summary">当前版本先保证最近总结、趋势和模式能从后端真实读出。</p>
-                <div class="summary-row">
-                  <span class="summary-chip" id="reflection-theme-chip">等待主题</span>
-                  <button class="secondary-button" id="refresh-summary" type="button">刷新总结</button>
-                </div>
-              </article>
-            </section>
-
-            <section class="workspace-grid two-up">
-              <article class="content-card">
-                <div class="board-header compact">
-                  <div>
-                    <p class="panel-kicker">近期总结</p>
-                    <h2>最近发生了什么</h2>
-                  </div>
-                </div>
-                <div class="reflection-stack">
-                  <article class="reflection-card">
-                    <span class="mono">总结</span>
-                    <p id="reflection-summary-copy">等待后端总结。</p>
-                  </article>
-                  <article class="reflection-card">
-                    <span class="mono">Echo 反思</span>
-                    <p id="reflection-echo-copy">等待 Echo 反思。</p>
-                  </article>
-                  <article class="reflection-card">
-                    <span class="mono">行为模式</span>
-                    <p id="reflection-pattern-copy">等待模式识别。</p>
-                  </article>
-                </div>
-              </article>
-
-              <article class="content-card">
-                <div class="board-header compact">
-                  <div>
-                    <p class="panel-kicker">趋势</p>
-                    <h2>近期主题</h2>
-                  </div>
-                </div>
-                <div class="detail-stack">
-                  <p class="detail-title" id="reflection-theme-title">等待趋势</p>
-                  <p class="detail-copy">这一页先保持轻量，不扩展成复杂分析大屏。</p>
-                </div>
-              </article>
-            </section>
-          </div>
-
           <div class="workspace-view" data-view-panel="memory">
             <section class="hero-band single-hero">
               <article class="panel">
                 <p class="panel-kicker">记忆页</p>
                 <h2 id="memory-headline">关键记忆与召回</h2>
                 <p id="memory-summary">当前版本只保留记忆概览、关键片段和标签，不做复杂检索系统。</p>
+                <p class="detail-note" id="memory-source-note">等待记忆视图来源。</p>
                 <div class="summary-row">
                   <span class="summary-chip" id="memory-total-chip">0 条记忆</span>
                   <span class="summary-chip" id="memory-tags-chip">0 个标签</span>
@@ -371,6 +322,7 @@
                 <p class="panel-kicker">整理工作台</p>
                 <h2 id="management-headline">等待整理摘要</h2>
                 <p id="management-summary">这里只消费后端或 mock view model，不在前端判断哪些内容应该被修改。</p>
+                <p class="detail-note" id="management-source-note">等待整理视图来源。</p>
                 <div class="summary-row">
                   <button class="mini-action selected" type="button" data-management-scope="memory">记忆</button>
                   <button class="mini-action" type="button" data-management-scope="learning">学习线</button>
@@ -402,6 +354,16 @@
                 </div>
                 <div class="proposal-list" id="proposal-list"></div>
               </article>
+
+              <article class="content-card">
+                <div class="board-header compact">
+                  <div>
+                    <p class="panel-kicker">操作历史</p>
+                    <h2>最近发生了什么</h2>
+                  </div>
+                </div>
+                <div class="detail-stack" id="management-events"></div>
+              </article>
             </section>
           </div>
 
@@ -411,6 +373,7 @@
                 <p class="panel-kicker">成就墙</p>
                 <h2 id="achievement-headline">成长记录正在整理</h2>
                 <p id="achievement-summary">有一点收藏感，但不做积分、排行或压力式反馈。</p>
+                <p class="detail-note" id="achievement-source-note">等待成就视图来源。</p>
                 <div class="summary-row" id="achievement-summary-chips"></div>
               </article>
             </section>

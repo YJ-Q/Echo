@@ -531,6 +531,67 @@ test('POST /management/proposals/:id/confirm rejects destructive proposals witho
   }
 });
 
+test('POST /management/proposals/:id/cancel dismisses a proposal without executing it', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const actionResponse = await fetch(`${ctx.baseUrl}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'manual',
+        title: '暂时不用执行的整理候选'
+      })
+    });
+    const actionBody = await actionResponse.json();
+    const actionId = actionBody.data.action.id;
+
+    const proposalResponse = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'actions',
+        operation_intent: 'dismiss',
+        target_ids: [actionId]
+      })
+    });
+    const proposalBody = await proposalResponse.json();
+    const proposalId = proposalBody.data.proposal.id;
+
+    const cancelResponse = await fetch(`${ctx.baseUrl}/management/proposals/${proposalId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancellation_reason: '先不处理这条草案' })
+    });
+    const cancelBody = await cancelResponse.json();
+    const secondCancelResponse = await fetch(`${ctx.baseUrl}/management/proposals/${proposalId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancellation_reason: '重复取消' })
+    });
+    const secondCancelBody = await secondCancelResponse.json();
+    const actionsResponse = await fetch(`${ctx.baseUrl}/actions`);
+    const actionsBody = await actionsResponse.json();
+    const unchangedAction = actionsBody.data.actions.find((action) => action.id === actionId);
+    const eventsResponse = await fetch(`${ctx.baseUrl}/management/operation-events?proposalId=${proposalId}`);
+    const eventsBody = await eventsResponse.json();
+    const cancelledEvents = eventsBody.data.events.filter((event) => event.event_type === 'proposal_cancelled');
+
+    assert.equal(cancelResponse.status, 200);
+    assert.equal(cancelBody.ok, true);
+    assert.equal(cancelBody.data.proposal.status, 'dismissed');
+    assert.equal(cancelBody.data.proposal.metadata.execution_state, 'cancelled');
+    assert.equal(cancelBody.data.proposal.metadata.cancellation_reason, '先不处理这条草案');
+    assert.equal(unchangedAction.status, 'pending');
+
+    assert.equal(secondCancelResponse.status, 200);
+    assert.equal(secondCancelBody.data.already_cancelled, true);
+    assert.equal(cancelledEvents.length, 1);
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
 test('GET /state returns a stable empty-state shape', async () => {
   const ctx = await startTestServer();
 

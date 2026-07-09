@@ -7,7 +7,7 @@ import {
   listOperationProposals,
   validateProposalFilters
 } from '../services/operationProposalEngine.js';
-import { confirmOperationProposal } from '../services/operationExecutor.js';
+import { cancelOperationProposal, confirmOperationProposal } from '../services/operationExecutor.js';
 
 const router = Router();
 
@@ -49,6 +49,17 @@ router.post('/proposals/:id/confirm', async (req, res, next) => {
   try {
     const result = await confirmOperationProposal(req.params.id, {
       confirmationText: req.body?.confirmation_text
+    });
+    return sendData(res, result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/proposals/:id/cancel', async (req, res, next) => {
+  try {
+    const result = await cancelOperationProposal(req.params.id, {
+      cancellationReason: req.body?.cancellation_reason
     });
     return sendData(res, result);
   } catch (error) {

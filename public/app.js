@@ -3,6 +3,7 @@ import {
   MOCK_ACHIEVEMENTS,
   MOCK_ACHIEVEMENT_ICONS,
   MOCK_MANAGEMENT_OVERVIEWS,
+  MOCK_OPERATION_EVENTS,
   PROPOSAL_STATUS_LABELS,
   RARITY_LABELS,
   RISK_LABELS,
@@ -49,9 +50,15 @@ const FALLBACK_DASHBOARD = {
     actions: null
   },
   proposals: [],
+  operationEvents: [],
   achievements: null,
   recentAchievements: [],
   achievementIcons: [],
+  syncMeta: {
+    sections: {},
+    failedCount: 0,
+    fallbackCount: 0
+  },
   viewModelMode: "mock"
 };
 
@@ -95,7 +102,6 @@ const MINIMAL_VIEW_META = {
   now: { title: "此刻", subtitle: "继续说下去。", chip: "连续陪伴" },
   learn: { title: "学习", subtitle: "只看当前一步。", chip: "学习主线" },
   actions: { title: "行动", subtitle: "只推进一件事。", chip: "执行推进" },
-  reflections: { title: "反思", subtitle: "看清最近发生了什么。", chip: "近期总结" },
   memory: { title: "记忆", subtitle: "只保留关键线索。", chip: "连续性" },
   management: { title: "整理", subtitle: "先看清风险，再确认动作。", chip: "安全工作台" },
   achievements: { title: "成就", subtitle: "把已经发生的成长收好。", chip: "成长记录" }
@@ -126,7 +132,6 @@ const dom = {
   composerSubmitLabel: document.querySelector("#composer-submit-label"),
   playLatestEchoButton: document.querySelector("#play-latest-echo"),
   quickPromptButtons: Array.from(document.querySelectorAll(".quick-prompt")),
-  refreshSummaryButton: document.querySelector("#refresh-summary"),
   startNextActionButton: document.querySelector("#start-next-action"),
   heroStartActionButton: document.querySelector("#hero-start-action"),
   manualActionForm: document.querySelector("#manual-action-form"),
@@ -170,7 +175,7 @@ let isSubmitting = false;
 let actionMutationId = null;
 let learningMutationKey = "";
 let memoryMutationId = null;
-let summaryRefreshing = false;
+let proposalMutationKey = "";
 let manualActionSubmitting = false;
 let suggestedActionSubmitting = false;
 let apiCapabilities = { tts: false };
@@ -178,7 +183,6 @@ let toastTimer = null;
 let activeManagementScope = "memory";
 let activeAchievementSource = "all";
 let activeAchievementRarity = "all";
-const proposalSimulationStatus = {};
 let ttsUiState = "unavailable";
 let activeTtsAudio = null;
 let activeTtsAudioCleanup = null;
@@ -281,6 +285,101 @@ function quoteForPrompt(value, fallback = "这一步") {
   return text || fallback;
 }
 
+function formatEventTime(value) {
+  if (!value) return "刚刚";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "刚刚";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+function localizeOperationEventType(eventType) {
+  switch (String(eventType || "").toLowerCase()) {
+    case "proposal_created": return "已创建";
+    case "proposal_executed": return "已执行";
+    case "proposal_cancelled": return "已取消";
+    case "proposal_execution_rejected": return "执行被拒绝";
+    default: return "已记录";
+  }
+}
+
+function describeOperationEvent(event) {
+  const payload = event?.payload || {};
+  const eventType = String(event?.event_type || "").toLowerCase();
+
+  if (eventType === "proposal_created") {
+    return Number.isFinite(payload.operation_count)
+      ? `已生成 ${payload.operation_count} 项待确认操作。`
+      : "治理草案已经生成，等待确认。";
+  }
+
+  if (eventType === "proposal_executed") {
+    return Number.isFinite(payload.operation_count)
+      ? `已执行 ${payload.operation_count} 项操作。`
+      : "这条草案已经执行完成。";
+  }
+
+  if (eventType === "proposal_cancelled") {
+    return payload.cancellation_reason || "这条草案已被取消，不会进入执行阶段。";
+  }
+
+  if (eventType === "proposal_execution_rejected") {
+    return payload.reason === "destructive_operation_not_supported"
+      ? "这条草案包含当前流程不支持的高风险操作。"
+      : "这条草案在执行前被拦下。";
+  }
+
+  return "这里保留整理历史，方便回看发生过什么。";
+}
+
+function summarizeSectionHealth(sectionKeys = []) {
+  const statuses = dashboardData.syncMeta?.sections || {};
+  const resolved = sectionKeys
+    .map((key) => statuses[key])
+    .filter(Boolean);
+
+  if (!resolved.length) {
+    return "unknown";
+  }
+
+  if (resolved.some((status) => status === "failed")) {
+    return "failed";
+  }
+
+  if (resolved.some((status) => status === "mock")) {
+    return "mock";
+  }
+
+  return "api";
+}
+
+function buildSourceNote(sectionKeys, apiCopy, mockCopy, failedCopy) {
+  if (dashboardLoading) {
+    return "正在同步。";
+  }
+
+  const health = summarizeSectionHealth(sectionKeys);
+  switch (health) {
+    case "failed":
+      return failedCopy;
+    case "mock":
+      return mockCopy;
+    case "api":
+      return apiCopy;
+    default:
+      return "当前状态还在准备中。";
+  }
+}
+
 function emotionCopy(emotion) {
   switch (emotion) {
     case "anxious": return "先缩小一步。";
@@ -371,20 +470,21 @@ function hideLaunchScreen() {
 }
 
 function setActiveView(nextView) {
-  activeView = nextView;
-  const meta = MINIMAL_VIEW_META[nextView] || MINIMAL_VIEW_META.now;
+  const hasTargetView = dom.workspaceViews.some((view) => view.dataset.viewPanel === nextView);
+  activeView = hasTargetView ? nextView : "now";
+  const meta = MINIMAL_VIEW_META[activeView] || MINIMAL_VIEW_META.now;
 
   dom.navItems.forEach((item) => {
-    const isActive = item.dataset.view === nextView;
+    const isActive = item.dataset.view === activeView;
     item.classList.toggle("active", isActive);
     item.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 
   dom.workspaceViews.forEach((view) => {
-    view.classList.toggle("active", view.dataset.viewPanel === nextView);
+    view.classList.toggle("active", view.dataset.viewPanel === activeView);
   });
 
-  dom.mainWindow.dataset.activeView = nextView;
+  dom.mainWindow.dataset.activeView = activeView;
   dom.toolbarLabel.textContent = `Workspace / ${meta.title}`;
   dom.viewTitle.textContent = meta.title;
   dom.viewSubtitle.textContent = meta.subtitle;
@@ -409,12 +509,6 @@ function setSubmitting(nextSubmitting) {
   dom.composerSubmit.disabled = nextSubmitting;
   dom.composerInput.disabled = nextSubmitting;
   dom.composerSubmitLabel.textContent = nextSubmitting ? "发送中" : "发送";
-}
-
-function setSummaryRefreshing(nextRefreshing) {
-  summaryRefreshing = nextRefreshing;
-  dom.refreshSummaryButton.disabled = nextRefreshing;
-  dom.refreshSummaryButton.textContent = nextRefreshing ? "刷新中..." : "刷新总结";
 }
 
 function setManualActionSubmitting(nextSubmitting) {
@@ -780,6 +874,7 @@ function renderNowContextStrip() {
 }
 
 function renderLearnView(state) {
+  const sourceNote = document.querySelector("#learn-source-note");
   const learningView = dashboardData.currentLearning || state?.current_learning || null;
   const session = dashboardData.learningSessions[0] || state?.active_learning?.[0] || null;
   const events = dashboardData.learningEvents;
@@ -792,6 +887,14 @@ function renderLearnView(state) {
     learningView?.summary || dashboardData.profileSummary,
     "只看当前主线。"
   );
+  if (sourceNote) {
+    sourceNote.textContent = buildSourceNote(
+      ["learning", "learningEvents", "achievements", "recentAchievements"],
+      "当前直接消费后端学习与成就摘要，不在前端推导学习线状态。",
+      "当前混合了 mock fallback，用来保证学习页结构和邻近成就摘要持续可验收。",
+      "学习相关接口当前没有完整返回，页面正在用最小状态和空态保持可读。"
+    );
+  }
   document.querySelector("#learn-progress-chip").textContent = total ? `${Math.min(currentStep + 1, total)} / ${total}` : "0 / 0";
   document.querySelector("#learn-pattern-chip").textContent = String(state?.current_state?.pattern || "waiting_pattern").replaceAll("_", " ");
   document.querySelector("#learn-current-step-title").textContent =
@@ -950,6 +1053,7 @@ function renderPrimaryActionCard(primaryAction, currentAction, nextAction) {
 }
 
 function renderActionsView(state) {
+  const sourceNote = document.querySelector("#actions-source-note");
   const sourceActions = dashboardData.actions.length ? dashboardData.actions : state?.action_queue || [];
   const actions = sourceActions.filter((action) => action?.status !== "dismissed");
   const currentAction = state?.current_action || null;
@@ -968,6 +1072,14 @@ function renderActionsView(state) {
     "只推进当前主任务。",
     34
   );
+  if (sourceNote) {
+    sourceNote.textContent = buildSourceNote(
+      ["actions", "managementActions", "proposals"],
+      "当前直接消费后端任务队列与整理信号，前端只负责展示和状态切换。",
+      "当前混合了 mock fallback，用来保证任务队列、整理提示和空态在接口波动时仍然稳定。",
+      "任务相关接口当前没有完整返回，页面保留了主任务与队列空态，避免把这里变成坏掉的控制台。"
+    );
+  }
   document.querySelector("#actions-open-chip").textContent = `${pendingCount} 个待处理`;
   document.querySelector("#actions-active-chip").textContent = `${activeCount} 个进行中`;
 
@@ -1026,45 +1138,8 @@ function renderActionGovernanceHints() {
   `;
 }
 
-function renderReflectionsView() {
-  const reflectionView = currentState?.current_reflection || null;
-  const latest = reflectionView?.latest_summary || dashboardData.summaries[0] || null;
-
-  document.querySelector("#reflection-headline").textContent = latest?.summary || "近期总结";
-  document.querySelector("#reflection-summary").textContent = conciseText(
-    reflectionView?.summary || latest?.echo_reflection,
-    "等待最近总结。",
-    34
-  );
-  document.querySelector("#reflection-theme-chip").textContent =
-    latest?.emotional_trend || reflectionView?.dominant_patterns?.[0]?.pattern || "等待主题";
-  document.querySelector("#reflection-summary-copy").textContent = latest?.summary || "等待总结。";
-  document.querySelector("#reflection-echo-copy").textContent = conciseText(latest?.echo_reflection, "等待 Echo 反思。", 34);
-  document.querySelector("#reflection-pattern-copy").textContent =
-    latest?.behavioral_pattern
-    || reflectionView?.dominant_patterns?.map((item) => `${item.pattern} x${item.count}`).join(" / ")
-    || "等待模式识别。";
-  document.querySelector("#reflection-theme-title").textContent =
-    latest?.emotional_trend || reflectionView?.emotional_trend?.[0]?.emotion || "等待趋势";
-
-  const historyContainer = ensureReflectionHistory();
-  if (!historyContainer) return;
-
-  const history = reflectionView?.history || dashboardData.summaries || [];
-  historyContainer.innerHTML = history.length
-    ? history.slice(0, 3).map((item) => `
-      <article class="reflection-card">
-        <span class="mono">${escapeHtml(item.date || "recent")}</span>
-        <p>${escapeHtml(conciseText(item.summary || item.echo_reflection, "等待摘要。", 28))}</p>
-        <div class="inline-actions">
-          <button class="mini-action" type="button" data-compose-kind="reflection" data-compose-text="${escapeHtml(item.summary || item.echo_reflection || "")}">带回对话</button>
-        </div>
-      </article>
-    `).join("")
-    : `<div class="empty-state">还没有近期总结。</div>`;
-}
-
 function renderMemoryView() {
+  const sourceNote = document.querySelector("#memory-source-note");
   const memoryView = dashboardData.currentMemory || currentState?.current_memory || null;
   const memories = dashboardData.memories.length ? dashboardData.memories : currentState.recent_memories || [];
   const overview = memoryView?.overview || null;
@@ -1078,6 +1153,14 @@ function renderMemoryView() {
     "只保留关键记忆。",
     34
   );
+  if (sourceNote) {
+    sourceNote.textContent = buildSourceNote(
+      ["memory", "profile", "summaries", "managementMemory"],
+      "当前直接消费后端记忆、画像摘要与轻量回看信号，不在前端实现记忆治理规则。",
+      "当前混合了 mock fallback，用来保证记忆标签、片段、整理入口和反思回看能继续验收。",
+      "记忆相关接口当前没有完整返回，页面先保留标签、片段和回看空态，避免误导用户这里已有完整检索能力。"
+    );
+  }
   document.querySelector("#memory-total-chip").textContent = `${overview?.total_memories ?? memories.length} 条记忆`;
   document.querySelector("#memory-tags-chip").textContent = `${tags.length} 个标签`;
 
@@ -1169,17 +1252,29 @@ function getManagementOverview(scope = activeManagementScope) {
   return dashboardData.managementOverviews?.[scope] || MOCK_MANAGEMENT_OVERVIEWS[scope] || null;
 }
 
+function getManagementEvents() {
+  const events = dashboardData.operationEvents?.length ? dashboardData.operationEvents : MOCK_OPERATION_EVENTS;
+
+  if (activeManagementScope === "proposals") {
+    return events;
+  }
+
+  return events.filter((event) => event.scope === activeManagementScope);
+}
+
 function renderManagementView() {
   const scope = activeManagementScope === "proposals" ? "memory" : activeManagementScope;
   const overview = getManagementOverview(scope);
   const headline = document.querySelector("#management-headline");
   const summary = document.querySelector("#management-summary");
+  const sourceNote = document.querySelector("#management-source-note");
   const riskChip = document.querySelector("#management-risk-chip");
   const statsContainer = document.querySelector("#management-stats");
   const candidatesContainer = document.querySelector("#management-candidates");
   const proposalList = document.querySelector("#proposal-list");
+  const eventsContainer = document.querySelector("#management-events");
   const scopeButtons = Array.from(document.querySelectorAll("[data-management-scope]"));
-  if (!headline || !summary || !riskChip || !statsContainer || !candidatesContainer || !proposalList) return;
+  if (!headline || !summary || !sourceNote || !riskChip || !statsContainer || !candidatesContainer || !proposalList || !eventsContainer) return;
 
   scopeButtons.forEach((button) => {
     const selected = button.dataset.managementScope === activeManagementScope;
@@ -1193,6 +1288,14 @@ function renderManagementView() {
   summary.textContent = activeManagementScope === "proposals"
     ? "这里仅展示后端或 mock 已经生成的草案，确认按钮当前只做前端模拟状态。"
     : overview?.summary || "等待整理摘要。";
+  sourceNote.textContent = dashboardLoading
+    ? "整理视图正在同步。"
+    : buildSourceNote(
+      ["managementLearning", "managementMemory", "managementActions", "proposals", "operationEvents"],
+      "当前直接消费后端 view model，前端不判断治理规则。",
+      "当前包含 mock fallback，用来保证整理页在接口暂时不可用时仍能检查结构、风险和确认流。",
+      "整理相关接口当前没有完整返回，页面先保留只读摘要与草案空态，避免前端替后端做判断。"
+    );
   riskChip.textContent = RISK_LABELS[overview?.risk_level] || "只读";
   riskChip.dataset.risk = overview?.risk_level || "read_only";
 
@@ -1237,13 +1340,32 @@ function renderManagementView() {
   proposalList.innerHTML = proposals.length
     ? proposals.map((proposal) => renderProposalCard(proposal)).join("")
     : `<div class="empty-state">当前没有这个范围内的草案。</div>`;
+
+  const events = getManagementEvents().slice(0, 6);
+  eventsContainer.innerHTML = events.length
+    ? events.map((event) => `
+      <article class="operation-event-row">
+        <div class="board-header compact">
+          <div>
+            <strong>${escapeHtml(localizeOperationEventType(event.event_type))}</strong>
+            <p class="detail-note">${escapeHtml(MANAGEMENT_SCOPE_LABELS[event.scope] || event.scope || "整理")} / ${escapeHtml(formatEventTime(event.created_at))}</p>
+          </div>
+          <span class="status-badge">${escapeHtml(RISK_LABELS[event.risk_level] || event.risk_level || "只读")}</span>
+        </div>
+        <p>${escapeHtml(event.operation_summary || "已记录一条整理事件。")}</p>
+        <p class="detail-note">${escapeHtml(describeOperationEvent(event))}</p>
+      </article>
+    `).join("")
+    : `<div class="empty-state">当前范围下还没有整理历史。</div>`;
 }
 
 function renderProposalCard(proposal) {
-  const status = proposalSimulationStatus[proposal.id] || proposal.status || "draft";
+  const status = proposal.status || "draft";
   const before = proposal.preview?.before || [];
   const after = proposal.preview?.after || [];
-  const canSimulate = status === "awaiting_confirmation" || status === "draft";
+  const canConfirm = status === "awaiting_confirmation" || status === "draft" || status === "confirmed";
+  const canCancel = status === "awaiting_confirmation" || status === "draft" || status === "confirmed";
+  const isBusy = proposalMutationKey === `confirm:${proposal.id}` || proposalMutationKey === `cancel:${proposal.id}`;
 
   return `
     <article class="proposal-card" data-risk="${escapeHtml(proposal.risk_level || "read_only")}">
@@ -1277,8 +1399,8 @@ function renderProposalCard(proposal) {
         `).join("")}
       </div>
       <div class="inline-actions">
-        <button class="mini-action" type="button" data-proposal-action="confirm" data-proposal-id="${proposal.id}"${canSimulate ? "" : " disabled"}>模拟确认</button>
-        <button class="mini-action" type="button" data-proposal-action="cancel" data-proposal-id="${proposal.id}"${canSimulate ? "" : " disabled"}>取消草案</button>
+        <button class="mini-action" type="button" data-proposal-action="confirm" data-proposal-id="${proposal.id}"${canConfirm && !isBusy ? "" : " disabled"}>${isBusy && proposalMutationKey === `confirm:${proposal.id}` ? "确认中..." : "确认执行"}</button>
+        <button class="mini-action" type="button" data-proposal-action="cancel" data-proposal-id="${proposal.id}"${canCancel && !isBusy ? "" : " disabled"}>${isBusy && proposalMutationKey === `cancel:${proposal.id}` ? "取消中..." : "取消草案"}</button>
       </div>
     </article>
   `;
@@ -1286,15 +1408,25 @@ function renderProposalCard(proposal) {
 
 function renderAchievementsView() {
   const achievementData = dashboardData.achievements || MOCK_ACHIEVEMENTS;
+  const sourceNote = document.querySelector("#achievement-source-note");
   const recent = dashboardData.recentAchievements?.length
     ? dashboardData.recentAchievements
     : achievementData.recent_unlocks || [];
   const icons = dashboardData.achievementIcons?.length ? dashboardData.achievementIcons : MOCK_ACHIEVEMENT_ICONS;
   const achievements = achievementData.achievements || [];
   const summary = achievementData.summary || { total: achievements.length, unlocked: 0, hidden: 0 };
+  if (!sourceNote) return;
 
   document.querySelector("#achievement-headline").textContent = `${summary.unlocked || 0} 个记录已经亮起`;
   document.querySelector("#achievement-summary").textContent = `总计 ${summary.total || achievements.length} 个成就，其中 ${summary.hidden || 0} 个仍保持隐藏。`;
+  sourceNote.textContent = dashboardLoading
+    ? "成就视图正在同步。"
+    : buildSourceNote(
+      ["achievements", "recentAchievements", "achievementIcons"],
+      "当前直接消费后端成就 read model，不在前端推导解锁规则。",
+      "当前包含 mock fallback，用来验证 recent unlocks、成就网格和 icon catalog 的结构。",
+      "成就相关接口当前没有完整返回，页面先保留解锁区、筛选和图标目录空态。"
+    );
   document.querySelector("#achievement-summary-chips").innerHTML = [
     `总计 ${summary.total || achievements.length}`,
     `已解锁 ${summary.unlocked || 0}`,
@@ -1397,7 +1529,6 @@ function renderState(state) {
   renderNowView(currentState);
   renderLearnView(currentState);
   renderActionsView(currentState);
-  renderReflectionsView();
   renderMemoryView();
   renderManagementView();
   renderAchievementsView();
@@ -1420,6 +1551,22 @@ async function fetchDashboardData() {
 
   const [actionsResult, learningResult, learningEventsResult, memoryResult, profileResult, summaryResult] = results;
   const supplementalViewModels = await fetchSupplementalViewModels(fetchJson);
+  const sectionStatuses = {
+    actions: actionsResult.status === "fulfilled" ? "api" : "failed",
+    learning: learningResult.status === "fulfilled" ? "api" : "failed",
+    learningEvents: learningEventsResult.status === "fulfilled" ? "api" : "failed",
+    memory: memoryResult.status === "fulfilled" ? "api" : "failed",
+    profile: profileResult.status === "fulfilled" ? "api" : "failed",
+    summaries: summaryResult.status === "fulfilled" ? "api" : "failed",
+    managementLearning: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    managementMemory: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    managementActions: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    proposals: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    operationEvents: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    achievements: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    recentAchievements: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api",
+    achievementIcons: supplementalViewModels.viewModelMode === "mock" ? "mock" : "api"
+  };
 
   if (results.some((r) => r.status === "rejected")) {
     const failedCount = results.filter((r) => r.status === "rejected").length;
@@ -1436,6 +1583,11 @@ async function fetchDashboardData() {
     profile: profileResult.status === "fulfilled" ? profileResult.value?.profile || [] : [],
     profileSummary: profileResult.status === "fulfilled" ? profileResult.value?.summary || "" : "",
     summaries: summaryResult.status === "fulfilled" ? summaryResult.value?.summaries || [] : [],
+    syncMeta: {
+      sections: sectionStatuses,
+      failedCount: results.filter((r) => r.status === "rejected").length,
+      fallbackCount: supplementalViewModels.viewModelMode === "mock" ? 1 : 0
+    },
     ...supplementalViewModels
   };
 }
@@ -1631,20 +1783,6 @@ function bindProductInteractions() {
     }
   });
 
-  dom.refreshSummaryButton.addEventListener("click", async () => {
-    if (summaryRefreshing) return;
-    setSummaryRefreshing(true);
-    try {
-      await postJson("/summary", {});
-      await hydrateFromState();
-      showToast("总结已刷新。", "success");
-    } catch (error) {
-      showToast(getErrorMessage(error, "总结刷新失败，请稍后再试。"), "error", 3200);
-    } finally {
-      setSummaryRefreshing(false);
-    }
-  });
-
   dom.playLatestEchoButton.addEventListener("click", async () => {
     const text = getLatestEchoText();
     if (!text || !apiCapabilities.tts || ttsUiState === "loading" || ttsUiState === "playing") return;
@@ -1709,13 +1847,34 @@ function bindProductInteractions() {
     if (proposalButton) {
       const proposalId = Number.parseInt(proposalButton.dataset.proposalId, 10);
       const action = proposalButton.dataset.proposalAction;
-      if (!Number.isFinite(proposalId)) return;
+      if (!Number.isFinite(proposalId) || !action || proposalMutationKey) return;
 
-      proposalSimulationStatus[proposalId] = action === "confirm"
-        ? "simulated_confirmed"
-        : "simulated_cancelled";
+      proposalMutationKey = `${action}:${proposalId}`;
       renderManagementView();
-      showToast(action === "confirm" ? "已模拟确认，这不会执行真实整理。" : "草案已在前端标记取消。", "success");
+      try {
+        const endpoint = action === "confirm"
+          ? `/management/proposals/${proposalId}/confirm`
+          : `/management/proposals/${proposalId}/cancel`;
+        const body = action === "confirm"
+          ? { confirmation_text: "前端确认执行" }
+          : { cancellation_reason: "前端取消草案" };
+
+        await postJson(endpoint, body);
+        await hydrateFromState();
+        showToast(action === "confirm" ? "整理草案已确认执行。" : "整理草案已取消。", "success");
+      } catch (error) {
+        showToast(
+          getErrorMessage(
+            error,
+            action === "confirm" ? "整理草案确认失败，请稍后再试。" : "整理草案取消失败，请稍后再试。"
+          ),
+          "error",
+          3200
+        );
+      } finally {
+        proposalMutationKey = "";
+        renderManagementView();
+      }
       return;
     }
 

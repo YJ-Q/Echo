@@ -9,6 +9,7 @@ import {
 } from '../storage/memoryStore.js';
 
 const EXECUTABLE_STATUSES = ['draft', 'awaiting_confirmation', 'confirmed'];
+const CANCELLABLE_STATUSES = ['draft', 'awaiting_confirmation', 'confirmed'];
 const DESTRUCTIVE_OPERATIONS = ['delete', 'remove'];
 const NOOP_OPERATIONS = ['review', 'keep', 'keep_active'];
 const SUPPORTED_OPERATION_KEYS = new Set([
@@ -81,6 +82,56 @@ export async function confirmOperationProposal(id, { confirmationText = '' } = {
     events: await getOperationEvents({ proposalId: proposal.id }),
     results,
     already_executed: false
+  };
+}
+
+export async function cancelOperationProposal(id, { cancellationReason = '' } = {}) {
+  const proposalId = normalizeProposalId(id);
+  const proposal = await getOperationProposalById(proposalId);
+
+  if (!proposal) {
+    const error = new Error('operation proposal not found');
+    error.status = 404;
+    error.code = 'operation_proposal_not_found';
+    throw error;
+  }
+
+  if (proposal.status === 'dismissed') {
+    return {
+      proposal,
+      events: await getOperationEvents({ proposalId }),
+      already_cancelled: true
+    };
+  }
+
+  if (!CANCELLABLE_STATUSES.includes(proposal.status)) {
+    const error = new Error('operation proposal is not cancellable');
+    error.status = 409;
+    error.code = 'operation_proposal_not_cancellable';
+    throw error;
+  }
+
+  const dismissed = await updateOperationProposalStatus(proposal.id, 'dismissed', {
+    execution_state: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancellation_reason: cancellationReason || ''
+  });
+
+  await addOperationEvent({
+    proposalId: proposal.id,
+    eventType: 'proposal_cancelled',
+    scope: proposal.scope,
+    riskLevel: proposal.risk_level,
+    operationSummary: proposal.summary,
+    payload: {
+      cancellation_reason: cancellationReason || ''
+    }
+  });
+
+  return {
+    proposal: dismissed,
+    events: await getOperationEvents({ proposalId: proposal.id }),
+    already_cancelled: false
   };
 }
 

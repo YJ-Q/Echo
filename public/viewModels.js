@@ -144,6 +144,33 @@ export const MOCK_PROPOSALS = [
   }
 ];
 
+export const MOCK_OPERATION_EVENTS = [
+  {
+    id: 1,
+    proposal_id: 1,
+    event_type: "proposal_created",
+    scope: "memory",
+    risk_level: "reversible",
+    operation_summary: "建议合并 2 条重复的 Node.js 记忆。",
+    payload: {
+      operation_count: 1
+    },
+    created_at: "2026-07-08T00:00:00.000Z"
+  },
+  {
+    id: 2,
+    proposal_id: 2,
+    event_type: "proposal_cancelled",
+    scope: "actions",
+    risk_level: "reversible",
+    operation_summary: "建议 dismiss 1 个已经过期的任务。",
+    payload: {
+      cancellation_reason: "当前先不处理这条草案。"
+    },
+    created_at: "2026-07-08T02:00:00.000Z"
+  }
+];
+
 export const MOCK_ACHIEVEMENTS = {
   summary: { total: 8, unlocked: 3, hidden: 2 },
   recent_unlocks: [
@@ -289,6 +316,7 @@ export const PROPOSAL_STATUS_LABELS = {
   draft: "草案",
   awaiting_confirmation: "待确认",
   executed: "已执行",
+  dismissed: "已取消",
   cancelled: "已取消",
   simulated_confirmed: "已模拟确认",
   simulated_cancelled: "已模拟取消"
@@ -318,6 +346,7 @@ export async function fetchSupplementalViewModels(fetchJson) {
     managementMemory,
     managementActions,
     proposals,
+    operationEvents,
     achievements,
     recentAchievements,
     achievementIcons
@@ -326,6 +355,7 @@ export async function fetchSupplementalViewModels(fetchJson) {
     fetchViewModel(fetchJson, "/management/overview?scope=memory", MOCK_MANAGEMENT_OVERVIEWS.memory, state),
     fetchViewModel(fetchJson, "/management/overview?scope=actions", MOCK_MANAGEMENT_OVERVIEWS.actions, state),
     fetchViewModel(fetchJson, "/management/proposals", { proposals: MOCK_PROPOSALS }, state),
+    fetchViewModel(fetchJson, "/management/operation-events?limit=24", { events: MOCK_OPERATION_EVENTS }, state),
     fetchViewModel(fetchJson, "/achievements", MOCK_ACHIEVEMENTS, state),
     fetchViewModel(fetchJson, "/achievements/recent", { recent_unlocks: MOCK_RECENT_ACHIEVEMENTS }, state),
     fetchViewModel(fetchJson, "/achievements/icons", { icons: MOCK_ACHIEVEMENT_ICONS }, state)
@@ -338,6 +368,7 @@ export async function fetchSupplementalViewModels(fetchJson) {
       actions: managementActions
     },
     proposals: proposals?.proposals || [],
+    operationEvents: operationEvents?.events || [],
     achievements,
     recentAchievements: recentAchievements?.recent_unlocks || [],
     achievementIcons: achievementIcons?.icons || [],

@@ -1126,6 +1126,7 @@ svg {
 
 .management-candidate,
 .proposal-card,
+.operation-event-row,
 .achievement-card,
 .recent-unlock-card,
 .icon-catalog-item,
@@ -1231,6 +1232,7 @@ svg {
 }
 
 .proposal-list,
+.detail-stack,
 .achievement-grid,
 .recent-unlocks-strip,
 .icon-catalog {
@@ -1241,6 +1243,11 @@ svg {
 .proposal-card {
   display: grid;
   gap: 12px;
+}
+
+.operation-event-row {
+  display: grid;
+  gap: 10px;
 }
 
 .proposal-card[data-risk="reversible"] {
@@ -1321,6 +1328,7 @@ svg {
 .recent-unlock-card strong,
 .icon-catalog-item strong,
 .management-candidate strong,
+.operation-event-row strong,
 .proposal-card strong,
 .module-summary-line strong {
   min-width: 0;
@@ -1334,6 +1342,7 @@ svg {
 .recent-unlock-card p,
 .icon-catalog-item p,
 .management-candidate p,
+.operation-event-row p,
 .proposal-card p,
 .proposal-preview p {
   margin: 4px 0 0;
