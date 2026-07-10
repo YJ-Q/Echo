@@ -1,0 +1,39 @@
+name: Windows release artifact
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:win
+      - name: Smoke installed application
+        shell: powershell
+        run: |
+          $installer = (Get-ChildItem release\Margin-Setup-*-x64.exe -File -ErrorAction Stop | Select-Object -First 1).FullName
+          powershell -ExecutionPolicy Bypass -File scripts\smoke-win-installer.ps1 -InstallerPath $installer
+      - name: Write SHA-256 checksum
+        shell: powershell
+        run: |
+          Get-FileHash release\Margin-Setup-*-x64.exe -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content release\SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: margin-windows-x64
+          if-no-files-found: error
+          path: |
+            release/Margin-Setup-*-x64.exe
+            release/SHA256SUMS.txt

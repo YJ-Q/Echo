@@ -17,6 +17,7 @@ win:
       arch:
         - x64
   executableName: Margin
+  icon: build/icon.png
 nsis:
   oneClick: false
   perMachine: false
