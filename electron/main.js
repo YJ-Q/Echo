@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { createSettingsStore } from "./settingsStore.js";
+import { findAvailablePort } from "./backendPort.js";
 import {
   buildBackendCandidates as createBackendCandidates,
   resolveRuntimePaths
@@ -11,7 +12,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const appUrl = "http://127.0.0.1:3000";
+let appUrl = "http://127.0.0.1:3000";
 const WINDOW_ASPECT_RATIO = 4 / 3;
 const WINDOW_DEFAULT_WIDTH = 960;
 const WINDOW_DEFAULT_HEIGHT = 720;
@@ -56,6 +57,7 @@ function buildBackendCandidates() {
   const runtimeEnv = settingsStore
     ? settingsStore.buildBackendEnv(process.env)
     : { ...process.env };
+  runtimeEnv.PORT = new URL(appUrl).port;
   const runtimeNodePath = path.join(
     runtimePaths.appRoot,
     ".runtime",
@@ -493,6 +495,8 @@ ipcMain.on("window:close", () => mainWindow?.close());
 
 app.whenReady().then(async () => {
   try {
+    const backendPort = await findAvailablePort(3000);
+    appUrl = `http://127.0.0.1:${backendPort}`;
     const userDataPath = app.getPath("userData");
     runtimePaths = resolveRuntimePaths({
       isPackaged: app.isPackaged,
