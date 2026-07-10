@@ -31,7 +31,17 @@ export async function generateEchoResponse({
   };
 
   try {
-    rawReply = await provider.generateText({ messages, fallback });
+    const providerResult = await provider.generateText({ messages, fallback });
+    rawReply = typeof providerResult === 'string' ? providerResult : providerResult?.text;
+
+    if (providerResult && typeof providerResult === 'object') {
+      agent = {
+        ...agent,
+        provider: providerResult.provider || agent.provider,
+        model: providerResult.model || agent.model,
+        trace_id: providerResult.traceId || undefined
+      };
+    }
 
     if (!rawReply) {
       rawReply = fallback();
@@ -46,7 +56,7 @@ export async function generateEchoResponse({
     agent = {
       ...agent,
       fallback_used: true,
-      fallback_reason: error.message
+      fallback_reason: error.code || 'provider_request_failed'
     };
   }
 

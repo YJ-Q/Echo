@@ -1,34 +1,47 @@
-export function createOpenAIProvider() {
-  const apiKey = process.env.OPENAI_API_KEY;
+import { fetchWithTimeout } from '../../providers/fetchWithTimeout.js';
+import { providerErrorFromResponse } from '../../providers/providerError.js';
+import {
+  normalizeTokenUsage,
+  readProviderJson,
+  readProviderTraceId,
+  requireProviderText
+} from '../../providers/jsonResponse.js';
 
-  if (!apiKey) {
-    return null;
-  }
+const BASE_URL = 'https://api.openai.com/v1/chat/completions';
+
+export function createOpenAIProvider({
+  env = process.env,
+  fetchImpl = global.fetch,
+  timeoutMs = 20_000
+} = {}) {
+  const apiKey = env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const model = env.OPENAI_MODEL || 'gpt-4.1-mini';
 
   return {
     name: 'openai',
-    model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    model,
     async generateText({ messages }) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetchWithTimeout(BASE_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
-          messages,
-          temperature: 0.7
-        })
-      });
+        body: JSON.stringify({ model, messages, temperature: 0.7 })
+      }, { provider: 'openai', timeoutMs, fetchImpl });
 
       if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(`OpenAI request failed: ${detail}`);
+        throw await providerErrorFromResponse('openai', response, [apiKey]);
       }
-
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content?.trim() || '';
+      const payload = await readProviderJson('openai', response, [apiKey]);
+      return {
+        text: requireProviderText('openai', payload.choices?.[0]?.message?.content, response),
+        provider: 'openai',
+        model: payload.model || model,
+        traceId: readProviderTraceId(response),
+        usage: normalizeTokenUsage(payload.usage)
+      };
     }
   };
 }
