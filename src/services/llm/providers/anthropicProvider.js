@@ -16,7 +16,7 @@ export function createAnthropicProvider({
 } = {}) {
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  const model = env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
+  const model = env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
   return {
     name: 'anthropic',
