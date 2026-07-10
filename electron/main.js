@@ -4,12 +4,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { createSettingsStore } from "./settingsStore.js";
+import {
+  buildBackendCandidates as createBackendCandidates,
+  resolveRuntimePaths
+} from "./runtimePaths.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.join(__dirname, "..");
-const runtimeNode = path.join(projectRoot, ".runtime", "node-v22.23.1-win-x64", "node.exe");
-const backendEntry = path.join(projectRoot, "src", "server.js");
 const appUrl = "http://127.0.0.1:3000";
 const WINDOW_ASPECT_RATIO = 4 / 3;
 const WINDOW_DEFAULT_WIDTH = 960;
@@ -28,6 +29,7 @@ let shuttingDown = false;
 let quitRequested = false;
 let mainWindow = null;
 let settingsStore = null;
+let runtimePaths = null;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,41 +53,31 @@ async function waitForServer(url, attempts = 60, delayMs = 500) {
 }
 
 function buildBackendCandidates() {
-  const candidates = [];
   const runtimeEnv = settingsStore
     ? settingsStore.buildBackendEnv(process.env)
     : { ...process.env };
+  const runtimeNodePath = path.join(
+    runtimePaths.appRoot,
+    ".runtime",
+    "node-v22.23.1-win-x64",
+    "node.exe"
+  );
 
-  if (existsSync(runtimeNode)) {
-    candidates.push({
-      command: runtimeNode,
-      args: [backendEntry],
-      env: runtimeEnv
-    });
-  }
-
-  candidates.push({
-    command: "node",
-    args: [backendEntry],
-    env: runtimeEnv
+  return createBackendCandidates({
+    isPackaged: app.isPackaged,
+    processExecPath: process.execPath,
+    runtimeNodePath,
+    runtimeNodeExists: existsSync(runtimeNodePath),
+    backendEntry: runtimePaths.backendEntry,
+    databasePath: runtimePaths.databasePath,
+    runtimeEnv
   });
-
-  candidates.push({
-    command: process.execPath,
-    args: [backendEntry],
-    env: {
-      ...runtimeEnv,
-      ELECTRON_RUN_AS_NODE: "1"
-    }
-  });
-
-  return candidates;
 }
 
 function spawnBackend(candidate) {
   return new Promise((resolve, reject) => {
     const child = spawn(candidate.command, candidate.args, {
-      cwd: projectRoot,
+      cwd: runtimePaths.backendCwd,
       env: {
         ...process.env,
         ...candidate.env
@@ -501,8 +493,14 @@ ipcMain.on("window:close", () => mainWindow?.close());
 
 app.whenReady().then(async () => {
   try {
+    const userDataPath = app.getPath("userData");
+    runtimePaths = resolveRuntimePaths({
+      isPackaged: app.isPackaged,
+      appPath: app.getAppPath(),
+      userDataPath
+    });
     settingsStore = createSettingsStore({
-      userDataPath: app.getPath("userData"),
+      userDataPath,
       safeStorage
     });
     await settingsStore.load();
