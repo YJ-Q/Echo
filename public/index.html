@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Echo</title>
+    <title>Margin</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -15,13 +15,13 @@
         <span></span>
         <span></span><span></span><span></span>
       </div>
-      <p class="launch-title mono">Echo</p>
-      <p class="launch-copy">正在准备当前状态...</p>
+      <p class="launch-title mono">Margin</p>
+      <p class="launch-copy">正在铺开这一页...</p>
     </div>
 
     <main class="app-shell">
       <aside class="nav-rail" aria-label="主导航">
-        <div class="echo-mark" aria-label="Echo 标识">
+        <div class="echo-mark" aria-label="Margin 标识">
           <span></span><span></span><span></span>
           <span></span>
           <span></span><span></span><span></span>
@@ -59,10 +59,10 @@
       <section class="main-window" data-active-view="now">
         <header class="app-titlebar" aria-label="窗口标题栏">
           <div class="titlebar-brand">
-            <span class="desktop-badge mono">ECHO</span>
+            <span class="desktop-badge mono">MARGIN</span>
             <div class="titlebar-copy">
-              <strong>桌面陪伴体</strong>
-              <span>先接住此刻，再决定往哪走</span>
+              <strong>页边陪伴空间</strong>
+              <span>先把这一刻留在这里，再决定从哪一行继续</span>
             </div>
           </div>
 
@@ -80,9 +80,9 @@
         <section class="center-column" aria-label="主工作区">
           <header class="topbar">
             <div class="title-stack">
-              <p class="toolbar-label" id="toolbar-label">Workspace / 此刻</p>
+              <p class="toolbar-label" id="toolbar-label">Margin / 此刻</p>
               <h1 id="view-title">此刻</h1>
-              <p id="view-subtitle">承接当前状态、对话和下一步行动。</p>
+              <p id="view-subtitle">把此刻留在页边，再慢慢续写下一行。</p>
             </div>
 
             <div class="header-meta">
@@ -102,7 +102,7 @@
               <section class="content-card now-arrival-card">
                 <div class="now-arrival-main">
                   <div class="now-arrival-copy">
-                    <p class="panel-kicker">当前状态</p>
+                    <p class="panel-kicker">这一刻</p>
                     <strong class="hero-emotion" id="hero-emotion">平静</strong>
                     <p class="hero-copy" id="hero-copy">正在整理当前线索，准备继续推进。</p>
                   </div>
@@ -114,23 +114,14 @@
                   </div>
                 </div>
 
-                <div class="now-arrival-rail">
-                  <article class="arrival-card arrival-focus-card">
-                    <span class="arrival-label">当前聚焦</span>
-                    <strong id="hero-focus-topic">等待状态同步</strong>
-                    <span class="arrival-meta" id="hero-focus-context">这条线索已经被留在这里。</span>
-                  </article>
-
-                  <article class="arrival-card arrival-next-card">
-                    <div class="arrival-next-head">
-                      <span class="arrival-label">继续这条线</span>
-                    </div>
-                    <strong id="hero-next-action">等待生成下一步</strong>
-                    <p id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</p>
-                    <p class="arrival-meta" id="hero-next-context">你准备好时，再把这一步带回对话。</p>
-                    <button class="secondary-button" id="hero-start-action" type="button">把这一步带回对话</button>
-                  </article>
-                </div>
+                <p class="now-arrival-rail" aria-label="当前线索">
+                  <span id="hero-focus-topic">等待状态同步</span>
+                  <span class="arrival-meta" id="hero-focus-context">这条线索已经被留在这里。</span>
+                  <span id="hero-next-action">等待生成下一步</span>
+                  <span id="hero-next-copy">先把眼前这一步说清楚，不用一下子想完全部。</span>
+                  <span class="arrival-meta" id="hero-next-context">你准备好时，再从这一行接着写下去。</span>
+                  <button class="link-button arrival-inline-action" id="hero-start-action" type="button">从这一行继续</button>
+                </p>
               </section>
 
               <section class="context-strip" id="now-context-strip" aria-label="近期提醒"></section>
@@ -138,8 +129,8 @@
               <section class="conversation-board">
                 <div class="board-header conversation-header">
                   <div>
-                    <p class="panel-kicker">主对话流</p>
-                    <h2>先接住此刻，再慢慢续上</h2>
+                    <p class="panel-kicker">页边对话</p>
+                    <h2>先把话留在这里，再慢慢接上下一行</h2>
                   </div>
                   <div class="board-badges" id="board-badges"></div>
                 </div>
@@ -155,7 +146,7 @@
                   <div class="composer-row">
                     <input id="composer-input" type="text" placeholder="继续输入你现在最想先理清的一件事..." aria-label="继续对话" />
                     <div class="composer-actions">
-                      <button class="secondary-button hidden" id="play-latest-echo" type="button">朗读最新回复</button>
+                      <button class="secondary-button hidden" id="play-latest-echo" type="button">轻读这一段</button>
                       <button class="primary-button" id="composer-submit" type="submit">
                         <span id="composer-submit-label">发送</span>
                       </button>
@@ -169,7 +160,7 @@
           <div class="workspace-view" data-view-panel="learn">
             <section class="hero-band single-hero">
               <article class="panel">
-                <p class="panel-kicker">学习页</p>
+                <p class="panel-kicker">续写学习</p>
                 <h2 id="learn-topic">等待学习主题</h2>
                 <p id="learn-summary">当前版本只保留当前主线、步骤序列和当前一步。</p>
                 <p class="detail-note" id="learn-source-note">等待学习视图来源。</p>
@@ -185,7 +176,7 @@
                 <div class="board-header compact">
                   <div>
                     <p class="panel-kicker">步骤序列</p>
-                    <h2>当前学习线</h2>
+                    <h2>当前这一条学习线</h2>
                   </div>
                 </div>
                 <div class="step-list" id="learn-steps-list"></div>
@@ -220,7 +211,7 @@
           <div class="workspace-view" data-view-panel="actions">
             <section class="hero-band single-hero">
               <article class="panel">
-                <p class="panel-kicker">行动页</p>
+                <p class="panel-kicker">续写行动</p>
                 <h2 id="actions-headline">等待任务队列</h2>
                 <p id="actions-summary">当前版本只强调当前主任务、次任务队列与状态切换。</p>
                 <p class="detail-note" id="actions-source-note">等待行动视图来源。</p>
@@ -244,7 +235,7 @@
                 <div class="action-entry-grid">
                   <form class="inline-form" id="suggested-action-form" aria-label="生成建议任务">
                     <label class="input-stack">
-                      <span>从当前状态生成建议任务</span>
+                      <span>从当前状态写出一个建议下一行</span>
                       <input id="suggested-action-query" type="text" placeholder="例如：把当前主线拆成下一步" />
                     </label>
                     <button class="secondary-button" id="suggested-action-submit" type="submit">生成建议任务</button>
@@ -270,7 +261,7 @@
           <div class="workspace-view" data-view-panel="memory">
             <section class="hero-band single-hero">
               <article class="panel">
-                <p class="panel-kicker">记忆页</p>
+                <p class="panel-kicker">留痕记忆</p>
                 <h2 id="memory-headline">关键记忆与召回</h2>
                 <p id="memory-summary">当前版本只保留记忆概览、关键片段和标签，不做复杂检索系统。</p>
                 <p class="detail-note" id="memory-source-note">等待记忆视图来源。</p>
@@ -307,7 +298,7 @@
               <article class="content-card">
                 <div class="board-header compact">
                   <div>
-                    <p class="panel-kicker">近期反思</p>
+                    <p class="panel-kicker">近期回看</p>
                     <h2>作为记忆旁边的轻量回看</h2>
                   </div>
                 </div>
@@ -319,13 +310,13 @@
           <div class="workspace-view" data-view-panel="management">
             <section class="hero-band single-hero">
               <article class="panel management-hero-panel">
-                <p class="panel-kicker">整理工作台</p>
+                <p class="panel-kicker">页边整理</p>
                 <h2 id="management-headline">等待整理摘要</h2>
                 <p id="management-summary">这里只消费后端或 mock view model，不在前端判断哪些内容应该被修改。</p>
                 <p class="detail-note" id="management-source-note">等待整理视图来源。</p>
                 <div class="summary-row">
                   <button class="mini-action selected" type="button" data-management-scope="memory">记忆</button>
-                  <button class="mini-action" type="button" data-management-scope="learning">学习线</button>
+                  <button class="mini-action" type="button" data-management-scope="learning">学习这条线</button>
                   <button class="mini-action" type="button" data-management-scope="actions">任务</button>
                   <button class="mini-action" type="button" data-management-scope="proposals">全部草案</button>
                 </div>
@@ -370,7 +361,7 @@
           <div class="workspace-view" data-view-panel="achievements">
             <section class="hero-band single-hero">
               <article class="panel achievement-hero-panel">
-                <p class="panel-kicker">成就墙</p>
+                <p class="panel-kicker">留痕记录</p>
                 <h2 id="achievement-headline">成长记录正在整理</h2>
                 <p id="achievement-summary">有一点收藏感，但不做积分、排行或压力式反馈。</p>
                 <p class="detail-note" id="achievement-source-note">等待成就视图来源。</p>
@@ -425,12 +416,12 @@
 
         <aside class="status-column" aria-label="此刻页状态工作台">
           <div class="status-column-intro">
-            <p class="panel-kicker">轻量工作台</p>
-            <h2>把还活着的线留在旁边</h2>
+            <p class="panel-kicker">页边提示</p>
+            <h2>把还活着的线轻轻留在旁边</h2>
           </div>
           <section class="instrument-panel state-panel-card">
             <div class="panel-head">
-              <h2>当前状态</h2>
+              <h2>这一刻</h2>
               <span class="mono" id="emotion-label">平静</span>
             </div>
             <p class="detail-copy" id="emotion-copy">等待状态同步。</p>
@@ -447,8 +438,8 @@
 
           <section class="instrument-panel next-panel-card" data-jump-view="actions">
             <div class="panel-head">
-              <h2>下一步行动</h2>
-              <button class="link-button" id="start-next-action" type="button">带回对话</button>
+              <h2>下一行</h2>
+              <button class="link-button" id="start-next-action" type="button">接着写</button>
             </div>
             <p class="detail-title" id="action-title">等待下一步</p>
             <p class="detail-copy" id="action-copy">当前还没有明确动作。</p>
@@ -456,7 +447,7 @@
 
           <section class="instrument-panel learning-panel-card" data-jump-view="learn">
             <div class="panel-head">
-              <h2>学习线</h2>
+              <h2>学习这条线</h2>
             </div>
             <p class="detail-title" id="learning-topic">等待学习主题</p>
             <p class="detail-copy" id="learning-step-copy">当前没有激活的学习步骤。</p>
@@ -465,7 +456,7 @@
 
           <section class="instrument-panel continuity-panel-card" data-jump-view="memory">
             <div class="panel-head">
-              <h2>近期反思</h2>
+              <h2>最近留下的回看</h2>
               <span class="mono" id="reflection-side-trend">等待</span>
             </div>
             <p class="detail-copy" id="reflection-side-copy">联调后，这里只保留轻量趋势摘要。</p>

@@ -99,12 +99,12 @@ const EMOTION_PRESETS = {
 };
 
 const MINIMAL_VIEW_META = {
-  now: { title: "此刻", subtitle: "继续说下去。", chip: "连续陪伴" },
-  learn: { title: "学习", subtitle: "只看当前一步。", chip: "学习主线" },
-  actions: { title: "行动", subtitle: "只推进一件事。", chip: "执行推进" },
-  memory: { title: "记忆", subtitle: "只保留关键线索。", chip: "连续性" },
-  management: { title: "整理", subtitle: "先看清风险，再确认动作。", chip: "安全工作台" },
-  achievements: { title: "成就", subtitle: "把已经发生的成长收好。", chip: "成长记录" }
+  now: { title: "此刻", subtitle: "先留在这里，再慢慢续写。", chip: "页边陪伴" },
+  learn: { title: "学习", subtitle: "只看当前这一行。", chip: "学习这条线" },
+  actions: { title: "行动", subtitle: "只续写下一行。", chip: "继续这一线" },
+  memory: { title: "记忆", subtitle: "只留下值得回来的痕迹。", chip: "留痕连续性" },
+  management: { title: "整理", subtitle: "先看清，再决定要不要落笔。", chip: "页边整理" },
+  achievements: { title: "记录", subtitle: "把已经发生的变化轻轻收好。", chip: "留痕记录" }
 };
 
 const dom = {
@@ -148,21 +148,23 @@ const dom = {
   windowClose: document.querySelector("#window-close")
 };
 
+const PRODUCT_NAME = "Margin";
+
 const TTS_UI_COPY = {
-  idle: "朗读最新回复",
-  idleEmpty: "暂无可朗读内容",
-  loading: "正在生成语音",
-  playing: "播放中",
-  error: "重试朗读",
-  unavailable: "朗读不可用"
+  idle: "轻读这一段",
+  idleEmpty: "暂无可轻读的内容",
+  loading: "正在准备轻读",
+  playing: "轻读中",
+  error: "再试一次",
+  unavailable: "轻读暂不可用"
 };
 
 const TTS_ERROR_COPY = {
-  tts_not_configured: "语音朗读还没有配置，入口已暂时收起。",
-  tts_provider_http_error: "语音服务暂时没有成功响应，稍后可以重试。",
-  tts_provider_json_response: "语音服务返回了非音频内容，已停止播放。",
-  tts_empty_audio: "语音服务返回了空音频，换一句或稍后再试。",
-  tts_provider_request_failed: "还没有连上语音服务，请稍后重试。"
+  tts_not_configured: "轻读功能还没有配置，入口已暂时收起。",
+  tts_provider_http_error: "轻读服务暂时没有成功响应，稍后可以重试。",
+  tts_provider_json_response: "轻读服务返回了非音频内容，已停止播放。",
+  tts_empty_audio: "轻读服务返回了空音频，换一句或稍后再试。",
+  tts_provider_request_failed: "还没有连上轻读服务，请稍后重试。"
 };
 
 let currentState = structuredClone(FALLBACK_STATE);
@@ -429,7 +431,7 @@ function buildTimelineEntries(memories = []) {
       }
       if (memory.echo_response) {
         items.push({
-          actor: "Echo",
+          actor: PRODUCT_NAME,
           text: memory.echo_response,
           timestamp: memory.timestamp,
           active: false
@@ -440,7 +442,7 @@ function buildTimelineEntries(memories = []) {
 }
 
 function getLatestEchoText() {
-  const latest = [...timelineEntries].reverse().find((entry) => entry.actor === "Echo" && entry.text);
+  const latest = [...timelineEntries].reverse().find((entry) => entry.actor === PRODUCT_NAME && entry.text);
   if (latest?.text) return latest.text;
   return currentState?.next_action?.detail || "";
 }
@@ -485,7 +487,7 @@ function setActiveView(nextView) {
   });
 
   dom.mainWindow.dataset.activeView = activeView;
-  dom.toolbarLabel.textContent = `Workspace / ${meta.title}`;
+  dom.toolbarLabel.textContent = `Margin / ${meta.title}`;
   dom.viewTitle.textContent = meta.title;
   dom.viewSubtitle.textContent = meta.subtitle;
   dom.activeViewChip.textContent = meta.title;
@@ -500,7 +502,7 @@ function setDashboardLoading(nextLoading) {
     : dashboardData.viewModelMode === "mock"
       ? "Mock 视图"
       : "API 视图";
-  dom.presenceLabel.textContent = nextLoading ? "数据更新中" : "桌面会话";
+  dom.presenceLabel.textContent = nextLoading ? "正在整理页边" : "页边会话";
   setActiveView(activeView);
 }
 
@@ -555,7 +557,7 @@ function updateTtsAvailability() {
 }
 
 function getTtsErrorMessage(error) {
-  return TTS_ERROR_COPY[error?.code] || getErrorMessage(error, "朗读失败，请稍后再试。");
+  return TTS_ERROR_COPY[error?.code] || getErrorMessage(error, "轻读失败，请稍后再试。");
 }
 
 function releaseActiveTtsAudio() {
@@ -591,7 +593,7 @@ function attachTtsAudio(audio, token) {
     if (!isCurrent()) return;
     releaseActiveTtsAudio();
     setTtsUiState("error");
-    showToast("音频播放被中断，可以再试一次。", "error", 3200);
+    showToast("轻读被中断了，可以再试一次。", "error", 3200);
   };
   const pausePlayback = () => {
     if (!isCurrent() || audio.ended) return;
@@ -649,7 +651,7 @@ function renderQuickPrompts(state) {
         prompt: buildPromptFromContext("next-action", { label: nextActionLabel })
       }
       : {
-        label: "继续当前线索",
+        label: "继续这一行",
         prompt: "沿着刚才的线索继续，帮我先理清最值得推进的一步。"
       },
     currentStepTitle
@@ -672,7 +674,7 @@ function renderQuickPrompts(state) {
         prompt: buildPromptFromContext("focus", { focus })
       }
       : {
-        label: "继续当前线索",
+        label: "继续这一行",
         prompt: "沿着刚才的线索继续。"
       }
   ];
@@ -727,7 +729,7 @@ function renderTimeline() {
       active: true
     });
     entries.push({
-      actor: "Echo",
+      actor: PRODUCT_NAME,
       typing: true,
       timestamp: new Date().toISOString(),
       active: false
@@ -735,7 +737,7 @@ function renderTimeline() {
   }
 
   if (!entries.length) {
-    dom.timelinePanel.innerHTML = `<div class="empty-state">还没有对话记录，先从当前状态说起。</div>`;
+    dom.timelinePanel.innerHTML = `<div class="empty-state">这一页还没有留下字迹，先把现在的你放在这里。</div>`;
     updateTtsAvailability();
     return;
   }
@@ -752,7 +754,7 @@ function renderTimeline() {
         ? "user"
         : "echo";
     const body = entry.typing
-      ? `<p class="typing-line" aria-label="输入中"><em>Echo 正在整理这一句...</em></p>`
+      ? `<p class="typing-line" aria-label="输入中"><em>${PRODUCT_NAME} 正在整理这一句...</em></p>`
       : `<p>${escapeHtml(entry.text)}</p>`;
 
     return `
@@ -801,7 +803,7 @@ function renderNowView(state) {
   document.querySelector("#hero-focus-context").textContent = continuityText;
   document.querySelector("#hero-next-action").textContent = nextActionLabel;
   document.querySelector("#hero-next-copy").textContent = nextActionDetail;
-  document.querySelector("#hero-next-context").textContent = "你准备好时，再把这一步带回对话。";
+  document.querySelector("#hero-next-context").textContent = "你准备好时，再从这一行接着写下去。";
 
   document.querySelector("#emotion-label").textContent = preset.label;
   document.querySelector("#emotion-copy").textContent = emotionCopy(emotion);
@@ -915,7 +917,7 @@ function renderLearnView(state) {
     currentActions.innerHTML = `
       <button class="mini-action" type="button" data-learning-session="${session.id}" data-learning-step="${currentStep}" data-learning-status="active">进行中</button>
       <button class="mini-action" type="button" data-learning-session="${session.id}" data-learning-step="${currentStep}" data-learning-status="done">完成</button>
-      <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(stepLabels[currentStep]?.title || learningView?.current_step?.title || "")}">带回对话</button>
+          <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(stepLabels[currentStep]?.title || learningView?.current_step?.title || "")}">接着写</button>
     `;
   } else {
     currentActions.innerHTML = "";
@@ -923,7 +925,7 @@ function renderLearnView(state) {
 
   const stepsList = document.querySelector("#learn-steps-list");
   if (!stepLabels.length) {
-    stepsList.innerHTML = `<div class="empty-state">当前没有学习主线。</div>`;
+    stepsList.innerHTML = `<div class="empty-state">这一页还没有明确的学习线。</div>`;
     renderLearnAchievementSummary(session, learningView);
     return;
   }
@@ -940,7 +942,7 @@ function renderLearnView(state) {
         <div class="inline-actions">
           <button class="mini-action${status === "active" ? " selected" : ""}" type="button" data-learning-session="${session.id}" data-learning-step="${index}" data-learning-status="active"${isBusy ? " disabled" : ""}>进行中</button>
           <button class="mini-action${status === "done" ? " selected" : ""}" type="button" data-learning-session="${session.id}" data-learning-step="${index}" data-learning-status="done"${isBusy ? " disabled" : ""}>完成</button>
-          <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(step.title || "")}">带回对话</button>
+          <button class="mini-action" type="button" data-compose-kind="learning-step" data-compose-text="${escapeHtml(step.title || "")}">接着写</button>
         </div>
       </article>
     `;
@@ -976,7 +978,7 @@ function renderLearnAchievementSummary(session, learningView) {
       `).join("")}
       <button class="mini-action" type="button" data-jump-view="achievements" data-achievement-source-target="learning">查看成就墙</button>
     `
-    : `<div class="empty-state">当前还没有学习线成就记录。</div>`;
+    : `<div class="empty-state">这条学习线还没有留下新的记录。</div>`;
 }
 
 function resolveActionDetail(action) {
@@ -1017,7 +1019,7 @@ function pickPrimaryAction(actions, currentAction, nextAction) {
 
 function renderPrimaryActionCard(primaryAction, currentAction, nextAction) {
   if (!primaryAction) {
-    return `<div class="empty-state">还没有明确的当前主任务，先通过对话或建议任务生成入口创建下一步。</div>`;
+    return `<div class="empty-state">这一页还没有明确的下一行，先通过对话或建议入口把它写出来。</div>`;
   }
 
   const title = primaryAction.title || currentAction?.title || nextAction?.label || "等待主任务";
@@ -1045,8 +1047,8 @@ function renderPrimaryActionCard(primaryAction, currentAction, nextAction) {
           ? `<button class="mini-action${status === "active" ? " selected" : ""}" type="button" data-action-id="${primaryAction.id}" data-action-status="active"${isBusy ? " disabled" : ""}>开始推进</button>
              <button class="mini-action${status === "done" ? " selected" : ""}" type="button" data-action-id="${primaryAction.id}" data-action-status="done"${isBusy ? " disabled" : ""}>完成主任务</button>
              <button class="mini-action" type="button" data-action-id="${primaryAction.id}" data-action-status="dismissed"${isBusy ? " disabled" : ""}>移除主任务</button>
-             <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(title)}">带回对话</button>`
-          : `<button class="mini-action" type="button" data-compose-next="true">带回对话继续</button>`}
+             <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(title)}">接着写</button>`
+          : `<button class="mini-action" type="button" data-compose-next="true">从这里继续</button>`}
       </div>
     </article>
   `;
@@ -1089,7 +1091,7 @@ function renderActionsView(state) {
 
   const actionList = document.querySelector("#action-list");
   if (!queueActions.length) {
-    actionList.innerHTML = `<div class="empty-state">当前没有任务队列。</div>`;
+    actionList.innerHTML = `<div class="empty-state">这一页还没有排开的下一行。</div>`;
     return;
   }
 
@@ -1106,7 +1108,7 @@ function renderActionsView(state) {
           <button class="mini-action${action.status === "active" ? " selected" : ""}" type="button" data-action-id="${action.id}" data-action-status="active"${isBusy ? " disabled" : ""}>进行中</button>
           <button class="mini-action${action.status === "done" ? " selected" : ""}" type="button" data-action-id="${action.id}" data-action-status="done"${isBusy ? " disabled" : ""}>完成</button>
           <button class="mini-action" type="button" data-action-id="${action.id}" data-action-status="dismissed"${isBusy ? " disabled" : ""}>移除</button>
-          <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(action.title || "")}">带回对话</button>
+          <button class="mini-action" type="button" data-compose-kind="next-action" data-compose-text="${escapeHtml(action.title || "")}">接着写</button>
         </div>
       </article>
     `;
@@ -1176,7 +1178,7 @@ function renderMemoryView() {
   const tagsContainer = document.querySelector("#memory-tags");
   tagsContainer.innerHTML = tags.length
     ? tags.map((item) => `<span class="status-badge">${escapeHtml(item.tag || item)}</span>`).join("")
-    : `<div class="empty-state">当前还没有明显标签。</div>`;
+    : `<div class="empty-state">这里还没有清楚浮出来的标签。</div>`;
 
   const clusterGrid = document.querySelector("#memory-clusters");
   const clusters = [
@@ -1200,12 +1202,12 @@ function renderMemoryView() {
           <div class="inline-actions">
             <button class="mini-action" type="button" data-memory-id="${memory.id}" data-memory-mode="pin"${isBusy ? " disabled" : ""}>置顶</button>
             <button class="mini-action" type="button" data-memory-id="${memory.id}" data-memory-mode="boost"${isBusy ? " disabled" : ""}>提升优先级</button>
-            <button class="mini-action" type="button" data-compose-kind="memory" data-compose-text="${escapeHtml(memory.memory_note || memory.user_input || memory.echo_response || "")}">带回对话</button>
+            <button class="mini-action" type="button" data-compose-kind="memory" data-compose-text="${escapeHtml(memory.memory_note || memory.user_input || memory.echo_response || "")}">接着写</button>
           </div>
         </article>
       `;
     }).join("")
-    : `<div class="empty-state">还没有可召回记忆。</div>`;
+    : `<div class="empty-state">这里还没有值得带回来的旧痕迹。</div>`;
 
   const reflectionList = document.querySelector("#memory-reflection-list");
   if (reflectionList) {
@@ -1216,11 +1218,11 @@ function renderMemoryView() {
           <span class="mono">${escapeHtml(item.date || "recent")}</span>
           <p>${escapeHtml(conciseText(item.summary || item.echo_reflection, "等待摘要。", 34))}</p>
           <div class="inline-actions">
-            <button class="mini-action" type="button" data-compose-kind="reflection" data-compose-text="${escapeHtml(item.summary || item.echo_reflection || "")}">带回对话</button>
+            <button class="mini-action" type="button" data-compose-kind="reflection" data-compose-text="${escapeHtml(item.summary || item.echo_reflection || "")}">接着写</button>
           </div>
         </article>
       `).join("")
-      : `<div class="empty-state">最近还没有可回看的反思摘要。</div>`;
+      : `<div class="empty-state">最近还没有留下可回看的页边笔记。</div>`;
   }
   renderMemoryManagementEntry();
 }
@@ -1570,7 +1572,7 @@ async function fetchDashboardData() {
 
   if (results.some((r) => r.status === "rejected")) {
     const failedCount = results.filter((r) => r.status === "rejected").length;
-    console.warn(`[Echo] ${failedCount}/${results.length} dashboard APIs failed`);
+    console.warn(`[${PRODUCT_NAME}] ${failedCount}/${results.length} dashboard APIs failed`);
   }
 
   return {
@@ -1616,7 +1618,7 @@ async function hydrateFromState() {
       dom.syncChip.textContent = "后端联调";
     } else if (failedCount === 3) {
       dom.syncChip.textContent = "本地回退";
-      showToast("后端暂时不可用，已切回本地占位视图。", "error", 3200);
+      showToast("后端暂时不可用，先回到本地占位页继续。", "error", 3200);
     } else {
       dom.syncChip.textContent = `部分同步 (${3 - failedCount}/3)`;
     }
@@ -1644,8 +1646,8 @@ async function submitMessage(event) {
         active: true
       },
       {
-        actor: "Echo",
-        text: result?.reply || "已经收到，我们继续把这一步变得更清楚。",
+        actor: PRODUCT_NAME,
+        text: result?.reply || "已经留在这里了，我们继续把这一行写清楚。",
         timestamp: new Date().toISOString(),
         active: false
       }
@@ -1663,8 +1665,8 @@ async function submitMessage(event) {
         active: true
       },
       {
-        actor: "Echo",
-        text: "当前还没有拿到后端回复，但这条输入已经保留在桌面会话里。",
+        actor: PRODUCT_NAME,
+        text: "后端回复还没到，但这句话已经替你留在页边了。",
         timestamp: new Date().toISOString(),
         active: false
       }
@@ -1672,7 +1674,7 @@ async function submitMessage(event) {
     dom.composerInput.value = "";
     pendingUserMessage = "";
     renderTimeline();
-    showToast(getErrorMessage(error, "刚才这条消息还没成功发出，请稍后再试。"), "error", 3200);
+    showToast(getErrorMessage(error, "刚才这一行还没成功写出去，请稍后再试。"), "error", 3200);
   } finally {
     setSubmitting(false);
   }
@@ -1753,9 +1755,9 @@ function bindProductInteractions() {
       dom.manualActionDetail.value = "";
       await hydrateFromState();
       setActiveView("actions");
-      showToast("任务已加入队列。", "success");
+      showToast("这一行已经留好了。", "success");
     } catch (error) {
-      showToast(getErrorMessage(error, "任务创建失败，请稍后再试。"), "error", 3200);
+      showToast(getErrorMessage(error, "这一行没有成功写下，请稍后再试。"), "error", 3200);
     } finally {
       setManualActionSubmitting(false);
     }
@@ -1775,9 +1777,9 @@ function bindProductInteractions() {
       dom.suggestedActionQuery.value = "";
       await hydrateFromState();
       setActiveView("actions");
-      showToast("建议任务已生成。", "success");
+      showToast("建议下一行已经写出来了。", "success");
     } catch (error) {
-      showToast(getErrorMessage(error, "建议任务生成失败，请稍后再试。"), "error", 3200);
+      showToast(getErrorMessage(error, "建议下一行暂时没写出来，请稍后再试。"), "error", 3200);
     } finally {
       setSuggestedActionSubmitting(false);
     }
@@ -1861,7 +1863,7 @@ function bindProductInteractions() {
 
         await postJson(endpoint, body);
         await hydrateFromState();
-        showToast(action === "confirm" ? "整理草案已确认执行。" : "整理草案已取消。", "success");
+        showToast(action === "confirm" ? "这份页边整理已确认落笔。" : "这份页边整理已取消。", "success");
       } catch (error) {
         showToast(
           getErrorMessage(
@@ -1922,9 +1924,9 @@ function bindProductInteractions() {
       try {
         await postJson(`/actions/${actionId}/status`, { status });
         await hydrateFromState();
-        showToast(`任务状态已更新为${localizeState(status)}。`, "success");
+        showToast(`这一行的状态已更新为${localizeState(status)}。`, "success");
       } catch (error) {
-        showToast(getErrorMessage(error, "任务状态更新失败，请稍后再试。"), "error", 3200);
+        showToast(getErrorMessage(error, "这一行的状态还没更新成功，请稍后再试。"), "error", 3200);
       } finally {
         actionMutationId = null;
         renderState(currentState);
@@ -1945,9 +1947,9 @@ function bindProductInteractions() {
       try {
         await postJson(`/learning/${sessionId}/steps/${stepIndex}`, { status });
         await hydrateFromState();
-        showToast(`学习步骤已更新为${localizeState(status)}。`, "success");
+        showToast(`学习这一行已更新为${localizeState(status)}。`, "success");
       } catch (error) {
-        showToast(getErrorMessage(error, "学习步骤更新失败，请稍后再试。"), "error", 3200);
+        showToast(getErrorMessage(error, "学习这一行还没更新成功，请稍后再试。"), "error", 3200);
       } finally {
         learningMutationKey = "";
         renderState(currentState);

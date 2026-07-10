@@ -1,6 +1,12 @@
-# Echo
+# Margin
 
-Echo is a memory-driven personal AI companion built as a "second self" rather than a generic chatbot.
+Margin is a memory-driven personal AI companion built as a "second self" rather than a generic chatbot.
+
+Its brand language is centered on paper, ink, margin notes, and continuation:
+
+- a quiet place to leave what is still unfinished
+- a companion that remembers the live line, not just the task list
+- a product that helps the user continue from the last trace, without making them feel managed
 
 The current repository is centered on the backend MVP:
 
@@ -11,7 +17,7 @@ The current repository is centered on the backend MVP:
 - action suggestions
 - explainability output for `/chat` and `/state`
 
-See [docs/VOICE.md](docs/VOICE.md) for Echo's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
+See [docs/VOICE.md](docs/VOICE.md) for Margin's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
 For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
 For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
 
@@ -95,12 +101,12 @@ SILICONFLOW_API_KEY=
 Notes:
 
 - `ECHO_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
-- if a remote provider fails, Echo falls back to the local reflective engine
+- if a remote provider fails, Margin falls back to the local reflective engine
 - if `SILICONFLOW_API_KEY` is not set, `/tts` stays unavailable
 
 ## Logging
 
-Echo now emits lightweight JSON logs for:
+Margin now emits lightweight JSON logs for:
 
 - server startup
 - configuration warnings
@@ -166,7 +172,7 @@ Create JSON export only:
 npm run export:data
 ```
 
-Import a snapshot back into Echo:
+Import a snapshot back into Margin:
 
 ```bash
 npm run import:data -- --file=./data/exports/echo-export.json

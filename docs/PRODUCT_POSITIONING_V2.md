@@ -1,300 +1,253 @@
-# Echo Product Positioning V2
+# Margin Product Positioning V3
 
-Date: 2026-07-07
+Date: 2026-07-09
 
 ## One-Line Definition
 
-Echo is not a tool that mainly arranges the user's life.
+Margin is not a tool that mainly organizes the user's life.
 
-Echo is a second-self companion that:
+Margin is a second-self companion that:
 - receives the user's current state
-- stays with them through friction
-- records how they grow
-- gently helps them continue when they are ready
+- keeps the live line visible
+- leaves traces instead of demanding completion
+- helps the user continue when they are ready
+
+## Core Brand Idea
+
+Margin is the quiet space at the edge of the page.
+
+It is where unfinished thoughts, small blockages, emotional residue, and next lines can be kept without being turned into a performance, a score, or a task dashboard.
+
+Short version:
+
+> Margin is a place to leave what is still alive, then continue from the last trace.
 
 ## Product Role
 
-Echo should sit between:
+Margin should sit between:
 - emotional companionship
-- learning continuity
-- growth reflection
+- continuity support
+- reflection and gentle forward motion
 
 It should not behave like:
 - a generic chatbot
-- a task management app
-- a calendar-first productivity system
+- a task manager
+- a planner-first productivity app
 - a therapy substitute
+- a voice assistant product
 
 ## Core Product Promise
 
-When a user returns to Echo, they should feel:
+When a user returns to Margin, they should feel:
 
-- I can talk here without needing to be “productive”
-- Echo still remembers where I was
-- Echo understands how I usually get stuck
-- When I am ready, it can help me take the next small step
-- My growth is being seen, not just my outputs
+- I do not need to tidy myself before I arrive
+- what mattered last time was not dropped
+- the important line is still here
+- I can continue from one small point instead of starting over
+- my process is being seen, not just my output
 
-## What Echo Is For
+## Design And Expression Axis
 
-Echo is for users who need:
-- a place to vent or talk
+Margin should unify product expression around:
+- paper
+- ink
+- margins
+- traces
+- annotations
+- continuation
+
+This means:
+
+- the interface should feel like a quiet page, not a control console
+- important information should feel like a margin note, not a demand
+- memory should feel like retained traces, not a database dump
+- growth should feel like a visible writing process, not gamified scoring
+
+## What Margin Is For
+
+Margin is for users who need:
+- a place to speak before they are organized
 - a stable sense of companionship
-- support continuing a learning line
-- help noticing patterns in how they struggle and recover
-- a visible record of growth over time
+- help keeping one live line visible
+- support noticing patterns without being over-analyzed
+- a way to continue from where they emotionally or practically stopped
 
-## What Echo Is Not For
+## What Margin Is Not For
 
-Echo is not mainly for:
+Margin is not mainly for:
 - project management
-- complex scheduling
-- task board workflows
-- full calendar planning
-- heavy course administration
-- strict productivity tracking
+- calendar planning
+- heavy workflow administration
+- strict task execution systems
+- strong accountability pressure
 
-If a user wants a strong planner, reminder hub, or structured execution system, another product can do that better.
-
-Echo can still support:
-- light next-step planning
+It can still support:
+- one next step
+- lightweight action continuation
 - gentle reminders
-- small action continuation
+- read-aloud for the current passage
 
-But these are supporting functions, not the center of the product.
+But those features must remain secondary to the product's relational core.
 
 ## Product Pillars
 
-### 1. Emotional Companionship
+### 1. Arrival Before Action
 
-Echo should be a place where the user can:
-- vent
-- talk casually
-- show confusion
-- say they are tired
-- return without needing a formal goal
+Margin should receive the user before it asks for movement.
 
-This is not accessory behavior.
-It is foundational.
+The product should first communicate:
+- you can put this here
+- this line is still held
+- you do not need to solve everything at once
 
-### 2. Growth Continuity
+### 2. Continuity Over Inventory
 
-Echo should preserve not just what the user did, but how they moved.
+Margin should preserve the live line, not maximize stored material.
 
 It should remember:
-- where they got stuck
-- what helped them recover
-- which learning line is still alive
-- which small wins mattered
+- where the user got stuck
+- what remains alive
+- what helped before
+- what deserves to be carried forward
 
-### 3. Gentle Forward Motion
+### 3. Notes, Not Orders
 
-Echo should not constantly push.
+Margin should guide with the emotional weight of a handwritten note in the margin.
 
-It should help the user move only when:
-- they ask for help
-- they are already inside an action line
-- they show readiness to continue
-
-The product should prefer:
-- one next step
+It should prefer:
+- one small suggestion
 - one clear continuation
-- one low-pressure suggestion
+- one lightly marked next step
 
-### 4. Visible Growth
+It should avoid:
+- command language
+- queue pressure
+- dashboard escalation
 
-Echo should make growth legible.
+### 4. Traces, Not Scores
 
-Not just:
-- completed tasks
+Growth in Margin should feel like accumulated traces.
 
-But also:
-- recovery after friction
-- improved consistency
-- clearer self-understanding
-- stronger learning continuity
+It should make visible:
+- returns after avoidance
+- recovered momentum
+- clarified confusion
+- learning that stayed alive
 
-### 5. Encouragement Through Recognition
+It should not default to:
+- streak obsession
+- points
+- rankings
+- quantity-first achievement loops
 
-Echo should use recognition, reflection, and achievement to motivate.
+### 5. Quiet Readability
 
-The product should reward:
-- returning after avoidance
-- shrinking a task instead of abandoning it
-- finishing a first example
-- naming a real blockage
-- staying honest in reflection
+Margin should feel warm, calm, tactile, and text-led.
 
-It should not rely on empty gamification.
+Text is the protagonist.
+Surface, motion, and highlight exist to support reading and continuation.
 
-## Core Functional Areas
+## Functional Area Framing
 
-### A. Talk
+### Talk
 
 Purpose:
-- venting
-- casual chat
-- emotional companionship
+- emotional release
+- casual conversation
+- being received
 
-Core expectations:
+Expectation:
 - fast first response
-- natural phrasing
 - no forced productivity pivot
 
-### B. Continue
+### Continue
 
 Purpose:
-- resume the current learning or action line
+- resume one live line
 
-Core expectations:
-- know the current line
-- know the current small step
-- know the latest blockage
+Expectation:
+- keep the current line visible
+- make the next step feel small
 
-### C. Reflect
-
-Purpose:
-- help the user understand patterns
-- generate summaries
-- surface emotional and behavioral signals
-
-Core expectations:
-- simple language
-- meaningful pattern naming
-- no overdiagnosis
-
-### D. Remember
+### Reflect
 
 Purpose:
-- maintain continuity and growth memory
+- name patterns simply
+- help the user see themselves more clearly
 
-Core expectations:
-- layered memory
-- important things remembered
-- unimportant or passing things not over-stored
+Expectation:
+- no diagnosis theater
+- no analytical overreach
 
-### E. Encourage
+### Remember
 
 Purpose:
-- motivate through growth recognition
+- retain what should not be lost
 
-Core expectations:
-- growth milestones
-- gentle achievements
-- visible personal progress
+Expectation:
+- selective memory
+- layered recall
+- no surveillance feeling
 
-## Secondary Functional Areas
+### Read Aloud
 
-These are useful, but should remain secondary:
+Purpose:
+- let the current passage be gently read back
 
-- light task suggestions
-- lightweight reminders
-- manual task creation
-- daily or weekly review prompts
-
-These features must remain in service of companionship and growth, not replace them.
-
-## Explicit Non-Goals
-
-Echo should not try to become:
-- a Notion replacement
-- a Todoist replacement
-- a calendar planner
-- a rigid habit tracker
-- a high-pressure accountability app
+Expectation:
+- this is text being softly read, not an assistant performing a voice persona
+- the feature must stay quiet, optional, and secondary
 
 ## Homepage Priority
 
 The home page should primarily answer:
 
-1. What state am I in right now
-2. Is Echo still with me
-3. What line is still alive
-4. If I want to continue, what is the smallest next step
+1. What can I put here right now?
+2. What line is still alive?
+3. What has been lightly kept for me?
+4. If I want to continue, what is the smallest next line?
 
-The home page should not primarily answer:
+It should not primarily answer:
 
-- how many total tasks exist
-- how many charts are available
-- how much data the system has stored
-
-## Home Page State Order
-
-The current page should prioritize these user states in order:
-
-### 1. Emotional arrival
-
-If the user is overwhelmed, tired, anxious, or stuck:
-- show companionship first
-- reduce pressure
-- keep the page readable
-
-### 2. Active continuation
-
-If the user already has a live learning or task line:
-- show the current continuation clearly
-- make resuming easy
-
-### 3. Reflection continuity
-
-If there is recent growth or an important pattern:
-- show it lightly
-- do not let it overpower the page
-
-## Achievement System Direction
-
-Echo's achievement system should celebrate:
-- continuity
-- honesty
-- recovery
-- small movement
-- learning milestones
-
-Good examples:
-- came back after stopping
-- completed the first tiny example
-- named a recurring blockage
-- kept a growth line alive for a week
-- turned confusion into a concrete question
-
-Bad examples:
-- raw streak obsession
-- productivity pressure badges
-- shallow quantity-only rewards
+- how much data exists
+- how many tasks are queued
+- how much analysis the system can do
 
 ## Product Voice Summary
 
-Echo should feel:
+Margin should feel:
 - warm
 - calm
-- present
-- clear
+- literate
+- low-pressure
 - lightly human
 
-Echo should not feel:
+Margin should not feel:
 - bossy
-- performatively cute
+- overly cute
 - sterile
 - diagnostic
-- customer-service-like
+- like a customer support bot
+- like a voice-first AI appliance
 
-## Strategic Difference From Planner Products
+## Strategic Difference
 
-A planner product says:
+A planner says:
 - here is what you should do
 
-Echo should say:
-- I see where you are
-- I remember what this has been like for you
-- if you want, we can continue from here
+Margin should say:
+- you can put it here
+- I kept the line
+- when you are ready, we can continue from this note
 
 That is the core difference.
 
 ## Success Standard
 
-Echo is successful when the user feels:
+Margin is successful when the user feels:
 
-- this is a place I can come back to
-- this product remembers more than my tasks
-- it understands my growth process, not just my output
-- it can help me continue without making me feel managed
+- this is somewhere I can come back to
+- I am not being managed here
+- the important line is still visible
+- the product remembers more than my task list
+- I can continue from a trace instead of starting from zero
