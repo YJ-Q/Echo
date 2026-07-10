@@ -4,7 +4,7 @@ import { createOpenAIProvider } from './providers/openaiProvider.js';
 import { createSiliconFlowProvider } from './providers/siliconflowProvider.js';
 
 export function resolveEchoProvider() {
-  const requested = (process.env.ECHO_LLM_PROVIDER || '').trim().toLowerCase();
+  const requested = (process.env.MARGIN_LLM_PROVIDER || process.env.ECHO_LLM_PROVIDER || '').trim().toLowerCase();
   const providers = {
     openai: createOpenAIProvider(),
     anthropic: createAnthropicProvider(),

@@ -1,6 +1,6 @@
 export const ECHO_TONE_PROFILE = {
   id: 'second_self_we',
-  name: 'Echo second-self voice',
+  name: 'Margin second-self voice',
   perspective: 'we',
   traits: [
     'calm',

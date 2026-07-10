@@ -1,6 +1,6 @@
-# Echo Backup And Export
+# Margin Backup And Export
 
-Echo now supports local backup and export tooling for the backend data store.
+Margin now supports local backup and export tooling for the backend data store.
 
 ## What Gets Exported
 
@@ -38,22 +38,22 @@ Write files into a custom directory:
 node scripts/backup-data.js --format=both --out-dir=./data/manual-backups
 ```
 
-Import a JSON snapshot into the current Echo database:
+Import a JSON snapshot into the current Margin database:
 
 ```bash
-npm run import:data -- --file=./data/exports/echo-export-2026-07-06T12-42-59-025Z.json
+npm run import:data -- --file=./data/exports/margin-export-2026-07-06T12-42-59-025Z.json
 ```
 
 Preview an import without writing:
 
 ```bash
-npm run import:data -- --file=./data/exports/echo-export.json --dry-run
+npm run import:data -- --file=./data/exports/margin-export.json --dry-run
 ```
 
 Replace the target database contents with a snapshot:
 
 ```bash
-npm run import:data -- --file=./data/exports/echo-export.json --mode=replace
+npm run import:data -- --file=./data/exports/margin-export.json --mode=replace
 ```
 
 ## Output
@@ -72,10 +72,10 @@ The script prints a JSON summary with:
 
 ## Notes
 
-- if `ECHO_DB_PATH` is set, backup/export follows that database path
+- if `MARGIN_DB_PATH` is set, backup/export follows that database path
 - the script fails fast when no database file exists
 - JSON export is easier to inspect and migrate
 - SQLite backup is better for full local restore
 - import currently supports JSON snapshots
 - `merge` mode uses upsert-style restore and is the safer default
-- `replace` mode clears current Echo tables before restoring the snapshot
+- `replace` mode clears current Margin tables before restoring the snapshot

@@ -6,7 +6,7 @@ dotenv.config();
 const options = parseArgs(process.argv.slice(2));
 
 if (!options.file) {
-  console.error('Missing --file=... for Echo import.');
+  console.error('Missing --file=... for Margin import.');
   process.exit(1);
 }
 

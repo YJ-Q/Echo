@@ -807,6 +807,178 @@ export async function getOperationEvents({ proposalId, limit = 50 } = {}) {
   return rows.map(mapOperationEventRow);
 }
 
+export async function syncAchievementDefinitions(definitions = []) {
+  const db = await getDb();
+  const normalizedDefinitions = definitions.map((definition, index) => normalizeAchievementDefinition(definition, index));
+  const keys = normalizedDefinitions.map((definition) => definition.key);
+  const now = new Date().toISOString();
+
+  await db.exec('BEGIN IMMEDIATE;');
+
+  try {
+    for (const definition of normalizedDefinitions) {
+      await db.run(
+        `
+          INSERT INTO achievement_definitions (
+            key, definition_id, group_key, group_label, title, description, locked_description,
+            rarity, source_type, icon_type, palette_key, accent_color, hidden, sort_order,
+            definition_json, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(key) DO UPDATE SET
+            definition_id = excluded.definition_id,
+            group_key = excluded.group_key,
+            group_label = excluded.group_label,
+            title = excluded.title,
+            description = excluded.description,
+            locked_description = excluded.locked_description,
+            rarity = excluded.rarity,
+            source_type = excluded.source_type,
+            icon_type = excluded.icon_type,
+            palette_key = excluded.palette_key,
+            accent_color = excluded.accent_color,
+            hidden = excluded.hidden,
+            sort_order = excluded.sort_order,
+            definition_json = excluded.definition_json,
+            updated_at = excluded.updated_at
+        `,
+        definition.key,
+        definition.definition_id,
+        definition.group_key,
+        definition.group_label,
+        definition.title,
+        definition.description,
+        definition.locked_description,
+        definition.rarity,
+        definition.source_type,
+        definition.icon_type,
+        definition.palette_key,
+        definition.accent_color,
+        definition.hidden,
+        definition.sort_order,
+        definition.definition_json,
+        now
+      );
+    }
+
+    if (keys.length > 0) {
+      const placeholders = keys.map(() => '?').join(', ');
+      await db.run(`DELETE FROM achievement_definitions WHERE key NOT IN (${placeholders})`, ...keys);
+    } else {
+      await db.run('DELETE FROM achievement_definitions');
+    }
+
+    await db.exec('COMMIT;');
+  } catch (error) {
+    await db.exec('ROLLBACK;');
+    throw error;
+  }
+}
+
+export async function getAchievementDefinitions() {
+  const db = await getDb();
+  const rows = await db.all(
+    `
+      SELECT key, definition_id, group_key, group_label, title, description, locked_description,
+             rarity, source_type, icon_type, palette_key, accent_color, hidden, sort_order,
+             definition_json, updated_at
+      FROM achievement_definitions
+      ORDER BY sort_order ASC, definition_id ASC, key ASC
+    `
+  );
+
+  return rows.map(mapAchievementDefinitionRow);
+}
+
+export async function getAchievementDefinitionByKey(key) {
+  const db = await getDb();
+  const row = await db.get(
+    `
+      SELECT key, definition_id, group_key, group_label, title, description, locked_description,
+             rarity, source_type, icon_type, palette_key, accent_color, hidden, sort_order,
+             definition_json, updated_at
+      FROM achievement_definitions
+      WHERE key = ?
+    `,
+    key
+  );
+
+  return row ? mapAchievementDefinitionRow(row) : null;
+}
+
+export async function recordAchievementUnlockCandidates(candidates = []) {
+  const db = await getDb();
+
+  for (const candidate of candidates) {
+    await db.run(
+      `
+        INSERT INTO achievement_unlocks (
+          key, source_type, source_id, unlocked_at, acknowledged_at, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, NULL, ?, ?)
+        ON CONFLICT(key) DO NOTHING
+      `,
+      candidate.key,
+      candidate.source_type,
+      candidate.source_id === undefined ? null : candidate.source_id,
+      candidate.unlocked_at,
+      candidate.created_at || new Date().toISOString(),
+      candidate.updated_at || new Date().toISOString()
+    );
+  }
+}
+
+export async function getAchievementUnlocks() {
+  const db = await getDb();
+  const rows = await db.all(
+    `
+      SELECT key, source_type, source_id, unlocked_at, acknowledged_at, created_at, updated_at
+      FROM achievement_unlocks
+      ORDER BY unlocked_at DESC, key ASC
+    `
+  );
+
+  return rows.map(mapAchievementUnlockRow);
+}
+
+export async function getAchievementUnlockByKey(key) {
+  const db = await getDb();
+  const row = await db.get(
+    `
+      SELECT key, source_type, source_id, unlocked_at, acknowledged_at, created_at, updated_at
+      FROM achievement_unlocks
+      WHERE key = ?
+    `,
+    key
+  );
+
+  return row ? mapAchievementUnlockRow(row) : null;
+}
+
+export async function acknowledgeAchievementUnlock(key) {
+  const db = await getDb();
+  const existing = await getAchievementUnlockByKey(key);
+
+  if (!existing) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    `
+      UPDATE achievement_unlocks
+      SET acknowledged_at = COALESCE(acknowledged_at, ?),
+          updated_at = ?
+      WHERE key = ?
+    `,
+    now,
+    now,
+    key
+  );
+
+  return getAchievementUnlockByKey(key);
+}
+
 async function getDb() {
   if (!dbPromise) {
     dbPromise = openDatabase();
@@ -978,6 +1150,41 @@ export async function migrateMemoryStoreDatabase(db) {
 
     CREATE INDEX IF NOT EXISTS idx_operation_events_created_at
       ON operation_events(created_at);
+
+    CREATE TABLE IF NOT EXISTS achievement_definitions (
+      key TEXT PRIMARY KEY,
+      definition_id INTEGER NOT NULL,
+      group_key TEXT NOT NULL,
+      group_label TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      locked_description TEXT,
+      rarity TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      icon_type TEXT NOT NULL,
+      palette_key TEXT NOT NULL,
+      accent_color TEXT NOT NULL,
+      hidden INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      definition_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS achievement_unlocks (
+      key TEXT PRIMARY KEY,
+      source_type TEXT NOT NULL,
+      source_id TEXT,
+      unlocked_at TEXT NOT NULL,
+      acknowledged_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_achievement_unlocks_unlocked_at
+      ON achievement_unlocks(unlocked_at);
+
+    CREATE INDEX IF NOT EXISTS idx_achievement_unlocks_acknowledged_at
+      ON achievement_unlocks(acknowledged_at);
   `);
 
   await ensureColumn(db, 'user_profile', 'confidence', 'REAL NOT NULL DEFAULT 0.5');
@@ -1211,6 +1418,76 @@ function safeJsonObject(value) {
   } catch {
     return {};
   }
+}
+
+function normalizeAchievementDefinition(definition, index) {
+  const serializableDefinition = { ...definition };
+  delete serializableDefinition.resolve;
+
+  return {
+    key: definition.key,
+    definition_id: definition.id,
+    group_key: definition.group_key,
+    group_label: definition.group_label,
+    title: definition.title,
+    description: definition.description ?? null,
+    locked_description: definition.locked_description ?? null,
+    rarity: definition.rarity,
+    source_type: definition.source_type,
+    icon_type: definition.icon_type,
+    palette_key: definition.palette_key,
+    accent_color: definition.accent_color,
+    hidden: definition.hidden ? 1 : 0,
+    sort_order: index,
+    definition_json: JSON.stringify(serializableDefinition)
+  };
+}
+
+function mapAchievementDefinitionRow(row) {
+  return {
+    id: row.definition_id,
+    definition_id: row.definition_id,
+    key: row.key,
+    group_key: row.group_key,
+    group_label: row.group_label,
+    title: row.title,
+    description: row.description,
+    locked_description: row.locked_description,
+    rarity: row.rarity,
+    source_type: row.source_type,
+    icon_type: row.icon_type,
+    palette_key: row.palette_key,
+    accent_color: row.accent_color,
+    hidden: Boolean(row.hidden),
+    sort_order: row.sort_order,
+    definition_json: safeJsonObject(row.definition_json),
+    updated_at: row.updated_at
+  };
+}
+
+function mapAchievementUnlockRow(row) {
+  return {
+    key: row.key,
+    source_type: row.source_type,
+    source_id: normalizeAchievementSourceId(row.source_id),
+    unlocked_at: row.unlocked_at,
+    acknowledged_at: row.acknowledged_at || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+function normalizeAchievementSourceId(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const normalized = Number(value);
+  if (Number.isFinite(normalized) && String(normalized) === String(value)) {
+    return normalized;
+  }
+
+  return value;
 }
 
 function rankMemory(memory, queryProfile) {
@@ -1616,8 +1893,9 @@ function getDecayFactor(timestamp, priorityBucket = 'ambient') {
 }
 
 function getStorePaths() {
-  const dbPath = process.env.ECHO_DB_PATH
-    ? path.resolve(process.env.ECHO_DB_PATH)
+  const configuredDbPath = process.env.MARGIN_DB_PATH || process.env.ECHO_DB_PATH;
+  const dbPath = configuredDbPath
+    ? path.resolve(configuredDbPath)
     : path.join(rootDir, 'data', 'echo.sqlite');
   const dataDir = path.dirname(dbPath);
 

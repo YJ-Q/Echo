@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../src/app.js';
 import { resetTtsProvider } from '../src/services/ttsProvider.js';
+import { resetSttProvider } from '../src/services/sttProvider.js';
 import { closeMemoryStore, ensureMemoryStore, saveSummary } from '../src/storage/memoryStore.js';
 import { exportEchoDataSnapshot, importEchoDataSnapshot } from '../src/services/backupService.js';
 
@@ -127,6 +128,65 @@ test('POST /tts returns a stable code for request failures before any response',
   }
 });
 
+test('POST /stt transcribes an in-memory browser recording without writing a file', async () => {
+  const ctx = await startTestServer();
+  const originalFetch = global.fetch;
+
+  try {
+    process.env.SILICONFLOW_API_KEY = 'test-key';
+    global.fetch = async (_url, options) => {
+      assert.equal(options.method, 'POST');
+      assert.equal(options.body instanceof FormData, true);
+      assert.equal(options.body.get('file').type, 'audio/webm');
+      return new Response(JSON.stringify({ text: '写入输入框，不自动发送。' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    resetSttProvider();
+
+    const response = await originalFetch(`${ctx.baseUrl}/stt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audio_base64: Buffer.from('webm-audio').toString('base64'),
+        mime_type: 'audio/webm',
+        filename: 'margin-recording.webm'
+      })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.data.transcript, '写入输入框，不自动发送。');
+    assert.equal(body.data.provider, 'siliconflow');
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.SILICONFLOW_API_KEY;
+    resetSttProvider();
+    await ctx.cleanup();
+  }
+});
+
+test('POST /stt rejects invalid base64 before contacting the provider', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const response = await fetch(`${ctx.baseUrl}/stt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_base64: 'not base64!' })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.ok, false);
+    assert.equal(body.error.code, 'invalid_audio_encoding');
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
 test('GET /management/overview returns a read-only learning overview', async () => {
   const ctx = await startTestServer();
 
@@ -192,8 +252,9 @@ test('GET /management/overview returns action duplicate candidates without execu
     assert.equal(body.data.risk_level, 'read_only');
     assert.equal(body.data.stats.duplicate_candidates, 1);
     assert.ok(body.data.stats_items.some((stat) => stat.key === 'duplicate_candidates' && stat.value === 1));
-    assert.ok(body.data.candidates.some((candidate) => candidate.suggested_operation === 'merge'));
-    assert.ok(body.data.suggested_operations.some((operation) => operation.operation_type === 'merge'));
+    assert.ok(body.data.candidates.some((candidate) => candidate.suggested_operation === 'dismiss'));
+    assert.ok(body.data.suggested_operations.some((operation) => operation.operation_type === 'dismiss'));
+    assert.equal(body.data.available_operations.includes('merge'), false);
     assert.equal(actionsBody.data.actions.length, 2);
     assert.ok(actionsBody.data.actions.every((action) => action.status === 'pending'));
   } finally {
@@ -417,6 +478,30 @@ test('POST /management/proposals rejects invalid target ids', async () => {
     assert.equal(body.ok, false);
     assert.equal(body.error.code, 'invalid_target_id');
     assert.equal(listBody.data.proposals.length, 0);
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /management/proposals rejects operations that the executor cannot perform', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const response = await fetch(`${ctx.baseUrl}/management/proposals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'memory',
+        operation_intent: 'merge',
+        target_type: 'memory',
+        target_id: 1
+      })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.ok, false);
+    assert.equal(body.error.code, 'unsupported_operation');
   } finally {
     await ctx.cleanup();
   }
@@ -1366,6 +1451,25 @@ test('GET /memory returns a page-ready memory view model and state exposes curre
   }
 });
 
+test('GET /memory/profile returns a structured user-readable summary contract', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const response = await fetch(`${ctx.baseUrl}/memory/profile`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(Array.isArray(body.data.profile));
+    assert.equal(typeof body.data.summary, 'object');
+    assert.ok(Array.isArray(body.data.summary.stable_signals));
+    assert.ok(Array.isArray(body.data.summary.developing_signals));
+    assert.equal(typeof body.data.summary.profile_note, 'string');
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
 test('relevant memory access reinforces long-term memory weight', async () => {
   const ctx = await startTestServer();
 
@@ -2173,7 +2277,7 @@ test('memory retrieval keeps both topic continuity and core anchor memories in c
   }
 });
 
-test('backup export writes a JSON snapshot with core Echo tables', async () => {
+test('backup export writes a JSON snapshot with core Margin tables', async () => {
   const ctx = await startTestServer();
 
   try {
@@ -2200,7 +2304,7 @@ test('backup export writes a JSON snapshot with core Echo tables', async () => {
   }
 });
 
-test('backup import restores a JSON snapshot into a fresh Echo database', async () => {
+test('backup import restores a JSON snapshot into a fresh Margin database', async () => {
   const source = await startTestServer();
   let sourceCleaned = false;
   let importDir = '';

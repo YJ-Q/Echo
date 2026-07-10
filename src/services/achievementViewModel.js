@@ -1,9 +1,14 @@
 import {
+  acknowledgeAchievementUnlock,
   getActions,
+  getAchievementDefinitions,
+  getAchievementUnlocks,
   getLearningEvents,
   getLearningSessions,
   getMemories,
-  getOperationEvents
+  getOperationEvents,
+  recordAchievementUnlockCandidates,
+  syncAchievementDefinitions
 } from '../storage/memoryStore.js';
 
 const ACHIEVEMENT_DEFINITIONS = [
@@ -14,12 +19,12 @@ const ACHIEVEMENT_DEFINITIONS = [
     group_label: '学习线',
     title: '新路径被点亮',
     description: '你把一个想学的主题变成了可以继续推进的学习线。',
-    locked_description: '创建第一条学习线后解锁。',
+    locked_description: '形成第一条学习线后显影。',
     rarity: 'common',
     source_type: 'learning_session',
     icon_type: 'new_path',
     palette_key: 'blue_warm',
-    accent_color: '#6f74b8',
+    accent_color: '#667d83',
     hidden: false,
     resolve: ({ sessions }) => {
       const session = sessions[0];
@@ -33,12 +38,12 @@ const ACHIEVEMENT_DEFINITIONS = [
     group_label: '学习线',
     title: '第一步已经落地',
     description: '你把一个模糊主题推进成了可继续的一步。',
-    locked_description: '完成学习线的第一步后解锁。',
+    locked_description: '完成学习线的第一步后显影。',
     rarity: 'common',
     source_type: 'learning_session',
     icon_type: 'first_step',
     palette_key: 'blue_warm',
-    accent_color: '#6f74b8',
+    accent_color: '#667d83',
     hidden: false,
     resolve: ({ sessions }) => {
       const session = sessions.find((item) => countDoneSteps(item) >= 1);
@@ -52,12 +57,12 @@ const ACHIEVEMENT_DEFINITIONS = [
     group_label: '学习线',
     title: '卡点被松开',
     description: '你从一个说不清的卡点里找到了下一步。',
-    locked_description: '出现卡住记录后重新推进学习线时解锁。',
+    locked_description: '记录卡点并重新推进学习线后显影。',
     rarity: 'rare',
     source_type: 'learning_session',
     icon_type: 'breakthrough',
     palette_key: 'green_growth',
-    accent_color: '#6f9f85',
+    accent_color: '#708574',
     hidden: false,
     resolve: ({ learningEvents }) => {
       const stuckEvent = learningEvents.find((event) => /stuck/i.test(event.event_type || event.note || ''));
@@ -78,12 +83,12 @@ const ACHIEVEMENT_DEFINITIONS = [
     group_label: '学习线',
     title: '完成一个闭环',
     description: '这条学习线已经从想法走到一次完整收束。',
-    locked_description: '完成学习线最后一步后解锁。',
+    locked_description: '完成学习线最后一步后显影。',
     rarity: 'core',
     source_type: 'learning_session',
     icon_type: 'completion',
     palette_key: 'gold_soft',
-    accent_color: '#c8a95c',
+    accent_color: '#9b7d4c',
     hidden: false,
     resolve: ({ sessions }) => {
       const session = sessions.find((item) => item.status === 'completed');
@@ -95,14 +100,14 @@ const ACHIEVEMENT_DEFINITIONS = [
     key: 'actions:first_done',
     group_key: 'actions',
     group_label: '行动',
-    title: '一个动作完成了',
-    description: '你把一条行动从队列里推进到了完成。',
-    locked_description: '完成任意一个 action 后解锁。',
+    title: '一个行动被完成',
+    description: '你把一条行动从等待推进到了完成。',
+    locked_description: '完成任意一个行动后显影。',
     rarity: 'common',
     source_type: 'action',
     icon_type: 'action_done',
     palette_key: 'gold_soft',
-    accent_color: '#c8a95c',
+    accent_color: '#9b7d4c',
     hidden: false,
     resolve: ({ actions }) => {
       const action = actions.find((item) => item.status === 'done');
@@ -113,15 +118,15 @@ const ACHIEVEMENT_DEFINITIONS = [
     id: 6,
     key: 'memory:core_anchor',
     group_key: 'memory',
-    group_label: '记忆整理',
+    group_label: '留痕整理',
     title: '留下一个长期锚点',
-    description: '你把一条重要记忆标成了更稳定的长期线索。',
-    locked_description: '置顶或强化一条核心记忆后解锁。',
+    description: '你把一条重要记忆留成了更稳定的长期线索。',
+    locked_description: '主动留住一条重要线索后显影。',
     rarity: 'rare',
     source_type: 'memory',
     icon_type: 'memory_cleanse',
     palette_key: 'ink_silver',
-    accent_color: '#8a837c',
+    accent_color: '#766e65',
     hidden: false,
     resolve: ({ memories }) => {
       const memory = memories.find((item) => item.pinned || item.priority_bucket === 'core');
@@ -132,15 +137,15 @@ const ACHIEVEMENT_DEFINITIONS = [
     id: 7,
     key: 'management:first_proposal',
     group_key: 'memory',
-    group_label: '记忆整理',
-    title: '整理草案已经出现',
-    description: '你把一次后台整理从模糊想法变成了可确认的草案。',
-    locked_description: '创建第一条治理 proposal 后解锁。',
+    group_label: '留痕整理',
+    title: '一份整理草案',
+    description: '你把一次模糊的整理想法变成了可检查、可确认的草案。',
+    locked_description: '形成第一份整理草案后显影。',
     rarity: 'common',
     source_type: 'operation_proposal',
     icon_type: 'memory_cleanse',
     palette_key: 'ink_silver',
-    accent_color: '#8a837c',
+    accent_color: '#766e65',
     hidden: false,
     resolve: ({ operationEvents }) => {
       const event = operationEvents.find((item) => item.event_type === 'proposal_created');
@@ -152,14 +157,14 @@ const ACHIEVEMENT_DEFINITIONS = [
     key: 'secret:returning',
     group_key: 'secret',
     group_label: '隐藏',
-    title: '隐藏成就',
+    title: '重新接回旧线',
     description: null,
-    locked_description: '还有一件事会在你重新接回旧主线时出现。',
+    locked_description: '还有一件事，会在你重新接回一条旧线时显影。',
     rarity: 'secret',
     source_type: 'global',
     icon_type: 'hidden_spark',
-    palette_key: 'violet_secret',
-    accent_color: '#7d72c7',
+    palette_key: 'umber_secret',
+    accent_color: '#766b5c',
     hidden: true,
     resolve: ({ sessions }) => {
       const reopened = sessions.find((item) => item.status === 'active' && countDoneSteps(item) >= 2);
@@ -169,18 +174,37 @@ const ACHIEVEMENT_DEFINITIONS = [
 ];
 
 export async function buildAchievementViewModel() {
+  await syncAchievementDefinitions(ACHIEVEMENT_DEFINITIONS);
+
   const context = await buildAchievementContext();
-  const achievements = ACHIEVEMENT_DEFINITIONS.map((definition) => buildAchievement(definition, context));
-  const recentUnlocks = buildRecentUnlocks(achievements);
+  const discoveryCandidates = ACHIEVEMENT_DEFINITIONS.flatMap((definition) => {
+    const state = definition.resolve(context);
+
+    if (!state.unlocked) {
+      return [];
+    }
+
+    return [buildAchievementUnlockCandidate(definition, state)];
+  });
+
+  await recordAchievementUnlockCandidates(discoveryCandidates);
+
+  const [definitions, unlocks] = await Promise.all([
+    getAchievementDefinitions(),
+    getAchievementUnlocks()
+  ]);
+
+  const unlockMap = new Map(unlocks.map((unlock) => [unlock.key, unlock]));
+  const achievements = definitions.map((definition) => buildAchievement(definition, unlockMap.get(definition.key)));
 
   return {
     summary: {
-      total: achievements.length,
-      unlocked: achievements.filter((achievement) => achievement.unlocked).length,
-      hidden: achievements.filter((achievement) => achievement.hidden).length
+      total: definitions.length,
+      unlocked: unlocks.length,
+      hidden: definitions.filter((definition) => definition.hidden).length
     },
-    recent_unlocks: recentUnlocks,
-    groups: buildGroups(achievements),
+    recent_unlocks: buildRecentUnlocks(definitions, unlocks),
+    groups: buildGroups(definitions),
     achievements
   };
 }
@@ -190,6 +214,23 @@ export async function buildRecentAchievementViewModel({ limit = 5 } = {}) {
   return {
     recent_unlocks: viewModel.recent_unlocks.slice(0, normalizeLimit(limit, 5))
   };
+}
+
+export async function acknowledgeAchievement(key) {
+  await syncAchievementDefinitions(ACHIEVEMENT_DEFINITIONS);
+  const definition = ACHIEVEMENT_DEFINITIONS.find((item) => item.key === key);
+
+  if (!definition) {
+    return null;
+  }
+
+  const unlock = await acknowledgeAchievementUnlock(key);
+
+  if (!unlock) {
+    return null;
+  }
+
+  return buildAchievement(definition, unlock);
 }
 
 async function buildAchievementContext() {
@@ -210,51 +251,77 @@ async function buildAchievementContext() {
   };
 }
 
-function buildAchievement(definition, context) {
-  const state = definition.resolve(context);
-  const hiddenLocked = definition.hidden && !state.unlocked;
+function buildAchievement(definition, unlock = null) {
+  const hiddenLocked = definition.hidden && !unlock;
 
   return {
-    id: definition.id,
+    id: definition.definition_id ?? definition.id,
     key: definition.key,
-    title: hiddenLocked ? '隐藏成就' : definition.title,
+    title: hiddenLocked ? '未显影的印记' : definition.title,
     description: hiddenLocked ? null : definition.description,
     locked_description: definition.locked_description,
-    unlocked: state.unlocked,
-    hidden: definition.hidden,
+    unlocked: Boolean(unlock),
+    hidden: Boolean(definition.hidden),
     rarity: definition.rarity,
     source_type: definition.source_type,
-    source_id: state.source_id,
+    source_id: unlock ? unlock.source_id : null,
     icon_type: definition.icon_type,
     palette_key: definition.palette_key,
     accent_color: definition.accent_color,
-    unlocked_at: state.unlocked_at
+    unlocked_at: unlock ? unlock.unlocked_at : null,
+    acknowledged_at: unlock ? unlock.acknowledged_at : null,
+    is_new: Boolean(unlock && !unlock.acknowledged_at)
   };
 }
 
-function buildRecentUnlocks(achievements) {
-  return achievements
-    .filter((achievement) => achievement.unlocked && achievement.unlocked_at)
-    .sort((a, b) => Date.parse(b.unlocked_at) - Date.parse(a.unlocked_at))
-    .map((achievement, index) => ({
-      id: index + 1,
-      achievement_id: achievement.id,
-      title: achievement.title,
-      description: achievement.description,
-      rarity: achievement.rarity,
-      icon_type: achievement.icon_type,
-      palette_key: achievement.palette_key,
-      accent_color: achievement.accent_color,
-      unlocked_at: achievement.unlocked_at
-    }));
+function buildAchievementUnlockCandidate(definition, state) {
+  return {
+    key: definition.key,
+    source_type: definition.source_type,
+    source_id: normalizeSourceId(state.source_id),
+    unlocked_at: state.unlocked_at || new Date().toISOString()
+  };
 }
 
-function buildGroups(achievements) {
-  const labels = new Map(ACHIEVEMENT_DEFINITIONS.map((definition) => [definition.group_key, definition.group_label]));
-  const counts = achievements.reduce((result, achievement) => {
-    const definition = ACHIEVEMENT_DEFINITIONS.find((item) => item.id === achievement.id);
-    const key = definition.group_key;
-    result.set(key, (result.get(key) || 0) + 1);
+function buildRecentUnlocks(definitions, unlocks) {
+  const definitionMap = new Map(definitions.map((definition) => [definition.key, definition]));
+
+  return [...unlocks]
+    .filter((unlock) => unlock.unlocked_at)
+    .sort((a, b) => {
+      const timeDelta = Date.parse(b.unlocked_at) - Date.parse(a.unlocked_at);
+
+      if (timeDelta !== 0) {
+        return timeDelta;
+      }
+
+      return a.key.localeCompare(b.key);
+    })
+    .map((unlock, index) => {
+      const definition = definitionMap.get(unlock.key);
+
+      return {
+        id: index + 1,
+        key: unlock.key,
+        achievement_id: definition ? definition.definition_id ?? definition.id : index + 1,
+        title: definition ? definition.title : unlock.key,
+        description: definition ? definition.description : null,
+        rarity: definition ? definition.rarity : 'common',
+        icon_type: definition ? definition.icon_type : null,
+        palette_key: definition ? definition.palette_key : null,
+        accent_color: definition ? definition.accent_color : null,
+        source_id: unlock.source_id,
+        unlocked_at: unlock.unlocked_at,
+        acknowledged_at: unlock.acknowledged_at,
+        is_new: !unlock.acknowledged_at
+      };
+    });
+}
+
+function buildGroups(definitions) {
+  const labels = new Map(definitions.map((definition) => [definition.group_key, definition.group_label]));
+  const counts = definitions.reduce((result, definition) => {
+    result.set(definition.group_key, (result.get(definition.group_key) || 0) + 1);
     return result;
   }, new Map());
 
@@ -267,6 +334,19 @@ function buildGroups(achievements) {
 
 function countDoneSteps(session) {
   return (session.steps || []).filter((step) => step.status === 'done').length;
+}
+
+function normalizeSourceId(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const normalized = Number(value);
+  if (Number.isFinite(normalized) && String(normalized) === String(value)) {
+    return normalized;
+  }
+
+  return value;
 }
 
 function unlocked(sourceId, unlockedAt) {

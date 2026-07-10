@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to Echo will be documented in this file.
+All notable changes to Margin will be documented in this file.
 
 ## [0.1.0-backend-mvp] - 2026-07-06
 
-This release marks the first stabilized backend-oriented MVP for Echo.
+This release marks the first stabilized backend-oriented MVP for Margin, originally developed under the Echo working name.
 
 ### Added
 
@@ -31,7 +31,7 @@ This release marks the first stabilized backend-oriented MVP for Echo.
 - `/memory` now returns a page-ready `current_memory` aggregate
 - `/summary/recent` now returns a page-ready `current_reflection` aggregate
 - learning flow continuity is better reflected in state and action decisions
-- memory retrieval is more aligned with Echo's long-term companion behavior instead of simple recency lookup
+- memory retrieval is more aligned with Margin's long-term companion behavior instead of simple recency lookup
 
 ### Verified
 

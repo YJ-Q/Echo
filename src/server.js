@@ -14,7 +14,7 @@ for (const warning of config.warnings) {
 }
 
 app.listen(config.port, () => {
-  logger.info(`Echo backend listening on http://localhost:${config.port}`, {
+  logger.info(`Margin backend listening on http://localhost:${config.port}`, {
     provider: config.llmProvider,
     node_env: config.nodeEnv
   });

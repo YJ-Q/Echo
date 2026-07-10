@@ -2,27 +2,27 @@ const SUPPORTED_PROVIDERS = ['openai', 'anthropic', 'siliconflow', 'local'];
 
 export function loadRuntimeConfig(env = process.env) {
   const port = parsePort(env.PORT);
-  const llmProvider = (env.ECHO_LLM_PROVIDER || '').trim().toLowerCase() || 'local';
+  const llmProvider = (env.MARGIN_LLM_PROVIDER || env.ECHO_LLM_PROVIDER || '').trim().toLowerCase() || 'local';
   const nodeEnv = (env.NODE_ENV || 'development').trim().toLowerCase();
-  const logLevel = (env.ECHO_LOG_LEVEL || 'info').trim().toLowerCase();
+  const logLevel = (env.MARGIN_LOG_LEVEL || env.ECHO_LOG_LEVEL || 'info').trim().toLowerCase();
 
   const warnings = [];
   const errors = [];
 
   if (!SUPPORTED_PROVIDERS.includes(llmProvider)) {
-    errors.push(`Unsupported ECHO_LLM_PROVIDER: ${llmProvider}`);
+    errors.push(`Unsupported MARGIN_LLM_PROVIDER: ${llmProvider}`);
   }
 
   if (llmProvider === 'openai' && !env.OPENAI_API_KEY) {
-    warnings.push('OPENAI_API_KEY is not set; Echo will fall back to the local provider if OpenAI fails.');
+    warnings.push('OPENAI_API_KEY is not set; Margin will fall back to the local provider if OpenAI fails.');
   }
 
   if (llmProvider === 'anthropic' && !env.ANTHROPIC_API_KEY) {
-    warnings.push('ANTHROPIC_API_KEY is not set; Echo will fall back to the local provider if Anthropic fails.');
+    warnings.push('ANTHROPIC_API_KEY is not set; Margin will fall back to the local provider if Anthropic fails.');
   }
 
   if (llmProvider === 'siliconflow' && !env.SILICONFLOW_API_KEY) {
-    warnings.push('SILICONFLOW_API_KEY is not set; Echo will fall back to the local provider if SiliconFlow fails.');
+    warnings.push('SILICONFLOW_API_KEY is not set; Margin will fall back to the local provider if SiliconFlow fails.');
   }
 
   if (env.SILICONFLOW_API_KEY) {
@@ -32,7 +32,7 @@ export function loadRuntimeConfig(env = process.env) {
   }
 
   if (errors.length > 0) {
-    const error = new Error(`Invalid Echo configuration:\n- ${errors.join('\n- ')}`);
+    const error = new Error(`Invalid Margin configuration:\n- ${errors.join('\n- ')}`);
     error.code = 'invalid_runtime_config';
     throw error;
   }

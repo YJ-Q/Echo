@@ -165,7 +165,7 @@ export function isLearningRelatedMessage(input, session = {}) {
     return hasCompletionObject(text) || hasStepActionCue(text, currentStep);
   }
 
-  return hasStudyCue(text) || hasStepActionCue(text, currentStep);
+  return hasStepActionCue(text, currentStep);
 }
 
 export function classifyLearningReply(input) {

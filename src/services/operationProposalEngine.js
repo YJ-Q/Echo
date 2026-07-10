@@ -7,8 +7,20 @@ import {
 const SUPPORTED_SCOPES = ['learning', 'memory', 'actions'];
 const SUPPORTED_STATUSES = ['draft', 'awaiting_confirmation', 'confirmed', 'executed', 'dismissed', 'failed'];
 const READ_ONLY_OPERATIONS = ['review', 'keep', 'keep_active'];
-const REVERSIBLE_OPERATIONS = ['archive', 'dismiss', 'merge', 'pin', 'rename', 'reprioritize'];
+const REVERSIBLE_OPERATIONS = ['archive', 'dismiss', 'pin'];
 const DESTRUCTIVE_OPERATIONS = ['delete', 'remove'];
+const SUPPORTED_OPERATION_KEYS = new Set([
+  'review:item',
+  'review:action',
+  'review:memory',
+  'review:learning_session',
+  'keep:memory',
+  'keep_active:action',
+  'dismiss:action',
+  'archive:memory',
+  'pin:memory',
+  'archive:learning_session'
+]);
 
 export async function listOperationProposals({ scope, status, limit } = {}) {
   return getOperationProposals({
@@ -92,6 +104,12 @@ function normalizeOperations(input) {
 function normalizeOperation(operation = {}) {
   const operationType = normalizeOperationIntent(operation.operation_type || operation.type || 'review');
   const targetType = normalizeTargetType(operation.target_type);
+  if (!SUPPORTED_OPERATION_KEYS.has(`${operationType}:${targetType}`) && !DESTRUCTIVE_OPERATIONS.includes(operationType)) {
+    const error = new Error(`operation ${operationType} on ${targetType} is not supported yet`);
+    error.status = 400;
+    error.code = 'unsupported_operation';
+    throw error;
+  }
   const normalized = {
     operation_type: operationType,
     target_type: targetType,

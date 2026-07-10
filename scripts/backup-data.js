@@ -7,7 +7,7 @@ const options = parseArgs(process.argv.slice(2));
 const exists = await databaseExists();
 
 if (!exists) {
-  console.error('Echo database not found. Start the app once or set ECHO_DB_PATH to an existing database.');
+  console.error('Margin database not found. Start the app once or set MARGIN_DB_PATH to an existing database.');
   process.exit(1);
 }
 

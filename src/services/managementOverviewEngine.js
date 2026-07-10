@@ -75,7 +75,7 @@ async function buildLearningOverview() {
     recommendations: buildLearningRecommendations(active, stale),
     suggested_operations: buildLearningRecommendations(active, stale),
     risk_level: 'read_only',
-    available_operations: ['review', 'rename', 'archive']
+    available_operations: ['review', 'archive']
   };
 }
 
@@ -115,7 +115,7 @@ async function buildMemoryOverview() {
     recommendations: buildMemoryRecommendations(duplicateCandidates, archiveCandidates, core),
     suggested_operations: buildMemoryRecommendations(duplicateCandidates, archiveCandidates, core),
     risk_level: 'read_only',
-    available_operations: ['review', 'pin', 'merge', 'archive']
+    available_operations: ['review', 'keep', 'pin', 'archive']
   };
 }
 
@@ -152,7 +152,7 @@ async function buildActionsOverview() {
     recommendations: buildActionRecommendations(active, duplicateCandidates),
     suggested_operations: buildActionRecommendations(active, duplicateCandidates),
     risk_level: 'read_only',
-    available_operations: ['review', 'merge', 'dismiss', 'reprioritize']
+    available_operations: ['review', 'keep_active', 'dismiss']
   };
 }
 
@@ -209,8 +209,8 @@ function findDuplicateMemoryCandidates(memories) {
     if (seen.has(key)) {
       candidates.push(memoryCandidate(
         memory,
-        'merge',
-        '这条记忆与另一条近期记忆主题接近，可以作为合并候选。'
+        'archive',
+        '这条记忆与另一条近期记忆主题接近，可以先移出主要召回视野。'
       ));
     } else {
       seen.set(key, memory);
@@ -231,8 +231,8 @@ function findDuplicateActionCandidates(actions) {
     if (seen.has(key)) {
       candidates.push(actionCandidate(
         action,
-        'merge',
-        '这个任务与另一条未完成任务标题接近，可以作为合并候选。'
+        'dismiss',
+        '这个任务与另一条未完成任务标题接近，可以作为收起候选。'
       ));
     } else {
       seen.set(key, action);
@@ -269,9 +269,9 @@ function buildMemoryRecommendations(duplicates, archiveCandidates, core) {
 
   if (duplicates.length > 0) {
     recommendations.push({
-      operation_type: 'merge',
-      label: '合并重复记忆',
-      reason: '减少召回噪音，同时保留更完整的上下文。'
+      operation_type: 'archive',
+      label: '归档重复记忆',
+      reason: '先移出主要召回视野，不做不可逆删除。'
     });
   }
 
@@ -307,9 +307,9 @@ function buildActionRecommendations(active, duplicates) {
 
   if (duplicates.length > 0) {
     recommendations.push({
-      operation_type: 'merge',
-      label: '合并重复任务',
-      reason: '减少队列噪音，让当前任务更清楚。'
+      operation_type: 'dismiss',
+      label: '收起重复任务',
+      reason: '减少队列噪音，同时保留操作记录。'
     });
   }
 

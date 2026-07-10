@@ -1,4 +1,6 @@
 node_modules/
+frontend/dist/
+.runtime/
 .env
 data/*.json
 data/*.sqlite

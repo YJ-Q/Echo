@@ -1,4 +1,4 @@
-# Echo Functional Acceptance
+# Margin Functional Acceptance
 
 Date: 2026-07-07
 
@@ -136,7 +136,7 @@ Result: pass
 
 ## Real Findings
 
-### F1. Active learning session can misclassify unrelated chat as learning progress
+### F1. Active learning session can misclassify unrelated chat as learning progress (resolved 2026-07-10)
 
 Severity: medium
 
@@ -154,7 +154,11 @@ Likely cause:
 - `assessLearningProgress()` in `src/services/learningEngine.js` treats any sufficiently long reply as `partial`
 - this runs whenever there is a latest active learning session, even if the message is not actually about the learning task
 
-### F2. Topic extraction is overly broad
+Resolution:
+- learning progress now requires a concrete topic or current-step cue instead of a generic study word
+- Chinese and English casual-chat regression tests confirm that unrelated messages do not create learning events
+
+### F2. Topic extraction is overly broad (resolved 2026-07-10)
 
 Severity: medium
 
@@ -168,6 +172,10 @@ Why it matters:
 
 Likely cause:
 - topic extraction is pulling too much surrounding phrasing instead of isolating the core subject
+
+Resolution:
+- learning topic normalization now removes trailing help requests and follow-up sentences
+- `I want to learn JavaScript. Help me study.` now produces the topic `JavaScript`
 
 ## Important Context
 

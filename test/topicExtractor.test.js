@@ -8,6 +8,10 @@ test('extractLearningTopic keeps clean topics after learning cues', () => {
   assert.equal(extractLearningTopic('teach me Python because I need it for work'), 'Python');
 });
 
+test('extractLearningTopic trims trailing follow-up sentences in English', () => {
+  assert.equal(extractLearningTopic('I want to learn JavaScript. Help me study.'), 'JavaScript');
+});
+
 test('extractLearningTopic falls back when the learning cue has no real topic', () => {
   assert.equal(extractLearningTopic('我想学'), '这件事');
   assert.equal(extractLearningTopic('想学'), '这件事');

@@ -92,7 +92,7 @@ const PROFILE_KEY_DEFINITIONS = {
   },
   echo_interaction_style: {
     key: 'echo_interaction_style',
-    label: 'Echo 互动风格',
+    label: 'Margin 互动风格',
     category: 'interaction',
     includeInSummary: true,
     includeInProfileNote: false

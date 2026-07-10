@@ -1,15 +1,17 @@
+const GENERIC_TOPIC = '这件事';
+
 export function extractLearningTopic(input) {
   const normalized = String(input || '').trim();
   const captured = captureTopicAfterLearningCue(normalized);
-  const cleaned = normalizeTopic(captured);
+  const cleaned = normalizeTopic(captured || normalized);
 
-  return cleaned || '这件事';
+  return cleaned || GENERIC_TOPIC;
 }
 
 function captureTopicAfterLearningCue(input) {
   const patterns = [
     /(?:i\s+(?:want|wanna|would like)\s+to\s+learn|teach me|help me study|learn|study)\s+(?:about\s+|how\s+to\s+)?(.+)/i,
-    /(?:我(?:还是|也|真的|想要)?想学|想学|学习一下|学习|教我|帮我(?:学习|学))\s*(?:一下|怎么|如何|关于|有关)?\s*(.*)/i
+    /(?:我想学|我想学习|想学|学习|教我|帮我学(?:习)?|帮我学习)\s*(?:一下|一下关于|关于|怎么|如何)?\s*(.+)/i
   ];
 
   for (const pattern of patterns) {
@@ -24,12 +26,14 @@ function captureTopicAfterLearningCue(input) {
 }
 
 function normalizeTopic(value) {
-  const topic = String(value || '')
-    .split(/\bbut\b|\bbecause\b|\bso\b|\band\b|\brecently\b|, but|, because|, so|，但|，不过|，因为|，所以|，而且|，并且|但是|可是|因为|所以|只是|不过|而且|并且|最近|一直|总是|然后|先/i)[0]
-    .replace(/^(一个|一门|一点|一些|这个|这门|怎么|如何|关于|有关|一下|入门|基础)\s*/i, '')
-    .replace(/^(我想学|想学|学习|教我|帮我学|帮我学习)\s*/i, '')
-    .replace(/[“”"'「」『』（）()[\]{}]/g, '')
-    .replace(/[，。,.!?！？；;：:]$/g, '')
+  const topic = splitTopicTail(String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim())
+    .replace(/^["'“”‘’「」『』（）()【】\[\]{}<>]+/, '')
+    .replace(/["'“”‘’「」『』（）()【】\[\]{}<>]+$/, '')
+    .replace(/^(?:about|on|how to|a|an|the|one|some|this|that|my|your|our|their)\s+/i, '')
+    .replace(/^(?:关于|有关|怎么|如何|一个|一门|一项|一段|一套|一下|一下子|这门|这个|那个|入门|基础|简单)\s*/i, '')
+    .replace(/[.,!?;:，。！？；、]+$/g, '')
     .trim();
 
   if (isGenericTopic(topic)) {
@@ -39,6 +43,12 @@ function normalizeTopic(value) {
   return normalizeKnownTopic(topic);
 }
 
+function splitTopicTail(topic) {
+  return topic.split(
+    /\s*(?:\.\s*help me study\b|\.\s*please help(?: me)?(?: study)?\b|\.\s*thanks?\b|\.\s*thank you\b|\bhelp me study\b|\bplease help(?: me)?(?: study)?\b|\bbecause\b|\bbut\b|\band\b|\bso\b|\bthen\b|\bhowever\b|\bfinally\b|\brecently\b|, but|, because|, so|, and|, however|，但|，因为|，所以|，不过|，而且|，然后|，接着|，并且|，同时|，此外|，另外|，顺便|，谢谢|，感谢|但是|因为|所以|不过|而且|然后|接着|并且|同时|此外|另外|顺便|谢谢|感谢|[，。！？；!?:;])\s*/i
+  )[0];
+}
+
 function isGenericTopic(value) {
   const normalized = value.toLowerCase().trim();
 
@@ -46,16 +56,26 @@ function isGenericTopic(value) {
     'i want to learn',
     'learn',
     'study',
+    'help me study',
+    'teach me',
+    'want to learn',
+    'want to study',
+    'want to learn about',
+    'i want to learn about',
     '我想学',
+    '我想学习',
     '想学',
     '学习',
     '教我',
     '帮我学',
     '帮我学习',
+    '一下',
+    '一下关于',
+    '关于',
     '东西',
+    '这件事',
     '技能',
-    '知识',
-    '这件事'
+    '知识'
   ].includes(normalized);
 }
 

@@ -29,10 +29,10 @@ function toSerializableContext(memoryContext = {}) {
 
 export function buildEchoSystemPrompt() {
   return [
-    'You are Echo.',
+    'You are Margin.',
     '',
-    'Echo is not an assistant.',
-    "Echo is the user's second self: an inner voice made external.",
+    'Margin is not a conventional assistant.',
+    "Margin is the quiet edge of the user's page: an external place for the inner voice, unfinished thoughts, and the live line worth continuing.",
     '',
     'Core identity:',
     '- Speak like an internal reflective voice, not a service role.',
@@ -67,7 +67,7 @@ export function buildEchoMessages({
         analysis,
         memory_context: toSerializableContext(memoryContext),
         learning_session: learningSession || null,
-        instruction: 'Reply as Echo in a calm reflective voice. Use the injection layers to preserve continuity. Plain text only.'
+        instruction: 'Reply as Margin in a calm reflective voice. Use the injection layers to preserve continuity. Plain text only.'
       })
     }
   ];
