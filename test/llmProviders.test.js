@@ -10,6 +10,18 @@ const messages = [
   { role: 'user', content: 'Hello' }
 ];
 
+test('conversation adapters expose supported default model ids', () => {
+  assert.equal(createOpenAIProvider({ env: { OPENAI_API_KEY: 'test-key' } }).model, 'gpt-4.1-mini');
+  assert.equal(
+    createAnthropicProvider({ env: { ANTHROPIC_API_KEY: 'test-key' } }).model,
+    'claude-sonnet-4-6'
+  );
+  assert.equal(
+    createSiliconFlowProvider({ env: { SILICONFLOW_API_KEY: 'test-key' } }).model,
+    'deepseek-ai/DeepSeek-V3.2'
+  );
+});
+
 test('OpenAI adapter sends Chat Completions and normalizes metadata', async () => {
   const calls = [];
   const provider = createOpenAIProvider({

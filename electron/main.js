@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { createSettingsStore } from "./settingsStore.js";
 import { findAvailablePort } from "./backendPort.js";
+import { validateConversationProvider } from "./providerValidation.js";
 import {
   buildBackendCandidates as createBackendCandidates,
   resolveRuntimePaths
@@ -282,7 +283,7 @@ function defaultModelForProvider(provider) {
   const defaults = {
     local: "margin-local",
     openai: "gpt-4.1-mini",
-    anthropic: "claude-3-5-sonnet-latest",
+    anthropic: "claude-sonnet-4-6",
     siliconflow: "deepseek-ai/DeepSeek-V3.2"
   };
   return defaults[provider] || defaults.local;
@@ -409,6 +410,7 @@ async function updateDesktopSettings(input) {
   const patch = sanitizeSettingsPatch(input);
   const needsRestart = patchNeedsBackendRestart(patch);
   await settingsStore.updateSettings(patch);
+  let providerValidation = null;
 
   try {
     assertRuntimeConfiguration();
@@ -416,13 +418,16 @@ async function updateDesktopSettings(input) {
       await stopBackend();
       await startBackend();
       await waitForServer(appUrl, 30, 350);
+      providerValidation = await validateConversationProvider({
+        env: settingsStore.buildBackendEnv(process.env)
+      });
     }
   } catch (error) {
     await stopBackend().catch(() => {});
     await settingsStore.rollbackLastUpdate();
     await startBackend();
     await waitForServer(appUrl, 30, 350);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error?.code || (error instanceof Error ? error.message : String(error));
     throw new Error(`新设置未能通过验证，已恢复上一份配置：${message}`);
   }
 
@@ -430,7 +435,12 @@ async function updateDesktopSettings(input) {
     ok: true,
     settings: rendererSettingsSnapshot(),
     restarted: needsRestart,
-    message: needsRestart ? "设置已保存，服务已按新配置重新连接。" : "纸页偏好已经保存。"
+    validation: providerValidation,
+    message: providerValidation?.ok
+      ? `已连接 ${providerValidation.provider} · ${providerValidation.model} · ${providerValidation.latencyMs}ms。`
+      : needsRestart
+        ? "设置已保存，服务已按新配置重新连接。"
+        : "纸页偏好已经保存。"
   };
 }
 
