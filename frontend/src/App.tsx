@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import SidebarTabs from "./components/SidebarTabs";
 import ReflectiveMargin from "./components/ReflectiveMargin";
+import ConversationAnnotations from "./components/ConversationAnnotations";
 import SettingsSheet from "./components/SettingsSheet";
 import ManagementSheet from "./components/ManagementSheet";
 import ImprintCollection, { ImprintUnlockNotice } from "./components/ImprintCollection";
 import { ProfilePage, TraceSectionNav, type MemorySubpage } from "./components/TraceSections";
 import ShelfView from "./components/ShelfView";
-import TaskOutline from "./components/TaskOutline";
 import WindowControls from "./components/WindowControls";
 import { useMarginWorkspace } from "./hooks/useMarginWorkspace";
 import type {
@@ -409,12 +409,18 @@ export default function App() {
               ttsAvailable={Boolean(workspace.apiInfo?.capabilities?.tts)}
             />
             </div>
-            <TaskOutline
-              context={learning?.summary || `已完成 ${learning?.completed_steps || 0} / ${learning?.total_steps || 0}`}
-              onStepChange={workspace.updateLearningStep ? handleStepChange : undefined}
-              ribbonLabel={workspace.refreshing ? "正在同步纸页" : "正在读取草稿"}
-              tasks={learningTasks}
-              title={learning?.topic || "尚未形成主线"}
+            <ConversationAnnotations
+              growthSuggestion={learning?.topic ? {
+                title: "这条线可以继续生长",
+                detail: `“${learning.topic}”已经形成一条成长线，可以在另一页慢慢推进。`,
+              } : undefined}
+              noticed={learning?.current_step?.action || "有些真正重要的话，往往会在停顿和反复里慢慢显出来。"}
+              onOpenGrowth={() => setSection("learning")}
+              prompt={learning?.topic
+                ? `如果不要求一次做得完整，关于“${learning.topic}”，下一小步可以是什么？`
+                : "如果不急着得出结论，刚才哪句话还值得多停留一会儿？"}
+              ribbonLabel={workspace.refreshing ? "正在同步纸页" : "随对话慢慢形成"}
+              seen={learning?.summary || "这段对话里，已经有一些感受和想法开始变得清楚。"}
             />
           </>
         ) : section === "settings" ? (

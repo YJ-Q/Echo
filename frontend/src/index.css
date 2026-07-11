@@ -10,6 +10,10 @@
   --accent: #9a7442;
   --accent-dark: #715333;
   --hairline: rgba(89, 77, 61, 0.2);
+  --page-title-size: clamp(24px, 2.35vw, 26px);
+  --section-title-size: clamp(15px, 1.5vw, 17px);
+  --body-size: clamp(12px, 1.25vw, 14px);
+  --meta-size: clamp(8px, 0.85vw, 10px);
   --user-font-scale: 1;
   font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
   color: var(--ink);
@@ -520,6 +524,128 @@ textarea:focus-visible {
 .outline-page > * {
   position: relative;
   z-index: 1;
+}
+
+.conversation-annotations {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(15px, 2.4vh, 24px);
+  padding-top: clamp(54px, 8.6vh, 72px);
+  animation: paper-settle 320ms ease both;
+}
+
+.annotation-heading {
+  padding-bottom: 13px;
+  border-bottom: 1px solid rgba(89, 77, 61, 0.13);
+}
+
+.annotation-heading h2 {
+  margin: 0 0 6px;
+  color: #4b463f;
+  font-size: var(--section-title-size);
+  font-weight: 400;
+  letter-spacing: 0.09em;
+}
+
+.annotation-heading p {
+  margin: 0;
+  color: #938a7e;
+  font-size: var(--meta-size);
+  letter-spacing: 0.08em;
+}
+
+.annotation-list {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.annotation-list::-webkit-scrollbar {
+  display: none;
+}
+
+.annotation-section {
+  padding: clamp(13px, 2.2vh, 21px) 0;
+  border-bottom: 1px solid rgba(89, 77, 61, 0.12);
+  animation: ink-arrive 420ms ease both;
+}
+
+.annotation-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: #526d7c;
+  font-size: clamp(13px, 1.35vw, 15px);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+.annotation-section h3 svg {
+  color: #9b9489;
+  stroke-width: 1;
+}
+
+.annotation-section p {
+  margin: 0;
+  color: #625d56;
+  font-size: clamp(11px, 1.1vw, 13px);
+  line-height: 1.85;
+}
+
+.paper-note {
+  position: relative;
+  padding: clamp(13px, 1.8vw, 18px) clamp(15px, 2vw, 21px);
+  border: 1px solid rgba(96, 80, 59, 0.16);
+  background:
+    linear-gradient(rgba(249, 245, 235, 0.76), rgba(239, 231, 216, 0.72)),
+    url("./assets/materials/archive-cotton-v1.jpg") center / cover;
+  box-shadow: -5px 4px 13px rgba(77, 63, 45, 0.1);
+  animation: paper-settle 320ms ease both;
+}
+
+.paper-note h3 {
+  margin: 0 0 8px;
+  color: #514940;
+  font-size: clamp(12px, 1.2vw, 14px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.paper-note-body,
+.paper-note-body p {
+  margin: 0;
+  color: #756b60;
+  font-size: clamp(10px, 1vw, 12px);
+  line-height: 1.7;
+}
+
+.paper-note footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(92, 76, 57, 0.13);
+}
+
+.paper-note-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  color: #78634b;
+  border: 0;
+  border-bottom: 1px solid rgba(120, 99, 75, 0.26);
+  background: transparent;
+  font-size: var(--meta-size);
+  cursor: pointer;
+}
+
+.growth-workspace,
+.trace-workspace {
+  min-width: 0;
+  min-height: 0;
+  color: var(--ink);
 }
 
 .bookmark {
