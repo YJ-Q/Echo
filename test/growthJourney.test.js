@@ -20,7 +20,5 @@ test("growth journey uses the approved name and warm full-spread override", asyn
   const [app, css] = await Promise.all([readFile(appPath, "utf8"), readFile(cssPath, "utf8")]);
   assert.match(app, /id: "learning", label: "成长轨迹"/);
   assert.match(css, /\.section-paper-learning\.growth-workspace\s*\{/);
-  assert.match(css, /rgba\(248, 244, 235, 0\.82\)/);
-  assert.match(css, /background-blend-mode:\s*normal, normal, normal;/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 58fr\) minmax\(0, 42fr\);/);
 });

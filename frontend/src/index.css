@@ -644,9 +644,7 @@ textarea:focus-visible {
 .growth-workspace {
   display: grid;
   grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
-  background:
-    linear-gradient(rgba(250, 247, 239, 0.46), rgba(239, 232, 219, 0.2)),
-    url("./assets/materials/drafting-v1.jpg") center / cover;
+  background: transparent;
   animation: paper-settle 320ms ease both;
 }
 
@@ -794,9 +792,9 @@ textarea:focus-visible {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   padding: clamp(40px, 5.2vw, 58px) clamp(35px, 5vw, 61px) 28px;
-  border-left: 1px solid rgba(104, 91, 73, 0.13);
-  background: rgba(248, 245, 237, 0.42);
-  box-shadow: -7px 2px 18px rgba(67, 54, 39, 0.1);
+  border-left: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .growth-path-page > header {
@@ -1087,17 +1085,14 @@ textarea:focus-visible {
 .section-paper {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(95, 82, 64, 0.11);
-  box-shadow: -7px 5px 18px rgba(77, 63, 45, 0.12);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   animation: paper-settle 320ms ease both;
 }
 
 .section-paper-learning {
-  background:
-    linear-gradient(rgba(248, 244, 235, 0.82), rgba(242, 237, 226, 0.76)),
-    url("./assets/materials/drafting-v1.jpg") center / cover no-repeat,
-    var(--paper);
-  background-blend-mode: normal, normal, normal;
+  background: transparent;
 }
 
 .section-paper-learning.growth-workspace {
@@ -1107,11 +1102,7 @@ textarea:focus-visible {
 }
 
 .section-paper-memory {
-  background:
-    radial-gradient(circle at 12% 20%, rgba(148, 117, 75, 0.055), transparent 31%),
-    url("./assets/materials/archive-cotton-v1.jpg") center / cover no-repeat,
-    #f1eadc;
-  background-blend-mode: multiply, normal, normal;
+  background: transparent;
 }
 
 .section-paper-memory .shelf-page {
@@ -1534,9 +1525,7 @@ textarea:focus-visible {
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: clamp(40px, 4.8vw, 53px) clamp(35px, 5vw, 61px) 25px;
   overflow: hidden;
-  background:
-    linear-gradient(rgba(252, 249, 241, 0.32), rgba(231, 220, 201, 0.18)),
-    url("./assets/materials/archive-cotton-v1.jpg") center / cover no-repeat;
+  background: transparent;
   animation: paper-settle 320ms ease both;
 }
 
@@ -1546,9 +1535,7 @@ textarea:focus-visible {
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: clamp(46px, 5.2vw, 58px) clamp(38px, 5.2vw, 64px) 25px;
   overflow: hidden;
-  background:
-    linear-gradient(rgba(252, 249, 241, 0.22), rgba(231, 220, 201, 0.12)),
-    url("./assets/materials/archive-cotton-v1.jpg") center / cover no-repeat;
+  background: transparent;
   animation: paper-settle 320ms ease both;
 }
 
