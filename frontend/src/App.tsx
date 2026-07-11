@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import SidebarTabs from "./components/SidebarTabs";
 import ReflectiveMargin from "./components/ReflectiveMargin";
 import ConversationAnnotations from "./components/ConversationAnnotations";
+import GrowthJourney from "./components/GrowthJourney";
 import SettingsSheet from "./components/SettingsSheet";
 import ManagementSheet from "./components/ManagementSheet";
 import ImprintCollection, { ImprintUnlockNotice } from "./components/ImprintCollection";
 import { ProfilePage, TraceSectionNav, type MemorySubpage } from "./components/TraceSections";
 import ShelfView from "./components/ShelfView";
 import WindowControls from "./components/WindowControls";
+import { buildGrowthPageModel } from "./viewModels/paperWorkspace";
 import { useMarginWorkspace } from "./hooks/useMarginWorkspace";
 import type {
   MarginSettingsPatch,
@@ -163,6 +165,7 @@ export default function App() {
 
   const learning = workspace.learningLine?.current_learning;
   const learningSession = workspace.learningLine?.current_session;
+  const growthPageModel = useMemo(() => buildGrowthPageModel(workspace.learningLine), [workspace.learningLine]);
   const learningTasks = useMemo<TaskNode[]>(() => (
     learning?.step_labels?.map((step) => ({
       id: String(step.index),
@@ -431,6 +434,17 @@ export default function App() {
             onSave={handleSettingsSave}
             saving={settingsSaving}
             settings={settings}
+          />
+        ) : section === "learning" ? (
+          <GrowthJourney
+            currentAction={learning?.current_step?.action || "把这一小步做完，再回来留下结果。"}
+            model={growthPageModel}
+            onCompleteCurrent={workspace.updateLearningStep ? () => {
+              const activeTask = learningTasks.find((task) => task.status === "active");
+              if (activeTask) void handleStepChange(activeTask);
+            } : undefined}
+            otherLines={(workspace.learningLine?.sessions || []).map((session) => session.topic || "一条未命名的成长线").filter((topic) => topic !== learning?.topic)}
+            records={workspace.memoryView?.memories || []}
           />
         ) : (
           <div className={`workspace-page section-paper section-paper-${section}`}>

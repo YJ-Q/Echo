@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGrowthPageModel, buildTracePageModel } from "./paperWorkspace";
+import { buildGrowthPageModel, buildTracePageModel, selectVisibleGrowthNodes } from "./paperWorkspace";
 
 test("growth model exposes previous, current, and next only", () => {
   const model = buildGrowthPageModel({
@@ -49,4 +49,18 @@ test("recent imprints contain unlocked records only and stop at three", () => {
 
   assert.equal(model.recentImprints.length, 3);
   assert.deepEqual(model.recentImprints.map((item) => item.key), ["3", "2", "1"]);
+});
+
+test("growth node window follows a browsed focus without exceeding three nodes", () => {
+  const nodes = [0, 1, 2, 3, 4].map((index) => ({
+    id: String(index),
+    index,
+    title: `节点 ${index}`,
+    status: index < 3 ? "done" as const : "pending" as const,
+    disabled: index >= 3,
+  }));
+
+  assert.deepEqual(selectVisibleGrowthNodes(nodes, 0).map((node) => node.index), [0, 1]);
+  assert.deepEqual(selectVisibleGrowthNodes(nodes, 2).map((node) => node.index), [1, 2, 3]);
+  assert.deepEqual(selectVisibleGrowthNodes(nodes, 4).map((node) => node.index), [3, 4]);
 });

@@ -20,6 +20,7 @@ export interface GrowthPageModel {
   topic: string;
   summary: string;
   currentStepIndex: number;
+  nodes: GrowthNodeModel[];
   visibleNodes: GrowthNodeModel[];
 }
 
@@ -61,23 +62,30 @@ export function buildGrowthPageModel(response: LearningActiveResponse | null | u
   const labels = learning?.step_labels || [];
   const requestedIndex = learning?.current_step_index ?? labels.findIndex((step) => step.status === "active");
   const currentIndex = Math.min(Math.max(requestedIndex < 0 ? 0 : requestedIndex, 0), Math.max(labels.length - 1, 0));
-  const start = Math.max(0, currentIndex - 1);
+  const nodes = labels.map((step) => {
+    const status = normalizeGrowthStatus(step.status);
+    return {
+      id: String(step.index),
+      index: step.index,
+      title: cleanText(step.title, `第 ${step.index + 1} 步`),
+      status,
+      disabled: status === "pending",
+    };
+  });
 
   return {
     topic: cleanText(learning?.topic, "还没有形成成长线"),
     summary: cleanText(learning?.summary, "从一件真正想改变的小事开始。"),
     currentStepIndex: currentIndex,
-    visibleNodes: labels.slice(start, currentIndex + 2).map((step) => {
-      const status = normalizeGrowthStatus(step.status);
-      return {
-        id: String(step.index),
-        index: step.index,
-        title: cleanText(step.title, `第 ${step.index + 1} 步`),
-        status,
-        disabled: status === "pending",
-      };
-    }),
+    nodes,
+    visibleNodes: selectVisibleGrowthNodes(nodes, currentIndex),
   };
+}
+
+export function selectVisibleGrowthNodes(nodes: GrowthNodeModel[], focusIndex: number) {
+  if (nodes.length === 0) return [];
+  const focus = Math.min(Math.max(focusIndex, 0), nodes.length - 1);
+  return nodes.slice(Math.max(0, focus - 1), Math.min(nodes.length, focus + 2));
 }
 
 function timestampValue(value?: string) {
