@@ -13,6 +13,7 @@
     "build:icon": "node scripts/build-icon.mjs",
     "lint:ui": "tsc --project frontend/tsconfig.json --noEmit",
     "test": "node --test",
+    "test:ui-views": "node --import tsx --test frontend/src/viewModels/paperWorkspace.test.ts",
     "prepack:win": "npm run lint:ui && npm run build:ui && npm run build:icon && npm test",
     "pack:win": "npm run prepack:win && electron-builder --win --x64 --dir",
     "dist:win": "npm run prepack:win && electron-builder --win nsis --x64",
