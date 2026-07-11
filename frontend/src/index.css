@@ -505,20 +505,13 @@ textarea:focus-visible {
   overflow: hidden;
   padding: clamp(9px, 1.2vw, 13px) clamp(22px, 3.4vw, 35px) clamp(22px, 3.2vw, 33px);
   border-radius: 0;
-  border-left: 1px solid rgba(104, 91, 73, 0.13);
-  background: rgba(247, 243, 234, 0.64);
-  box-shadow: -9px 2px 18px rgba(67, 54, 39, 0.14);
+  border-left: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .outline-page::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  opacity: 0.56;
-  pointer-events: none;
-  background: url("./assets/materials/vellum-v1.jpg") center / cover no-repeat;
-  mix-blend-mode: multiply;
+  content: none;
 }
 
 .outline-page > * {
@@ -650,7 +643,7 @@ textarea:focus-visible {
 
 .growth-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 58%) minmax(0, 42%);
+  grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
   background:
     linear-gradient(rgba(250, 247, 239, 0.46), rgba(239, 232, 219, 0.2)),
     url("./assets/materials/drafting-v1.jpg") center / cover;
@@ -1101,10 +1094,16 @@ textarea:focus-visible {
 
 .section-paper-learning {
   background:
-    linear-gradient(90deg, transparent 0 62%, rgba(76, 99, 108, 0.1) 62% 62.12%, transparent 62.12%),
+    linear-gradient(rgba(248, 244, 235, 0.82), rgba(242, 237, 226, 0.76)),
     url("./assets/materials/drafting-v1.jpg") center / cover no-repeat,
-    #e8eeed;
-  background-blend-mode: multiply, normal, normal;
+    var(--paper);
+  background-blend-mode: normal, normal, normal;
+}
+
+.section-paper-learning.growth-workspace {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
 }
 
 .section-paper-memory {

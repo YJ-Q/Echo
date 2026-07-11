@@ -30,7 +30,7 @@ import type {
 
 const NAVIGATION: NavigationTab[] = [
   { id: "journal", label: "思考片段" },
-  { id: "learning", label: "学习轨迹" },
+  { id: "learning", label: "成长轨迹" },
   { id: "memory", label: "留痕" },
   { id: "settings", label: "设置" },
 ];

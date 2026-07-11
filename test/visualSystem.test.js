@@ -25,3 +25,9 @@ test("shared paper components and focused workspaces have stable style hooks", a
   }
   assert.match(css, /html\[data-motion="reduced"\]/);
 });
+
+test("homepage annotations reuse the vellum already painted into the notebook shell", async () => {
+  const css = await readFile(cssPath, "utf8");
+  assert.match(css, /\.outline-page\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
+  assert.match(css, /\.outline-page::before\s*\{[^}]*content:\s*none;/s);
+});
