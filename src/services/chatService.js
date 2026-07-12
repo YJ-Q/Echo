@@ -2,7 +2,8 @@ import { analyzeInput } from './inputAnalyzer.js';
 import { generateEchoResponse } from './echoAgent.js';
 import { buildContext } from './contextBuilder.js';
 import { getEchoState } from './echoStateEngine.js';
-import { assessLearningProgress, prepareLearningSession } from './learningEngine.js';
+import { assessLearningProgress } from './learningEngine.js';
+import { buildGrowthSuggestion } from './growthSuggestionEngine.js';
 import { distillInteractionMemory } from './memoryDistiller.js';
 import { deriveMemoryPriority } from './memoryPriorityEngine.js';
 import { buildChatExplanation } from './explainabilityEngine.js';
@@ -10,7 +11,7 @@ import { detectManagementIntent } from './managementIntentEngine.js';
 import { buildManagementOverview } from './managementOverviewEngine.js';
 import { updateProfileFromInteraction } from './profileEngine.js';
 import { synthesizeProfileFromMemories } from './profileSynthesisEngine.js';
-import { addMemory, updateUserState } from '../storage/memoryStore.js';
+import { addMemory, saveGrowthSuggestion, updateUserState } from '../storage/memoryStore.js';
 
 export async function handleChat(message) {
   const analysis = analyzeInput(message);
@@ -58,9 +59,7 @@ export async function handleChat(message) {
   }
 
   const memoryContext = await buildContext(message);
-  const learningSession = analysis.intent === 'learning'
-    ? await prepareLearningSession(message)
-    : await assessLearningProgress(message);
+  const learningSession = await assessLearningProgress(message);
 
   if (learningSession?.type === 'progress') {
     analysis.tags = [...new Set([...analysis.tags.filter((tag) => tag !== 'life'), 'learning'])];
@@ -88,7 +87,7 @@ export async function handleChat(message) {
   };
 
   await updateUserState(analysis);
-  await updateProfileFromInteraction(message, analysis);
+  await updateProfileFromInteraction(message, analysis, { allowGrowthSignals: false });
   const state = await getEchoState(message);
   const distilled = distillInteractionMemory({
     userInput: message,
@@ -109,6 +108,12 @@ export async function handleChat(message) {
     ...distilled,
     ...priority
   });
+  const suggestedGrowth = learningSession
+    ? null
+    : buildGrowthSuggestion({ message, analysis });
+  const growthSuggestion = suggestedGrowth
+    ? await saveGrowthSuggestion(suggestedGrowth)
+    : null;
   await synthesizeProfileFromMemories({ limit: 24 });
   const explanation = buildChatExplanation({
     analysis,
@@ -129,6 +134,7 @@ export async function handleChat(message) {
     tags: analysis.tags,
     intent: analysis.intent,
     learning_session: learningSession?.session || null,
+    growth_suggestion: growthSuggestion,
     behavior_hint: state.next_action,
     decision: state.decision,
     memory_note: distilled.memory_note,

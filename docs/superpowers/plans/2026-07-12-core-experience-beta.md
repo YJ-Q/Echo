@@ -263,7 +263,7 @@ git commit -m "feat: persist confirmable growth suggestions"
 - `GET /learning/active` adds `pending_suggestion` without changing existing fields.
 - `/chat` and `/api/reflect` add `growth_suggestion`; `learning_session` remains `null` until confirmation.
 
-- [ ] **Step 1: Replace the old auto-create API test with a failing confirmation-boundary test**
+- [x] **Step 1: Replace the old auto-create API test with a failing confirmation-boundary test**
 
 Add these envelope-aware helpers near `startTestServer()`:
 
@@ -321,13 +321,13 @@ test('growth suggestion requires confirmation and confirmation is idempotent', a
 });
 ```
 
-- [ ] **Step 2: Run the focused API test and verify it fails because chat still creates a session**
+- [x] **Step 2: Run the focused API test and verify it fails because chat still creates a session**
 
 Run: `node --test --test-name-pattern="growth suggestion requires confirmation" test/api.test.js`
 
 Expected: FAIL because `current_session` is already populated or `growth_suggestion` is missing.
 
-- [ ] **Step 3: Change chat handling from auto-create to propose-only**
+- [x] **Step 3: Change chat handling from auto-create to propose-only**
 
 In `handleChat`, keep `assessLearningProgress(message)` for an existing active line, but remove `prepareLearningSession(message)` from the `analysis.intent === 'learning'` branch. After the conversation memory is written, build and save a suggestion only when no learning progress was recorded:
 
@@ -354,7 +354,7 @@ Change `updateProfileFromInteraction(userInput, analysis, options)` so `options.
 
 In `synthesizeProfileFromMemories`, filter a generated `sustained_learning_topic` signal unless `getLearningSessions({ limit: 100 })` contains a confirmed session with the same topic. Other multi-sample emotional and recovery signals keep their existing confidence rules and stay editable through the existing profile correction flow; they must not be relabeled as user-confirmed facts.
 
-- [ ] **Step 4: Implement confirmation and dismissal in the learning service**
+- [x] **Step 4: Implement confirmation and dismissal in the learning service**
 
 Move learning-session creation behind these functions in `src/services/learningEngine.js`:
 
@@ -391,7 +391,7 @@ export async function dismissGrowthSuggestion(key) {
 
 Implement `buildGrowthSteps(topic, experiment)` so the first active step is the single supplied experiment and later steps are “留下真实情境记录” and “用自己的话回看变化”.
 
-- [ ] **Step 5: Add confirm/dismiss routes and pending recovery**
+- [x] **Step 5: Add confirm/dismiss routes and pending recovery**
 
 Add the two POST routes before `/:id/steps/:stepIndex`. Return `404 growth_suggestion_not_found` for unknown keys. Extend `/learning/active`:
 
@@ -407,7 +407,7 @@ sendData(res, {
 });
 ```
 
-- [ ] **Step 6: Update learning tests to confirm before assessing progress**
+- [x] **Step 6: Update learning tests to confirm before assessing progress**
 
 Keep `prepareLearningSession` available only as a low-level test/setup helper. API tests must create sessions through confirmation; learning-engine unit tests may use `prepareLearningSession` when testing progress classification in isolation. Add this helper beside the other `test/api.test.js` HTTP helpers and use it in every API test that currently expects `/chat` to auto-create a line:
 
@@ -434,7 +434,7 @@ Run: `node --test test/growthSuggestionEngine.test.js test/learningEngine.test.j
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit the confirmation API**
+- [x] **Step 7: Commit the confirmation API**
 
 ```bash
 git add src/services/chatService.js src/services/learningEngine.js src/services/profileEngine.js src/services/profileSynthesisEngine.js src/routes/learningRoutes.js test/api.test.js test/learningEngine.test.js test/profileEngine.test.js test/profileSynthesisEngine.test.js

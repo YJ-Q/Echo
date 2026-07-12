@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { sendData, sendError } from '../lib/apiResponse.js';
 import {
   addLearningEvent,
+  getLatestPendingGrowthSuggestion,
   getLearningEvents,
   getLearningSessions,
   updateLearningStep
 } from '../storage/memoryStore.js';
 import { buildManualStepEvent } from '../services/learningEvents.js';
+import { confirmGrowthSuggestion, dismissGrowthSuggestion } from '../services/learningEngine.js';
 import { buildLearningViewModel, emptyLearningViewModel } from '../services/learningViewModel.js';
 
 const router = Router();
@@ -28,17 +30,45 @@ router.get('/', async (req, res, next) => {
 
 router.get('/active', async (_req, res, next) => {
   try {
-    const sessions = await getLearningSessions({ status: 'active', limit: 10 });
+    const [sessions, pendingSuggestion] = await Promise.all([
+      getLearningSessions({ status: 'active', limit: 10 }),
+      getLatestPendingGrowthSuggestion()
+    ]);
     const currentSession = sessions[0] || null;
     sendData(res, {
       sessions,
       current_session: currentSession,
       current_learning: currentSession
         ? buildLearningViewModel(currentSession)
-        : emptyLearningViewModel()
+        : emptyLearningViewModel(),
+      pending_suggestion: pendingSuggestion
     });
   } catch (error) {
     next(error);
+  }
+});
+
+router.post('/suggestions/:key/confirm', async (req, res, next) => {
+  try {
+    const result = await confirmGrowthSuggestion(req.params.key);
+    if (!result) {
+      return sendError(res, 404, 'growth suggestion not found', 'growth_suggestion_not_found');
+    }
+    return sendData(res, result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/suggestions/:key/dismiss', async (req, res, next) => {
+  try {
+    const suggestion = await dismissGrowthSuggestion(req.params.key);
+    if (!suggestion) {
+      return sendError(res, 404, 'growth suggestion not found', 'growth_suggestion_not_found');
+    }
+    return sendData(res, { suggestion });
+  } catch (error) {
+    return next(error);
   }
 });
 

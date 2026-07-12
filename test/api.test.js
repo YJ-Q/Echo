@@ -191,13 +191,7 @@ test('GET /management/overview returns a read-only learning overview', async () 
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但总是在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但总是在开始前拖延。');
 
     const response = await fetch(`${ctx.baseUrl}/management/overview?scope=learning`);
     const body = await response.json();
@@ -296,13 +290,7 @@ test('POST /chat returns a management overview for governance requests', async (
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但总是在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但总是在开始前拖延。');
 
     const response = await fetch(`${ctx.baseUrl}/chat`, {
       method: 'POST',
@@ -329,13 +317,7 @@ test('GET /achievements returns a stable achievement wall view model', async () 
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但总是在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但总是在开始前拖延。');
 
     const response = await fetch(`${ctx.baseUrl}/achievements`);
     const body = await response.json();
@@ -356,13 +338,7 @@ test('GET /achievements/recent returns recent backend-derived unlocks', async ()
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 TypeScript，先建立一条学习线。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 TypeScript，先建立一条学习线。');
 
     const response = await fetch(`${ctx.baseUrl}/achievements/recent?limit=2`);
     const body = await response.json();
@@ -700,39 +676,80 @@ test('GET /state returns a stable empty-state shape', async () => {
   }
 });
 
-test('POST /chat learning request creates a learning line and updates /state', async () => {
+test('growth suggestion requires confirmation and confirmation is idempotent', async () => {
   const ctx = await startTestServer();
 
   try {
-    const chatResponse = await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但是总在开始前拖延。'
-      })
+    const reflect = await postJson(ctx.baseUrl, '/api/reflect', {
+      message: '我在会议里总是不敢完整表达，担心自己说得不够好。'
     });
-    const chat = await chatResponse.json();
+    const before = await getJson(ctx.baseUrl, '/learning/active');
+
+    assert.equal(reflect.result.learning_session, null);
+    assert.equal(reflect.result.growth_suggestion.status, 'pending');
+    assert.equal(before.current_session, null);
+
+    const profileBefore = await getJson(ctx.baseUrl, '/memory/profile');
+    assert.equal(profileBefore.profile.some((entry) => entry.key === 'current_learning_focus'), false);
+
+    const key = reflect.result.growth_suggestion.key;
+    const first = await postJson(
+      ctx.baseUrl,
+      `/learning/suggestions/${encodeURIComponent(key)}/confirm`,
+      {}
+    );
+    const second = await postJson(
+      ctx.baseUrl,
+      `/learning/suggestions/${encodeURIComponent(key)}/confirm`,
+      {}
+    );
+    const after = await getJson(ctx.baseUrl, '/learning/active');
+
+    assert.equal(first.session.id, second.session.id);
+    assert.equal(second.already_confirmed, true);
+    assert.equal(after.sessions.length, 1);
+    assert.equal(after.current_learning.topic, '在会议中更完整地表达');
+
+    const profileAfter = await getJson(ctx.baseUrl, '/memory/profile');
+    assert.equal(
+      profileAfter.profile.find((entry) => entry.key === 'current_learning_focus').value,
+      '在会议中更完整地表达'
+    );
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('POST /chat learning request waits for confirmation before updating /state', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const chat = await postJson(ctx.baseUrl, '/chat', {
+      message: '我想学 Node.js，但是总在开始前拖延。'
+    });
+    assert.equal(chat.intent, 'learning');
+    assert.equal(chat.learning_session, null);
+    assert.equal(chat.growth_suggestion.topic, 'Node.js');
+
+    await postJson(
+      ctx.baseUrl,
+      `/learning/suggestions/${encodeURIComponent(chat.growth_suggestion.key)}/confirm`,
+      {}
+    );
     const stateResponse = await fetch(`${ctx.baseUrl}/state?query=Node.js`);
     const state = await stateResponse.json();
 
-    assert.equal(chatResponse.status, 200);
-    assert.equal(chat.ok, true);
-    assert.equal(chat.data.intent, 'learning');
-    assert.equal(chat.data.learning_session.topic, 'Node.js');
-    assert.equal(chat.data.agent.provider, 'local');
-    assert.equal(chat.data.behavior_hint.type, 'continue_learning');
-    assert.equal(chat.data.decision.rule, 'continue_learning');
-    assert.match(chat.data.memory_note, /Node\.js/);
-    assert.ok(chat.data.insight_note.length > 0);
-    assert.equal(chat.data.explanation.input_analysis.intent, 'learning');
-    assert.equal(chat.data.explanation.next_action.type, 'continue_learning');
+    assert.equal(chat.agent.provider, 'local');
+    assert.match(chat.memory_note, /Node\.js/);
+    assert.ok(chat.insight_note.length > 0);
+    assert.equal(chat.explanation.input_analysis.intent, 'learning');
     assert.equal(stateResponse.status, 200);
     assert.equal(state.ok, true);
     assert.equal(state.data.next_action.type, 'continue_learning');
     assert.equal(state.data.current_action.type, 'continue_learning');
     assert.equal(state.data.current_action.progress.topic, 'Node.js');
     assert.equal(state.data.current_learning.topic, 'Node.js');
-    assert.equal(state.data.current_learning.current_step.title, '说清 Node.js 是什么');
+    assert.equal(state.data.current_learning.current_step.title, '完成本周小实验');
     assert.equal(state.data.current_learning.current_step_index, 0);
     assert.equal(state.data.current_state.focus, 'Node.js');
     assert.equal(state.data.active_learning.length, 1);
@@ -1105,13 +1122,7 @@ test('GET /learning/active returns a page-ready current learning view model', as
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但是总在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但是总在开始前拖延。');
 
     const response = await fetch(`${ctx.baseUrl}/learning/active`);
     const body = await response.json();
@@ -1121,10 +1132,10 @@ test('GET /learning/active returns a page-ready current learning view model', as
     assert.equal(body.data.sessions.length, 1);
     assert.equal(body.data.current_session.topic, 'Node.js');
     assert.equal(body.data.current_learning.topic, 'Node.js');
-    assert.equal(body.data.current_learning.current_step.title, '说清 Node.js 是什么');
-    assert.equal(body.data.current_learning.total_steps, 4);
+    assert.equal(body.data.current_learning.current_step.title, '完成本周小实验');
+    assert.equal(body.data.current_learning.total_steps, 3);
     assert.equal(body.data.current_learning.completed_steps, 0);
-    assert.equal(body.data.current_learning.step_labels.length, 4);
+    assert.equal(body.data.current_learning.step_labels.length, 3);
   } finally {
     await ctx.cleanup();
   }
@@ -1134,13 +1145,7 @@ test('POST /learning/:id/steps/:stepIndex records standardized manual learning e
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但是总在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但是总在开始前拖延。');
 
     const activeResponse = await fetch(`${ctx.baseUrl}/learning/active`);
     const activeBody = await activeResponse.json();
@@ -1157,7 +1162,7 @@ test('POST /learning/:id/steps/:stepIndex records standardized manual learning e
     assert.equal(updateResponse.status, 200);
     assert.equal(event.event_type, 'manual_step_done');
     assert.equal(event.step_index, 0);
-    assert.equal(event.step_title, '说清 Node.js 是什么');
+    assert.equal(event.step_title, '完成本周小实验');
     assert.match(event.note, /manually changed to done/);
     assert.match(event.note, /manual_status_done/);
     assert.equal(event.user_input, null);
@@ -1170,13 +1175,10 @@ test('POST /actions/:id/status done syncs linked learning step completion and re
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'I want to learn Node.js but I keep procrastinating before I start.'
-      })
-    });
+    await confirmGrowthFromMessage(
+      ctx.baseUrl,
+      'I want to learn Node.js but I keep procrastinating before I start.'
+    );
 
     const activeResponse = await fetch(`${ctx.baseUrl}/learning/active`);
     const activeBody = await activeResponse.json();
@@ -1215,13 +1217,10 @@ test('POST /actions/:id/status done is idempotent for linked learning actions', 
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'I want to learn Node.js but I keep procrastinating before I start.'
-      })
-    });
+    await confirmGrowthFromMessage(
+      ctx.baseUrl,
+      'I want to learn Node.js but I keep procrastinating before I start.'
+    );
 
     const activeResponse = await fetch(`${ctx.baseUrl}/learning/active`);
     const activeBody = await activeResponse.json();
@@ -1259,13 +1258,10 @@ test('POST /actions/:id/status done does not write learning events for manual ac
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'I want to learn Node.js but I keep procrastinating before I start.'
-      })
-    });
+    await confirmGrowthFromMessage(
+      ctx.baseUrl,
+      'I want to learn Node.js but I keep procrastinating before I start.'
+    );
 
     const activeResponse = await fetch(`${ctx.baseUrl}/learning/active`);
     const activeBody = await activeResponse.json();
@@ -1305,13 +1301,7 @@ test('POST /learning/:id/steps/:stepIndex rejects out-of-range step updates', as
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但是总在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但是总在开始前拖延。');
 
     const activeResponse = await fetch(`${ctx.baseUrl}/learning/active`);
     const activeBody = await activeResponse.json();
@@ -1339,13 +1329,7 @@ test('GET /memory/context returns layered memory injection context', async () =>
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但我总在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但我总在开始前拖延。');
 
     await fetch(`${ctx.baseUrl}/actions/suggested`, {
       method: 'POST',
@@ -1360,8 +1344,8 @@ test('GET /memory/context returns layered memory injection context', async () =>
     assert.equal(response.status, 200);
     assert.equal(body.ok, true);
     assert.equal(context.injection.layers.learning.focus, 'Node.js');
-    assert.equal(context.injection.layers.pattern.recurring_pattern, 'procrastination around starting tasks');
-    assert.equal(context.injection.layers.action.pending_action.title, '继续：说清 Node.js 是什么');
+    assert.equal(context.injection.layers.pattern.recurring_pattern, '');
+    assert.equal(context.injection.layers.action.pending_action.title, '继续：完成本周小实验');
     assert.match(context.injection.prompt_context, /Node\.js/);
     assert.match(context.summary.latest_memory_note, /Node\.js/);
     assert.ok(context.summary.insight_trail.length > 0);
@@ -1502,11 +1486,7 @@ test('POST /memory/profile/refresh synthesizes long-term profile notes', async (
   const ctx = await startTestServer();
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: '我想学 Node.js，但是总在开始前拖延。' })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但是总在开始前拖延。');
     await fetch(`${ctx.baseUrl}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1960,13 +1940,7 @@ test('GET /state keeps active learning ahead of recent reflection', async () => 
   };
 
   try {
-    await fetch(`${ctx.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 Node.js，但总是在开始前拖延。'
-      })
-    });
+    await confirmGrowthFromMessage(ctx.baseUrl, '我想学 Node.js，但总是在开始前拖延。');
     await saveSummary(summary);
 
     const response = await fetch(`${ctx.baseUrl}/state?query=Node.js`);
@@ -2415,4 +2389,33 @@ async function startTestServer() {
       await rm(tempDir, { recursive: true, force: true });
     }
   };
+}
+
+async function postJson(baseUrl, pathname, payload) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  assert.equal(response.ok, true, JSON.stringify(body.error || body));
+  return body.data || body;
+}
+
+async function getJson(baseUrl, pathname) {
+  const response = await fetch(`${baseUrl}${pathname}`);
+  const body = await response.json();
+  assert.equal(response.ok, true, JSON.stringify(body.error || body));
+  return body.data || body;
+}
+
+async function confirmGrowthFromMessage(baseUrl, message) {
+  const reflect = await postJson(baseUrl, '/api/reflect', { message });
+  const suggestion = reflect.result?.growth_suggestion;
+  assert.ok(suggestion?.key, `expected growth suggestion for: ${message}`);
+  return postJson(
+    baseUrl,
+    `/learning/suggestions/${encodeURIComponent(suggestion.key)}/confirm`,
+    {}
+  );
 }
