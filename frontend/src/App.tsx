@@ -6,9 +6,7 @@ import GrowthJourney from "./components/GrowthJourney";
 import TraceWorkspace from "./components/TraceWorkspace";
 import SettingsSheet from "./components/SettingsSheet";
 import ManagementSheet from "./components/ManagementSheet";
-import ImprintCollection, { ImprintUnlockNotice } from "./components/ImprintCollection";
-import { ProfilePage, TraceSectionNav, type MemorySubpage } from "./components/TraceSections";
-import ShelfView from "./components/ShelfView";
+import { ImprintUnlockNotice } from "./components/ImprintCollection";
 import WindowControls from "./components/WindowControls";
 import { buildGrowthPageModel, buildTracePageModel } from "./viewModels/paperWorkspace";
 import { useMarginWorkspace } from "./hooks/useMarginWorkspace";
@@ -141,7 +139,6 @@ export default function App() {
   const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
   const [managementOpen, setManagementOpen] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<ManagementProposal | null>(null);
-  const [memorySubpage, setMemorySubpage] = useState<MemorySubpage>("traces");
   const [dismissedUnlockKey, setDismissedUnlockKey] = useState<string | null>(null);
   const seededConversation = useRef(false);
   const activeAudio = useRef<HTMLAudioElement | null>(null);
@@ -449,38 +446,20 @@ export default function App() {
           />
         ) : (
           <div className={`workspace-page section-paper section-paper-${section}`}>
-            {section === "memory" && <TraceSectionNav active={memorySubpage} onSelect={setMemorySubpage} />}
-            {section === "memory" && memorySubpage === "imprints" ? (
-              <ImprintCollection
+            {section === "memory" ? (
+              <TraceWorkspace
                 achievements={workspace.achievements}
+                keptItems={keptShelf.items}
+                keptSummary={keptShelf.summary}
+                model={tracePageModel}
+                notice={operationNotice}
                 onAcknowledge={acknowledgeUnlock}
-                onBack={() => setMemorySubpage("traces")}
-              />
-            ) : section === "memory" && memorySubpage === "profile" ? (
-              <ProfilePage
+                onOpenManagement={openManagement}
                 onOverride={workspace.overrideProfile}
-                onRefresh={workspace.refreshProfile}
+                onRefreshProfile={workspace.refreshProfile}
                 profile={workspace.profile}
               />
-            ) : section === "memory" && memorySubpage === "kept" ? (
-              <ShelfView
-                eyebrow="被主动留下的"
-                footerText="长期留下并不意味着永远不能修正。"
-                items={keptShelf.items}
-                notice={operationNotice}
-                onOpenImprints={() => setMemorySubpage("imprints")}
-                onOpenManagement={openManagement}
-                section="memory"
-                summary={keptShelf.summary}
-                title="长期留下"
-              />
-            ) : (
-              <TraceWorkspace
-                model={tracePageModel}
-                onOpenImprints={() => setMemorySubpage("imprints")}
-                onOpenProfile={() => setMemorySubpage("profile")}
-              />
-            )}
+            ) : null}
           </div>
         )}
         {managementOpen && (
@@ -500,7 +479,6 @@ export default function App() {
             onAcknowledge={acknowledgeUnlock}
             onOpen={() => {
               setSection("memory");
-              setMemorySubpage("imprints");
             }}
             record={newestUnlockRecord}
           />

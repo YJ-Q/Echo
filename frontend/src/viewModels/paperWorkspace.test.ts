@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGrowthPageModel, buildTracePageModel, selectVisibleGrowthNodes } from "./paperWorkspace";
+import { buildGrowthPageModel, buildTracePageModel, resolveTraceSlots, selectVisibleGrowthNodes } from "./paperWorkspace";
 
 test("growth model exposes previous, current, and next only", () => {
   const model = buildGrowthPageModel({
@@ -87,4 +87,10 @@ test("trace model caps recent items and keeps invalid dates readable", () => {
 
   assert.equal(items.length, 10);
   assert.ok(items.some((item) => item.text.startsWith("观察")));
+});
+
+test("trace focus resolver swaps the focused panel with the trace slot", () => {
+  assert.deepEqual(resolveTraceSlots("traces"), { left: "traces", rightTop: "patterns", rightBottom: "imprints" });
+  assert.deepEqual(resolveTraceSlots("patterns"), { left: "patterns", rightTop: "traces", rightBottom: "imprints" });
+  assert.deepEqual(resolveTraceSlots("imprints"), { left: "imprints", rightTop: "patterns", rightBottom: "traces" });
 });

@@ -1109,38 +1109,6 @@ textarea:focus-visible {
   padding-top: clamp(46px, 5.2vw, 58px);
 }
 
-.trace-section-nav {
-  position: absolute;
-  z-index: 7;
-  top: 13%;
-  right: 2px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.trace-section-nav button {
-  width: 24px;
-  min-height: 64px;
-  padding: 7px 5px;
-  color: #9a8d7a;
-  writing-mode: vertical-rl;
-  border: 1px solid rgba(104, 87, 65, 0.1);
-  border-right: 0;
-  border-radius: 3px 0 0 3px;
-  background: rgba(247, 242, 232, 0.48);
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-
-.trace-section-nav button.is-active {
-  color: #655a4b;
-  border-color: rgba(101, 82, 58, 0.2);
-  background: rgba(250, 246, 237, 0.72);
-}
-
 .trace-workspace {
   height: 100%;
   display: grid;
@@ -1149,10 +1117,21 @@ textarea:focus-visible {
   animation: paper-settle 320ms ease both;
 }
 
+.trace-primary-panel,
 .trace-list-page,
 .trace-insight-page {
   min-width: 0;
   min-height: 0;
+}
+
+.trace-primary-panel {
+  height: 100%;
+  overflow: hidden;
+  animation: trace-panel-arrive 220ms ease both;
+}
+
+.trace-primary-panel > * {
+  height: 100%;
 }
 
 .trace-list-page {
@@ -1164,6 +1143,38 @@ textarea:focus-visible {
 .trace-heading {
   padding-bottom: 15px;
   border-bottom: 1px solid rgba(89, 77, 61, 0.13);
+}
+
+.trace-heading-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.trace-mode-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 2px;
+  border: 1px solid rgba(105, 88, 67, 0.13);
+  border-radius: 999px;
+  background: rgba(249, 245, 236, 0.28);
+}
+
+.trace-mode-switch button {
+  padding: 4px 9px;
+  color: #94897b;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.trace-mode-switch button[aria-pressed="true"] {
+  color: #62584b;
+  background: rgba(125, 107, 84, 0.1);
 }
 
 .trace-heading h1 {
@@ -1313,8 +1324,20 @@ textarea:focus-visible {
   padding: clamp(55px, 7vw, 78px) clamp(39px, 5.4vw, 64px) 35px clamp(35px, 4.8vw, 58px);
 }
 
+.trace-secondary-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  animation: trace-panel-arrive 220ms ease both;
+}
+
+.trace-secondary-panel > * {
+  height: 100%;
+}
+
 .trace-patterns > header,
-.trace-recent-imprints > header {
+.trace-recent-imprints > header,
+.trace-summary-panel > header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -1323,7 +1346,8 @@ textarea:focus-visible {
 }
 
 .trace-patterns h2,
-.trace-recent-imprints h2 {
+.trace-recent-imprints h2,
+.trace-summary-panel h2 {
   margin: 0;
   font-size: var(--section-title-size);
   font-weight: 400;
@@ -1331,7 +1355,8 @@ textarea:focus-visible {
 }
 
 .trace-patterns header button,
-.trace-recent-imprints header button {
+.trace-recent-imprints header button,
+.trace-summary-panel header button {
   padding: 2px 0;
   color: #897965;
   border: 0;
@@ -1422,6 +1447,96 @@ textarea:focus-visible {
   color: #8f8578;
   text-align: center;
   font-size: 9px;
+}
+
+.trace-summary-panel > p {
+  margin: 16px 0 13px;
+  color: #686159;
+  font-size: 10px;
+  line-height: 1.75;
+}
+
+.trace-summary-panel .trace-mode-switch {
+  margin-top: 2px;
+}
+
+.kept-trace-list {
+  min-height: 0;
+  padding: 13px 2px 10px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 88, 68, 0.18) transparent;
+}
+
+.kept-trace-list > article {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  padding: 13px 2px;
+  color: var(--item-accent);
+  border-bottom: 1px solid rgba(89, 77, 61, 0.12);
+}
+
+.kept-trace-list > article > div > span {
+  color: #968a7b;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.kept-trace-list h2 {
+  margin: 4px 0 3px;
+  color: #514b43;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.kept-trace-list p {
+  margin: 0;
+  color: #7e756a;
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.kept-trace-list article > button,
+.trace-manage-link {
+  padding: 4px 0;
+  color: #806c54;
+  border: 0;
+  border-bottom: 1px solid rgba(128, 108, 84, 0.24);
+  background: transparent;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.trace-manage-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 18px 0 0 auto;
+}
+
+.trace-primary-panel .profile-page,
+.trace-primary-panel .imprint-page {
+  padding: clamp(31px, 4.2vw, 49px) clamp(32px, 4.8vw, 56px) 28px;
+  animation: none;
+}
+
+.trace-primary-panel .profile-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.trace-primary-panel .imprint-header {
+  padding-left: 78px;
+}
+
+.trace-primary-panel .imprint-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@keyframes trace-panel-arrive {
+  from { opacity: 0.45; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .section-paper .shelf-page {

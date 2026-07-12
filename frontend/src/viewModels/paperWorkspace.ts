@@ -51,6 +51,26 @@ export interface TracePageModel {
   imprintTotal: number;
 }
 
+export type TraceFocus = "traces" | "patterns" | "imprints";
+
+export interface TraceSlots {
+  left: TraceFocus;
+  rightTop: TraceFocus;
+  rightBottom: TraceFocus;
+}
+
+export function resolveTraceSlots(focus: TraceFocus): TraceSlots {
+  if (focus === "patterns") {
+    return { left: "patterns", rightTop: "traces", rightBottom: "imprints" };
+  }
+
+  if (focus === "imprints") {
+    return { left: "imprints", rightTop: "patterns", rightBottom: "traces" };
+  }
+
+  return { left: "traces", rightTop: "patterns", rightBottom: "imprints" };
+}
+
 function cleanText(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const text = value.trim();

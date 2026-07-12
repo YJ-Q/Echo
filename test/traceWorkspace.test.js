@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const componentPath = new URL("../frontend/src/components/TraceWorkspace.tsx", import.meta.url);
-const navigationPath = new URL("../frontend/src/components/TraceSections.tsx", import.meta.url);
+const appPath = new URL("../frontend/src/App.tsx", import.meta.url);
 
 test("trace workspace contains the approved recent-trace spread", async () => {
   const source = await readFile(componentPath, "utf8");
@@ -16,9 +16,13 @@ test("trace workspace contains the approved recent-trace spread", async () => {
   assert.doesNotMatch(source, /wax|火漆|section-paper|archive-cotton/i);
 });
 
-test("trace secondary navigation uses the approved four labels", async () => {
-  const source = await readFile(navigationPath, "utf8");
-  for (const label of ["最近留下", "长期留下", "慢慢形成", "成长印记"]) {
-    assert.match(source, new RegExp(label));
-  }
+test("trace workspace owns focus exchange without subpage navigation", async () => {
+  const [source, app] = await Promise.all([readFile(componentPath, "utf8"), readFile(appPath, "utf8")]);
+  assert.match(source, /useState<TraceFocus>/);
+  assert.match(source, /useState<TraceMode>/);
+  assert.match(source, /resolveTraceSlots/);
+  assert.match(source, /长期留下/);
+  assert.match(source, /最近留下/);
+  assert.doesNotMatch(app, /TraceSectionNav/);
+  assert.doesNotMatch(app, /memorySubpage/);
 });
