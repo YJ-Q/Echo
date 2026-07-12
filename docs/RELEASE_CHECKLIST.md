@@ -2,6 +2,17 @@
 
 This checklist covers the current desktop-first Margin release.
 
+## Latest Local Verification
+
+Verified on 2026-07-12 for Margin `0.1.0` Windows x64:
+
+- `npm run dist:win` completed successfully after TypeScript, UI build, icon build, and 186 automated tests
+- generated unsigned NSIS artifact `Margin-Setup-0.1.0-x64.exe`
+- installer smoke test passed clean install, backend health, chat persistence after relaunch, uninstall, and retained user data
+- SHA-256: `8ED20A864FDD831E67924A68841BF710FE99D713C41D0DA2CFC64D8B14665914`
+- packaged `app.asar` contains no project-level `.env`, database, test, release, export, or design-document directories
+- unsigned SmartScreen disclosure remains required before public distribution
+
 ## Before Push
 
 - confirm `npm test` passes

@@ -45,13 +45,13 @@ The STT probe first synthesizes the word “Margin” through the configured Sil
 
 ## Live Evidence
 
-Authorized probes executed on 2026-07-11:
+Authorized probes executed on 2026-07-12 through the explicitly configured local proxy `127.0.0.1:7897`:
 
 | Provider | Capability | Model | Result | Latency | Trace ID |
 | --- | --- | --- | --- | ---: | --- |
-| SiliconFlow | Conversation | `deepseek-ai/DeepSeek-V3.2` | PASS | 1693 ms | `ti_dq07myytg3boqci3g6` |
-| SiliconFlow | TTS | `FunAudioLLM/CosyVoice2-0.5B` | PASS | 562 ms | `ti_n6g945djrx863mgbx0` |
-| SiliconFlow | STT | `FunAudioLLM/SenseVoiceSmall` | PASS | 908 ms | Not returned by endpoint |
+| SiliconFlow | Conversation | `deepseek-ai/DeepSeek-V3.2` | PASS | 2403 ms | `ti_2ur1wlkmpytadws017` |
+| SiliconFlow | TTS | `FunAudioLLM/CosyVoice2-0.5B` | PASS | 1202 ms | `ti_ao7lnde4lv4jh44z8z` |
+| SiliconFlow | STT | `FunAudioLLM/SenseVoiceSmall` | PASS | 2916 ms | Not returned by endpoint |
 
 OpenAI and Anthropic live probes were intentionally skipped because their keys were not configured. This is recorded as “not run”, not as a pass or failure.
 
