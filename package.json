@@ -14,6 +14,7 @@
     "lint:ui": "tsc --project frontend/tsconfig.json --noEmit",
     "test": "node --test",
     "test:ui-views": "node --import tsx --test frontend/src/viewModels/paperWorkspace.test.ts",
+    "test:core-beta": "node --test test/coreExperienceFlow.test.js test/growthSuggestionEngine.test.js test/growthSuggestionUi.test.js test/growthJourney.test.js test/traceWorkspace.test.js test/visualSystem.test.js && npm run test:ui-views",
     "prepack:win": "npm run lint:ui && npm run build:ui && npm run build:icon && npm test",
     "pack:win": "npm run prepack:win && electron-builder --win --x64 --dir",
     "dist:win": "npm run prepack:win && electron-builder --win nsis --x64",

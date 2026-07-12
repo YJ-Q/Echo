@@ -712,7 +712,7 @@ git commit -m "feat: record idempotent growth experiment results"
 - Produces test command `npm run test:core-beta`.
 - Consumes only public HTTP endpoints and the existing page view-model builders.
 
-- [ ] **Step 1: Write the end-to-end isolated-database test**
+- [x] **Step 1: Write the end-to-end isolated-database test**
 
 The test must:
 
@@ -728,13 +728,13 @@ The test must:
 
 Use the existing `startTestServer` mechanics, but define a local helper whose `stop({ remove: false })` preserves the temporary directory between the two starts.
 
-- [ ] **Step 2: Run the story test and fix only contract mismatches found by it**
+- [x] **Step 2: Run the story test and fix only contract mismatches found by it**
 
 Run: `node --test test/coreExperienceFlow.test.js`
 
 Expected: PASS after Tasks 1–4. If it fails, fix the producing service or route rather than adding test-only state.
 
-- [ ] **Step 3: Add cross-page view-model consistency assertions**
+- [x] **Step 3: Add cross-page view-model consistency assertions**
 
 In `paperWorkspace.test.ts`, construct learning, memory, profile, and achievement fixtures with topic “在会议中更完整地表达”. Assert:
 
@@ -745,11 +745,11 @@ assert.match(traces.groups[0].items[0].text, /说完了一个观点/);
 assert.equal(traces.recentImprints[0].key, "learning:first_step");
 ```
 
-- [ ] **Step 4: Extend visual regression structure checks**
+- [x] **Step 4: Extend visual regression structure checks**
 
 Assert that the three workspaces remain transparent, `.experiment-result-form` has a bounded scrollable textarea, and no component adds `background-image` or full-page pseudo-elements over the notebook shell.
 
-- [ ] **Step 5: Add the beta test command**
+- [x] **Step 5: Add the beta test command**
 
 ```json
 "test:core-beta": "node --test test/coreExperienceFlow.test.js test/growthSuggestionEngine.test.js test/growthSuggestionUi.test.js test/growthJourney.test.js test/traceWorkspace.test.js test/visualSystem.test.js && npm run test:ui-views"
@@ -759,7 +759,7 @@ Run: `npm run test:core-beta && npm test && npm run lint:ui && npm run build:ui`
 
 Expected: all commands exit 0.
 
-- [ ] **Step 6: Commit the acceptance gate**
+- [x] **Step 6: Commit the acceptance gate**
 
 ```bash
 git add test/coreExperienceFlow.test.js frontend/src/viewModels/paperWorkspace.test.ts test/visualSystem.test.js package.json

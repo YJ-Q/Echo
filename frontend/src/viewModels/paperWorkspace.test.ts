@@ -110,3 +110,37 @@ test("trace focus resolver swaps the focused panel with the trace slot", () => {
   assert.deepEqual(resolveTraceSlots("patterns"), { left: "patterns", rightTop: "traces", rightBottom: "imprints" });
   assert.deepEqual(resolveTraceSlots("imprints"), { left: "imprints", rightTop: "patterns", rightBottom: "traces" });
 });
+
+test("growth and trace pages tell the same confirmed story", () => {
+  const growth = buildGrowthPageModel({
+    current_learning: {
+      topic: "在会议中更完整地表达",
+      current_step_index: 1,
+      step_labels: [
+        { index: 0, title: "完成本周小实验", status: "done" },
+        { index: 1, title: "留下真实情境记录", status: "active" },
+        { index: 2, title: "用自己的话回看变化", status: "pending" },
+      ],
+    },
+  });
+  const traces = buildTracePageModel({
+    growth_records: [{
+      id: "learning-event-1",
+      timestamp: "2026-07-12T10:00:00+08:00",
+      text: "我先说完了一个观点，没有在中途自我否定。",
+      source: "成长记录",
+    }],
+  }, null, {
+    achievements: [{
+      id: 2,
+      key: "learning:first_step",
+      unlocked: true,
+      unlocked_at: "2026-07-12T10:01:00+08:00",
+    }],
+  });
+
+  assert.equal(growth.topic, "在会议中更完整地表达");
+  assert.equal(growth.nodes[0].status, "done");
+  assert.match(traces.groups[0].items[0].text, /说完了一个观点/);
+  assert.equal(traces.recentImprints[0].key, "learning:first_step");
+});

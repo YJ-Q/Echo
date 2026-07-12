@@ -52,3 +52,15 @@ test("notebook shell exclusively owns full-page paper surfaces", async () => {
   const growthPath = rule(css, ".growth-path-page");
   assert.match(growthPath, /box-shadow:\s*none;/);
 });
+
+test("experiment editor stays bounded without adding a page surface", async () => {
+  const css = await readFile(cssPath, "utf8");
+  const textarea = rule(css, ".experiment-result-form textarea");
+  assert.match(textarea, /max-height:\s*92px;/);
+  assert.match(textarea, /overflow-y:\s*auto;/);
+
+  for (const selector of [".growth-workspace", ".trace-workspace"]) {
+    assert.match(rule(css, selector), /background:\s*transparent;/);
+  }
+  assert.doesNotMatch(css, /\.experiment-result-form::(?:before|after)/);
+});
