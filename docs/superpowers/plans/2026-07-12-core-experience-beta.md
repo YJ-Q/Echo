@@ -32,7 +32,7 @@
 - Produces: `saveGrowthSuggestion(suggestion)`, `getGrowthSuggestion(key)`, `getLatestPendingGrowthSuggestion()`, `dismissGrowthSuggestionRecord(key)`, and `confirmGrowthSuggestionRecord(key, steps)`.
 - `GrowthSuggestion` fields are `key`, `topic`, `reason`, `experiment`, `source_input`, `status`, `session_id`, `created_at`, and `updated_at`.
 
-- [ ] **Step 1: Write failing suggestion tests**
+- [x] **Step 1: Write failing suggestion tests**
 
 ```js
 import test from 'node:test';
@@ -60,13 +60,13 @@ test('ordinary low-signal chat does not create a suggestion', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify the missing-module failure**
+- [x] **Step 2: Run the test and verify the missing-module failure**
 
 Run: `node --test test/growthSuggestionEngine.test.js`
 
 Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `growthSuggestionEngine.js`.
 
-- [ ] **Step 3: Implement deterministic suggestion extraction**
+- [x] **Step 3: Implement deterministic suggestion extraction**
 
 ```js
 import { createHash } from 'node:crypto';
@@ -113,7 +113,7 @@ function includesAny(text, cues) {
 }
 ```
 
-- [ ] **Step 4: Add the suggestion table and storage functions**
+- [x] **Step 4: Add the suggestion table and storage functions**
 
 Add this table to `ensureSchema()` in `src/storage/memoryStore.js`:
 
@@ -226,7 +226,7 @@ export async function confirmGrowthSuggestionRecord(key, steps) {
 }
 ```
 
-- [ ] **Step 5: Add isolated storage assertions and run the focused tests**
+- [x] **Step 5: Add isolated storage assertions and run the focused tests**
 
 Extend `test/growthSuggestionEngine.test.js` with the repository's temporary `ECHO_DB_PATH` pattern and assert that saving the same key twice produces one pending row and that dismissed rows remain dismissed.
 
@@ -234,7 +234,7 @@ Run: `node --test test/growthSuggestionEngine.test.js`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the suggestion boundary**
+- [x] **Step 6: Commit the suggestion boundary**
 
 ```bash
 git add src/services/growthSuggestionEngine.js src/storage/memoryStore.js test/growthSuggestionEngine.test.js
