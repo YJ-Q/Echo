@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Circle, CircleDot } from "lucide-react";
-import { useMemo, useState, type WheelEvent } from "react";
+import { useMemo, useState, type FormEvent, type WheelEvent } from "react";
 import type { MemoryCard } from "../lib/api";
 import { selectVisibleGrowthNodes, type GrowthNodeModel, type GrowthPageModel } from "../viewModels/paperWorkspace";
 import PaperNote from "./PaperNote";
@@ -9,7 +9,7 @@ interface GrowthJourneyProps {
   currentAction: string;
   records: MemoryCard[];
   otherLines: string[];
-  onCompleteCurrent?: () => void;
+  onRecordExperiment?: (result: string) => Promise<void>;
 }
 
 function recordDate(value?: string) {
@@ -18,9 +18,13 @@ function recordDate(value?: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-export default function GrowthJourney({ model, currentAction, records, otherLines, onCompleteCurrent }: GrowthJourneyProps) {
+export default function GrowthJourney({ model, currentAction, records, otherLines, onRecordExperiment }: GrowthJourneyProps) {
   const [focusIndex, setFocusIndex] = useState(model.currentStepIndex);
   const [recordIndex, setRecordIndex] = useState(0);
+  const [experimentResult, setExperimentResult] = useState("");
+  const [recordingResult, setRecordingResult] = useState(false);
+  const [savingResult, setSavingResult] = useState(false);
+  const [resultNotice, setResultNotice] = useState<string | null>(null);
   const visibleNodes = useMemo(() => selectVisibleGrowthNodes(model.nodes, focusIndex), [focusIndex, model.nodes]);
   const recentRecords = records.slice(0, 7);
   const selectedRecord = recentRecords[recordIndex];
@@ -35,6 +39,24 @@ export default function GrowthJourney({ model, currentAction, records, otherLine
     if (next !== focusIndex) {
       event.preventDefault();
       setFocusIndex(next);
+    }
+  };
+
+  const submitExperimentResult = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const result = experimentResult.trim();
+    if (!result || !onRecordExperiment || savingResult) return;
+    setSavingResult(true);
+    setResultNotice(null);
+    try {
+      await onRecordExperiment(result);
+      setExperimentResult("");
+      setRecordingResult(false);
+      setResultNotice("这次结果已经留下。");
+    } catch (error) {
+      setResultNotice(error instanceof Error ? error.message : "这次结果暂时没能留下，请稍后再试。");
+    } finally {
+      setSavingResult(false);
     }
   };
 
@@ -53,10 +75,27 @@ export default function GrowthJourney({ model, currentAction, records, otherLine
         </dl>
 
         <PaperNote
-          footer={<><span className="experiment-status"><CircleDot aria-hidden="true" size={12} /> 进行中</span>{onCompleteCurrent && <button className="paper-note-action" onClick={onCompleteCurrent} type="button">记录结果 <ChevronRight aria-hidden="true" size={12} /></button>}</>}
+          footer={<><span className="experiment-status"><CircleDot aria-hidden="true" size={12} /> 进行中</span>{onRecordExperiment && !recordingResult && <button className="paper-note-action" onClick={() => { setRecordingResult(true); setResultNotice(null); }} type="button">记录结果 <ChevronRight aria-hidden="true" size={12} /></button>}</>}
           title="本周小实验"
         >
           <p>{currentAction}</p>
+          {recordingResult && (
+            <form className="experiment-result-form" onSubmit={submitExperimentResult}>
+              <label htmlFor="experiment-result">这次实际发生了什么？</label>
+              <textarea
+                id="experiment-result"
+                maxLength={4000}
+                onChange={(event) => setExperimentResult(event.target.value)}
+                rows={3}
+                value={experimentResult}
+              />
+              <div>
+                <button onClick={() => setRecordingResult(false)} type="button">稍后再写</button>
+                <button disabled={savingResult || !experimentResult.trim()} type="submit">留下结果</button>
+              </div>
+            </form>
+          )}
+          {resultNotice && <p className="experiment-result-notice" role="status">{resultNotice}</p>}
         </PaperNote>
 
         <section className="situation-records">

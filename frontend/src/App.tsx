@@ -61,7 +61,6 @@ const DEFAULT_SETTINGS: MarginSettingsSnapshot = {
 };
 
 type WorkspaceEnhancements = ReturnType<typeof useMarginWorkspace> & {
-  updateLearningStep?: (sessionId: number | string, stepIndex: number, status: string) => Promise<unknown>;
   managementProposals?: { proposals?: ManagementProposal[] } | null;
   createManagementProposal?: (input: Record<string, unknown>) => Promise<unknown>;
   cancelManagementProposal?: (id: number | string, reason?: string) => Promise<unknown>;
@@ -282,13 +281,14 @@ export default function App() {
     }
   };
 
-  const handleStepChange = async (task: TaskNode) => {
+  const handleStepChange = async (task: TaskNode, result = "") => {
     if (!workspace.updateLearningStep || learningSession?.id === undefined || task.status !== "active") return;
     const stepIndex = Number(task.id);
     try {
-      await workspace.updateLearningStep(learningSession.id, stepIndex, "done");
+      await workspace.updateLearningStep(learningSession.id, stepIndex, "done", result);
     } catch (error) {
       setSendError(error instanceof Error ? error.message : "学习步骤暂时未能更新。");
+      throw error instanceof Error ? error : new Error("学习步骤暂时未能更新。");
     }
   };
 
@@ -480,12 +480,22 @@ export default function App() {
           <GrowthJourney
             currentAction={learning?.current_step?.action || "把这一小步做完，再回来留下结果。"}
             model={growthPageModel}
-            onCompleteCurrent={workspace.updateLearningStep ? () => {
+            onRecordExperiment={workspace.updateLearningStep ? async (result) => {
               const activeTask = learningTasks.find((task) => task.status === "active");
-              if (activeTask) void handleStepChange(activeTask);
+              if (!activeTask) throw new Error("当前没有可以记录结果的小实验。");
+              await handleStepChange(activeTask, result);
             } : undefined}
             otherLines={(workspace.learningLine?.sessions || []).map((session) => session.topic || "一条未命名的成长线").filter((topic) => topic !== learning?.topic)}
-            records={workspace.memoryView?.memories || []}
+            records={[
+              ...(workspace.memoryView?.growth_records || []).map((record) => ({
+                id: record.id,
+                timestamp: record.timestamp,
+                user_input: record.context,
+                memory_note: record.text,
+                tags: [record.source],
+              })),
+              ...(workspace.memoryView?.memories || []),
+            ]}
           />
         ) : (
           <div className={`workspace-page section-paper section-paper-${section}`}>

@@ -163,20 +163,34 @@ export function buildTracePageModel(
   achievements: AchievementResponse | null | undefined,
 ): TracePageModel {
   const groups = new Map<string, TraceGroupModel>();
-  const memories = [...(memory?.memories || [])]
-    .sort((left, right) => timestampValue(right.timestamp) - timestampValue(left.timestamp))
-    .slice(0, 10);
-
-  for (const item of memories) {
-    const date = traceDate(item.timestamp);
-    const group = groups.get(date.key) || { dateKey: date.key, dateLabel: date.label, items: [] };
-    group.items.push({
-      id: String(item.id ?? `${date.key}-${group.items.length}`),
+  const traces: TraceItemModel[] = [
+    ...(memory?.memories || []).map((item) => ({
+      id: String(item.id ?? `memory-${item.timestamp || "unknown"}`),
       timestamp: item.timestamp,
-      timeLabel: date.time,
+      timeLabel: "",
       text: traceText(item),
       context: cleanText(item.user_input, "") || undefined,
       source: item.pinned ? "长期留下" : "思考片段",
+    })),
+    ...(memory?.growth_records || []).map((record) => ({
+      id: record.id,
+      timestamp: record.timestamp,
+      timeLabel: "",
+      text: record.text,
+      context: record.context,
+      source: record.source,
+    })),
+  ]
+    .sort((left, right) => timestampValue(right.timestamp) - timestampValue(left.timestamp))
+    .slice(0, 10);
+
+  for (const item of traces) {
+    const date = traceDate(item.timestamp);
+    const group = groups.get(date.key) || { dateKey: date.key, dateLabel: date.label, items: [] };
+    group.items.push({
+      ...item,
+      timestamp: item.timestamp,
+      timeLabel: date.time,
     });
     groups.set(date.key, group);
   }

@@ -14,6 +14,10 @@ test("growth journey contains the approved workspace regions and no imprint UI",
   assert.doesNotMatch(source, /Imprint|印记|coin|硬币/i);
   assert.match(source, /onWheel/);
   assert.match(source, /aria-current="step"/);
+  assert.match(source, /experiment-result-form/);
+  assert.match(source, /maxLength=\{4000\}/);
+  assert.match(source, /onRecordExperiment/);
+  assert.match(source, /disabled=\{node\.disabled\}/);
 });
 
 test("growth journey uses the approved name and warm full-spread override", async () => {

@@ -596,7 +596,7 @@ git commit -m "feat: confirm growth lines from the homepage"
 - `updateLearningStep` frontend helper accepts optional `result`.
 - `GrowthJourney` replaces `onCompleteCurrent` with `onRecordExperiment(result: string)`.
 
-- [ ] **Step 1: Write failing API tests for result persistence and duplicate completion**
+- [x] **Step 1: Write failing API tests for result persistence and duplicate completion**
 
 After creating a confirmed growth line, submit the same step completion twice:
 
@@ -613,19 +613,19 @@ assert.equal(completions.length, 1);
 assert.equal(completions[0].user_input, payload.result);
 ```
 
-- [ ] **Step 2: Run the focused test and verify duplicate events are currently written**
+- [x] **Step 2: Run the focused test and verify duplicate events are currently written**
 
 Run: `node --test --test-name-pattern="result persistence|duplicate completion" test/api.test.js`
 
 Expected: FAIL because the route always appends a manual event and ignores `result`.
 
-- [ ] **Step 3: Make the route compare before mutating**
+- [x] **Step 3: Make the route compare before mutating**
 
 Export the existing internal `getLearningSessionById(id)` from `memoryStore.js`. Read the session before `updateLearningStep`. If the target step already has the requested status, return the existing session with `already_applied: true` and do not write an event. Otherwise update and pass trimmed `result` into the existing `buildManualStepEvent` `userInput` parameter.
 
 Reject result strings longer than 4000 characters with `400 learning_result_too_long`; an empty result is allowed for non-experiment steps, while completing the active first experiment from the UI requires non-empty text.
 
-- [ ] **Step 4: Expose result-bearing growth records to the traces view**
+- [x] **Step 4: Expose result-bearing growth records to the traces view**
 
 Extend `GET /memory` with only learning events that contain a non-empty `user_input` and an event type ending in `_done` or `_completed`:
 
@@ -659,7 +659,7 @@ export interface GrowthRecord {
 }
 ```
 
-- [ ] **Step 5: Add a compact result editor to the weekly experiment paper**
+- [x] **Step 5: Add a compact result editor to the weekly experiment paper**
 
 In `GrowthJourney`, keep local `experimentResult`, `savingResult`, and `resultNotice`. The paper note action opens a textarea; the save button is disabled for blank input or while saving:
 
@@ -679,11 +679,11 @@ In `GrowthJourney`, keep local `experimentResult`, `savingResult`, and `resultNo
 
 Do not introduce a modal or new page. Long text scrolls inside the textarea and later inside the existing record region.
 
-- [ ] **Step 6: Await the post-mutation refresh**
+- [x] **Step 6: Await the post-mutation refresh**
 
 Update `useMarginWorkspace` so learning-step mutation performs `await refresh()` before resolving. In `App.handleStepChange`, pass the recorded result and show a calm failure notice without changing the local step to complete on failure.
 
-- [ ] **Step 7: Update component and structural tests**
+- [x] **Step 7: Update component and structural tests**
 
 Assert that `GrowthJourney.tsx` contains `experiment-result-form`, `maxLength={4000}`, and `onRecordExperiment`, and that pending path nodes remain disabled.
 
@@ -691,7 +691,7 @@ Run: `node --test test/api.test.js test/growthJourney.test.js && npm run test:ui
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit experiment recording**
+- [x] **Step 8: Commit experiment recording**
 
 ```bash
 git add src/storage/memoryStore.js src/routes/learningRoutes.js src/routes/memoryRoutes.js frontend/src/lib/api.ts frontend/src/viewModels/paperWorkspace.ts frontend/src/viewModels/paperWorkspace.test.ts frontend/src/hooks/useMarginWorkspace.ts frontend/src/components/GrowthJourney.tsx frontend/src/App.tsx frontend/src/index.css test/api.test.js test/growthJourney.test.js

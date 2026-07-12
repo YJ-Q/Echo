@@ -269,8 +269,17 @@ export interface MemoryViewModel {
 
 export interface MemoryResponse {
   memories?: MemoryCard[];
+  growth_records?: GrowthRecord[];
   current_memory?: MemoryViewModel | null;
   [key: string]: unknown;
+}
+
+export interface GrowthRecord {
+  id: string;
+  timestamp?: string;
+  text: string;
+  context?: string;
+  source: '成长记录';
 }
 
 export interface MemoryMutationResponse {
@@ -429,6 +438,7 @@ export interface ManagementProposalCreateResponse {
 
 export interface LearningStepUpdateResponse {
   session?: LearningSession;
+  already_applied?: boolean;
   [key: string]: unknown;
 }
 
@@ -673,12 +683,13 @@ export async function updateLearningStep(
   sessionId: number | string,
   stepIndex: number | string,
   status: 'pending' | 'active' | 'done' = 'done',
+  result = '',
   options: Omit<JsonRequestOptions<JsonObject>, 'query' | 'method' | 'body'> = {}
 ): Promise<LearningStepUpdateResponse> {
   return requestJson<LearningStepUpdateResponse>(`/learning/${encodeURIComponent(String(sessionId))}/steps/${encodeURIComponent(String(stepIndex))}`, {
     ...options,
     method: 'POST',
-    body: { status }
+    body: result ? { status, result } : { status }
   });
 }
 

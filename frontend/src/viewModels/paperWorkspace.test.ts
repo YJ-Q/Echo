@@ -35,6 +35,22 @@ test("traces are newest-first and grouped by actual calendar date", () => {
   assert.equal(model.groups[0]?.items[0]?.text, "较新");
 });
 
+test("recorded growth experiments appear in traces with their supplied source", () => {
+  const model = buildTracePageModel({
+    memories: [],
+    growth_records: [{
+      id: "learning-event-1",
+      timestamp: "2026-07-11T11:00:00+08:00",
+      text: "我先说完了一个观点，没有在中途自我否定。",
+      context: "完成本周小实验",
+      source: "成长记录",
+    }],
+  }, null, null);
+
+  assert.equal(model.groups[0]?.items[0]?.text, "我先说完了一个观点，没有在中途自我否定。");
+  assert.equal(model.groups[0]?.items[0]?.source, "成长记录");
+});
+
 test("recent imprints contain unlocked records only and stop at three", () => {
   const achievements = {
     achievements: [1, 2, 3, 4].map((id) => ({

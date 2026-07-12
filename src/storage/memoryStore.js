@@ -1461,7 +1461,7 @@ function mapMemoryRow(row) {
   };
 }
 
-async function getLearningSessionById(id) {
+export async function getLearningSessionById(id) {
   const db = await getDb();
   const row = await db.get(
     `

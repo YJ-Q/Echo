@@ -743,6 +743,64 @@ textarea:focus-visible {
   font-size: 9px;
 }
 
+.experiment-result-form {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(92, 76, 57, 0.13);
+}
+
+.experiment-result-form label,
+.experiment-result-notice {
+  color: #70675c !important;
+  font-size: var(--meta-size) !important;
+}
+
+.experiment-result-form textarea {
+  width: 100%;
+  max-height: 92px;
+  padding: 8px 9px;
+  overflow-y: auto;
+  resize: vertical;
+  color: #514b44;
+  border: 1px solid rgba(92, 76, 57, 0.18);
+  border-radius: 2px;
+  outline: none;
+  background: rgba(255, 253, 247, 0.2);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.experiment-result-form textarea:focus {
+  border-color: rgba(120, 99, 75, 0.42);
+}
+
+.experiment-result-form > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.experiment-result-form button {
+  padding: 2px 0;
+  color: #78634b;
+  border: 0;
+  border-bottom: 1px solid rgba(120, 99, 75, 0.26);
+  background: transparent;
+  font-size: var(--meta-size);
+  cursor: pointer;
+}
+
+.experiment-result-form button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.experiment-result-notice {
+  margin-top: 8px !important;
+}
+
 .situation-records {
   min-height: 0;
   display: grid;

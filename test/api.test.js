@@ -1171,6 +1171,55 @@ test('POST /learning/:id/steps/:stepIndex records standardized manual learning e
   }
 });
 
+test('learning step result persistence and duplicate completion stay idempotent', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const confirmation = await confirmGrowthFromMessage(
+      ctx.baseUrl,
+      'I want to learn how to express my full point in meetings without stopping halfway.'
+    );
+    const sessionId = confirmation.session.id;
+    const payload = { status: 'done', result: '我先说完了一个观点，没有在中途自我否定。' };
+
+    const first = await postJson(ctx.baseUrl, `/learning/${sessionId}/steps/0`, payload);
+    const second = await postJson(ctx.baseUrl, `/learning/${sessionId}/steps/0`, payload);
+    const events = await getJson(ctx.baseUrl, `/learning/events?sessionId=${sessionId}`);
+    const completions = events.events.filter((event) => event.event_type === 'manual_step_done');
+    const memory = await getJson(ctx.baseUrl, '/memory');
+
+    assert.equal(first.already_applied, false);
+    assert.equal(second.already_applied, true);
+    assert.equal(completions.length, 1);
+    assert.equal(completions[0].user_input, payload.result);
+    assert.ok(memory.growth_records.some((record) => record.text === payload.result));
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
+test('learning result longer than 4000 characters is rejected', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    const confirmation = await confirmGrowthFromMessage(
+      ctx.baseUrl,
+      'I want to learn how to express my full point in meetings without stopping halfway.'
+    );
+    const response = await fetch(`${ctx.baseUrl}/learning/${confirmation.session.id}/steps/0`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done', result: 'a'.repeat(4001) })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error.code, 'learning_result_too_long');
+  } finally {
+    await ctx.cleanup();
+  }
+});
+
 test('POST /actions/:id/status done syncs linked learning step completion and records a learning event', async () => {
   const ctx = await startTestServer();
 

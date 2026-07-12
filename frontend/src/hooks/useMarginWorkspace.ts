@@ -91,7 +91,8 @@ export interface UseMarginWorkspaceResult extends MarginWorkspaceData {
   updateLearningStep: (
     sessionId: number | string,
     stepIndex: number | string,
-    status?: 'pending' | 'active' | 'done'
+    status?: 'pending' | 'active' | 'done',
+    result?: string
   ) => Promise<LearningStepUpdateResponse>;
   fetchManagementProposals: () => Promise<ManagementProposalListResponse>;
   createManagementProposal: (input: JsonObject) => Promise<ManagementProposalCreateResponse>;
@@ -280,10 +281,10 @@ export function useMarginWorkspace(options: UseMarginWorkspaceOptions = {}): Use
   );
 
   const workspaceUpdateLearningStep = useCallback(
-    async (sessionId: number | string, stepIndex: number | string, status: 'pending' | 'active' | 'done' = 'done') => {
-      const result = await updateLearningStep(sessionId, stepIndex, status);
-      void refresh();
-      return result;
+    async (sessionId: number | string, stepIndex: number | string, status: 'pending' | 'active' | 'done' = 'done', result = '') => {
+      const response = await updateLearningStep(sessionId, stepIndex, status, result);
+      await refresh();
+      return response;
     },
     [refresh]
   );
