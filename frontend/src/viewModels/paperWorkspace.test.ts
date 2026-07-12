@@ -64,3 +64,27 @@ test("growth node window follows a browsed focus without exceeding three nodes",
   assert.deepEqual(selectVisibleGrowthNodes(nodes, 2).map((node) => node.index), [1, 2, 3]);
   assert.deepEqual(selectVisibleGrowthNodes(nodes, 4).map((node) => node.index), [3, 4]);
 });
+
+test("trace patterns distinguish confirmed and developing understanding", () => {
+  const model = buildTracePageModel(null, {
+    summary: {
+      stable_signals: [{ key: "communication_style", value: "表达前常先预想评价" }],
+      developing_signals: [{ key: "motivation", value: "拆小以后更容易开始" }],
+    },
+  }, null);
+
+  assert.deepEqual(model.patterns.map((pattern) => pattern.status), ["confirmed", "pending"]);
+});
+
+test("trace model caps recent items and keeps invalid dates readable", () => {
+  const memories = Array.from({ length: 12 }, (_, index) => ({
+    id: index,
+    timestamp: index === 0 ? "invalid-date" : `2026-07-${String(index + 1).padStart(2, "0")}T10:00:00+08:00`,
+    insight_note: `观察 ${index}`,
+  }));
+  const model = buildTracePageModel({ memories }, null, null);
+  const items = model.groups.flatMap((group) => group.items);
+
+  assert.equal(items.length, 10);
+  assert.ok(items.some((item) => item.text.startsWith("观察")));
+});

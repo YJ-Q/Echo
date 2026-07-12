@@ -9,7 +9,7 @@ export function TraceSectionNav({ active, onSelect }: { active: MemorySubpage; o
     { id: "traces", label: "最近留下" },
     { id: "kept", label: "长期留下" },
     { id: "profile", label: "慢慢形成" },
-    { id: "imprints", label: "印记" },
+    { id: "imprints", label: "成长印记" },
   ];
 
   return (

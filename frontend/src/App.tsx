@@ -3,13 +3,14 @@ import SidebarTabs from "./components/SidebarTabs";
 import ReflectiveMargin from "./components/ReflectiveMargin";
 import ConversationAnnotations from "./components/ConversationAnnotations";
 import GrowthJourney from "./components/GrowthJourney";
+import TraceWorkspace from "./components/TraceWorkspace";
 import SettingsSheet from "./components/SettingsSheet";
 import ManagementSheet from "./components/ManagementSheet";
 import ImprintCollection, { ImprintUnlockNotice } from "./components/ImprintCollection";
 import { ProfilePage, TraceSectionNav, type MemorySubpage } from "./components/TraceSections";
 import ShelfView from "./components/ShelfView";
 import WindowControls from "./components/WindowControls";
-import { buildGrowthPageModel } from "./viewModels/paperWorkspace";
+import { buildGrowthPageModel, buildTracePageModel } from "./viewModels/paperWorkspace";
 import { useMarginWorkspace } from "./hooks/useMarginWorkspace";
 import type {
   MarginSettingsPatch,
@@ -166,6 +167,10 @@ export default function App() {
   const learning = workspace.learningLine?.current_learning;
   const learningSession = workspace.learningLine?.current_session;
   const growthPageModel = useMemo(() => buildGrowthPageModel(workspace.learningLine), [workspace.learningLine]);
+  const tracePageModel = useMemo(
+    () => buildTracePageModel(workspace.memoryView, workspace.profile, workspace.achievements),
+    [workspace.achievements, workspace.memoryView, workspace.profile],
+  );
   const learningTasks = useMemo<TaskNode[]>(() => (
     learning?.step_labels?.map((step) => ({
       id: String(step.index),
@@ -297,10 +302,6 @@ export default function App() {
     return result.transcript;
   };
 
-  const shelf = useMemo(
-    () => buildShelf(section, workspace, setOperationNotice, setPendingProposal),
-    [section, workspace],
-  );
   const managementShelf = useMemo(
     () => buildShelf("management", workspace, setOperationNotice, setPendingProposal),
     [workspace],
@@ -461,17 +462,23 @@ export default function App() {
                 onRefresh={workspace.refreshProfile}
                 profile={workspace.profile}
               />
-            ) : (
+            ) : section === "memory" && memorySubpage === "kept" ? (
               <ShelfView
-                eyebrow={section === "memory" && memorySubpage === "kept" ? "被主动留下的" : undefined}
-                footerText={section === "memory" && memorySubpage === "kept" ? "长期留下并不意味着永远不能修正。" : undefined}
-                items={section === "memory" && memorySubpage === "kept" ? keptShelf.items : shelf.items}
+                eyebrow="被主动留下的"
+                footerText="长期留下并不意味着永远不能修正。"
+                items={keptShelf.items}
                 notice={operationNotice}
-                onOpenImprints={section === "memory" ? () => setMemorySubpage("imprints") : undefined}
+                onOpenImprints={() => setMemorySubpage("imprints")}
                 onOpenManagement={openManagement}
-                section={section}
-                summary={section === "memory" && memorySubpage === "kept" ? keptShelf.summary : shelf.summary}
-                title={section === "memory" && memorySubpage === "kept" ? "长期留下" : undefined}
+                section="memory"
+                summary={keptShelf.summary}
+                title="长期留下"
+              />
+            ) : (
+              <TraceWorkspace
+                model={tracePageModel}
+                onOpenImprints={() => setMemorySubpage("imprints")}
+                onOpenProfile={() => setMemorySubpage("profile")}
               />
             )}
           </div>

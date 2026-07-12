@@ -5,7 +5,6 @@ import type {
   MemoryCard,
   MemoryResponse,
   ProfileResponse,
-  ProfileSignal,
 } from "../lib/api";
 
 export interface GrowthNodeModel {
@@ -39,9 +38,15 @@ export interface TraceGroupModel {
   items: TraceItemModel[];
 }
 
+export interface TracePatternModel {
+  key: string;
+  value: string;
+  status: "confirmed" | "pending";
+}
+
 export interface TracePageModel {
   groups: TraceGroupModel[];
-  patterns: ProfileSignal[];
+  patterns: TracePatternModel[];
   recentImprints: AchievementRecord[];
   imprintTotal: number;
 }
@@ -112,9 +117,24 @@ function traceDate(timestamp?: string) {
 
 function profileSignals(profile: ProfileResponse | null | undefined) {
   if (profile?.summary && typeof profile.summary === "object") {
-    return [...(profile.summary.stable_signals || []), ...(profile.summary.developing_signals || [])].slice(0, 2);
+    return [
+      ...(profile.summary.stable_signals || []).map((signal) => ({
+        key: signal.key || "stable-pattern",
+        value: cleanText(signal.value, "一条已经反复出现的理解"),
+        status: "confirmed" as const,
+      })),
+      ...(profile.summary.developing_signals || []).map((signal) => ({
+        key: signal.key || "developing-pattern",
+        value: cleanText(signal.value, "一条还需要继续确认的理解"),
+        status: "pending" as const,
+      })),
+    ].slice(0, 2);
   }
-  return (profile?.profile || []).slice(0, 2);
+  return (profile?.profile || []).slice(0, 2).map((signal) => ({
+    key: signal.key || "profile-pattern",
+    value: cleanText(signal.value, "一条慢慢形成的理解"),
+    status: "confirmed" as const,
+  }));
 }
 
 export function buildTracePageModel(
