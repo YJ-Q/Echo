@@ -8,7 +8,12 @@ interface ConversationAnnotationsProps {
   growthSuggestion?: {
     title: string;
     detail: string;
+    experiment?: string;
+    pending?: boolean;
   };
+  growthSuggestionBusy?: boolean;
+  onConfirmGrowth?: () => void;
+  onDismissGrowth?: () => void;
   onOpenGrowth?: () => void;
   ribbonLabel?: string;
 }
@@ -24,6 +29,9 @@ export default function ConversationAnnotations({
   noticed,
   prompt,
   growthSuggestion,
+  growthSuggestionBusy = false,
+  onConfirmGrowth,
+  onDismissGrowth,
   onOpenGrowth,
   ribbonLabel = "边注正在随对话形成",
 }: ConversationAnnotationsProps) {
@@ -48,7 +56,16 @@ export default function ConversationAnnotations({
 
       {growthSuggestion && (
         <PaperNote
-          footer={onOpenGrowth && (
+          footer={growthSuggestion.pending ? (
+            <div className="growth-suggestion-actions">
+              <button disabled={growthSuggestionBusy} onClick={onDismissGrowth} type="button">
+                先不形成
+              </button>
+              <button disabled={growthSuggestionBusy} onClick={onConfirmGrowth} type="button">
+                形成这条成长线 <ArrowRight aria-hidden="true" size={13} />
+              </button>
+            </div>
+          ) : onOpenGrowth && (
             <button className="paper-note-action" onClick={onOpenGrowth} type="button">
               去成长轨迹看看 <ArrowRight aria-hidden="true" size={13} />
             </button>
@@ -56,6 +73,9 @@ export default function ConversationAnnotations({
           title={growthSuggestion.title}
         >
           <p>{growthSuggestion.detail}</p>
+          {growthSuggestion.experiment && (
+            <p className="growth-suggestion-experiment">可以先试：{growthSuggestion.experiment}</p>
+          )}
         </PaperNote>
       )}
     </aside>

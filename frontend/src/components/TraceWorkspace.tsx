@@ -215,9 +215,9 @@ function PatternsSummary({ model, onFocus }: { model: TracePageModel; onFocus: (
           <p>{pattern.value}</p>
           <footer>
             <span className={pattern.status === "confirmed" ? "is-confirmed" : "is-pending"}>
-              {pattern.status === "confirmed" ? "已经确认" : "等待确认"}
+              {pattern.status === "confirmed" ? "反复出现" : "尚在形成"}
             </span>
-            {pattern.status === "pending" && <button onClick={onFocus} type="button">去确认</button>}
+            {pattern.status === "pending" && <button onClick={onFocus} type="button">去校准</button>}
           </footer>
         </article>
       ))}

@@ -67,7 +67,8 @@ export interface ChatResponse {
   emotion?: string;
   tags?: string[];
   intent?: string;
-  learning_session?: unknown;
+  learning_session?: LearningSession | null;
+  growth_suggestion?: GrowthSuggestion | null;
   behavior_hint?: unknown;
   decision?: unknown;
   memory_note?: string;
@@ -162,6 +163,26 @@ export interface LearningSession {
   [key: string]: unknown;
 }
 
+export interface GrowthSuggestion {
+  key: string;
+  topic: string;
+  reason: string;
+  experiment: string;
+  status: 'pending' | 'confirmed' | 'dismissed';
+  source_input?: string;
+  session_id?: number | string | null;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+export interface GrowthSuggestionMutationResponse {
+  suggestion: GrowthSuggestion;
+  session?: LearningSession | null;
+  already_confirmed?: boolean;
+  [key: string]: unknown;
+}
+
 export interface LearningViewModel {
   id?: number | string | null;
   topic?: string;
@@ -195,6 +216,7 @@ export interface LearningActiveResponse {
   sessions?: LearningSession[];
   current_session?: LearningSession | null;
   current_learning?: LearningViewModel | null;
+  pending_suggestion?: GrowthSuggestion | null;
   [key: string]: unknown;
 }
 
@@ -579,6 +601,28 @@ export async function sendReflect(
     ...options,
     method: 'POST',
     body: input
+  });
+}
+
+export async function confirmGrowthSuggestion(
+  key: string,
+  options: Omit<JsonRequestOptions<JsonObject>, 'query' | 'method' | 'body'> = {}
+): Promise<GrowthSuggestionMutationResponse> {
+  return requestJson<GrowthSuggestionMutationResponse>(`/learning/suggestions/${encodeURIComponent(key)}/confirm`, {
+    ...options,
+    method: 'POST',
+    body: {}
+  });
+}
+
+export async function dismissGrowthSuggestion(
+  key: string,
+  options: Omit<JsonRequestOptions<JsonObject>, 'query' | 'method' | 'body'> = {}
+): Promise<GrowthSuggestionMutationResponse> {
+  return requestJson<GrowthSuggestionMutationResponse>(`/learning/suggestions/${encodeURIComponent(key)}/dismiss`, {
+    ...options,
+    method: 'POST',
+    body: {}
   });
 }
 

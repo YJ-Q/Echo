@@ -634,6 +634,37 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+.growth-suggestion-experiment {
+  margin-top: 7px !important;
+  color: #665b4e !important;
+}
+
+.growth-suggestion-actions {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.growth-suggestion-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  color: #78634b;
+  border: 0;
+  border-bottom: 1px solid rgba(120, 99, 75, 0.26);
+  background: transparent;
+  font-size: var(--meta-size);
+  cursor: pointer;
+}
+
+.growth-suggestion-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .growth-workspace,
 .trace-workspace {
   min-width: 0;

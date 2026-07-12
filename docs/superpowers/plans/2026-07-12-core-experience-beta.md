@@ -459,7 +459,7 @@ git commit -m "feat: require confirmation before growth lines"
 - `UseMarginWorkspaceResult` adds matching mutation methods that await `refresh()` before resolving.
 - `ConversationAnnotations` consumes `growthSuggestion`, `growthSuggestionBusy`, `onConfirmGrowth`, and `onDismissGrowth`.
 
-- [ ] **Step 1: Write a failing UI structure test**
+- [x] **Step 1: Write a failing UI structure test**
 
 ```js
 test('homepage growth suggestion is confirmable and dismissible', async () => {
@@ -482,13 +482,13 @@ test('automatic profile signals are not labeled as user-confirmed facts', async 
 });
 ```
 
-- [ ] **Step 2: Run the UI test and verify it fails**
+- [x] **Step 2: Run the UI test and verify it fails**
 
 Run: `node --test test/growthSuggestionUi.test.js`
 
 Expected: FAIL because the confirmation props and copy do not exist.
 
-- [ ] **Step 3: Add typed API contracts**
+- [x] **Step 3: Add typed API contracts**
 
 ```ts
 export interface GrowthSuggestion {
@@ -510,7 +510,7 @@ export interface GrowthSuggestionMutationResponse {
 
 Set `ChatResponse.growth_suggestion?: GrowthSuggestion | null` and `LearningActiveResponse.pending_suggestion?: GrowthSuggestion | null`. Implement POST helpers using encoded keys.
 
-- [ ] **Step 4: Make workspace mutations refresh coherently**
+- [x] **Step 4: Make workspace mutations refresh coherently**
 
 Use `await refresh()` rather than `void refresh()` for confirm and dismiss:
 
@@ -524,7 +524,7 @@ const workspaceConfirmGrowthSuggestion = useCallback(async (key: string) => {
 
 Return both functions from `useMarginWorkspace` and include their exact signatures in `UseMarginWorkspaceResult`.
 
-- [ ] **Step 5: Render a two-action paper note**
+- [x] **Step 5: Render a two-action paper note**
 
 Change `ConversationAnnotations` so a pending suggestion shows topic, reason, and the small experiment. Its footer contains two text buttons:
 
@@ -543,7 +543,7 @@ After confirmation, the existing “去成长轨迹看看” entry may appear fr
 
 In the compact “慢慢形成” panel, replace automatic-signal status copy “已经确认 / 等待确认” with “反复出现 / 尚在形成”. Keep the correction action in the expanded profile view. This prevents confidence thresholds from being presented as explicit user consent.
 
-- [ ] **Step 6: Wire response and recovered pending state in App**
+- [x] **Step 6: Wire response and recovered pending state in App**
 
 Store only the latest response suggestion temporarily, with persisted workspace state as fallback:
 
@@ -556,7 +556,7 @@ const pendingGrowthSuggestion = responseGrowthSuggestion?.status === 'pending'
 
 In `handleSend`, assign `response.result?.growth_suggestion || null`. Confirmation and dismissal clear the temporary value only after the backend mutation succeeds. Display failures through the existing `sendError` region.
 
-- [ ] **Step 7: Add restrained action styles without new paper surfaces**
+- [x] **Step 7: Add restrained action styles without new paper surfaces**
 
 Add `.growth-suggestion-actions` as a flex row using transparent text buttons and existing underline colors. Do not add a full-page background, shadow, or container outside `PaperNote`.
 
@@ -564,7 +564,7 @@ Run: `node --test test/growthSuggestionUi.test.js test/visualSystem.test.js && n
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit the homepage confirmation flow**
+- [x] **Step 8: Commit the homepage confirmation flow**
 
 ```bash
 git add frontend/src/lib/api.ts frontend/src/hooks/useMarginWorkspace.ts frontend/src/components/ConversationAnnotations.tsx frontend/src/components/TraceWorkspace.tsx frontend/src/App.tsx frontend/src/index.css test/growthSuggestionUi.test.js

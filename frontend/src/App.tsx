@@ -15,6 +15,7 @@ import type {
   MarginSettingsSnapshot,
 } from "./electron";
 import type {
+  GrowthSuggestion,
   ManagementOverviewCandidate,
   ManagementProposal,
   MemoryCard,
@@ -133,6 +134,8 @@ export default function App() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [operationNotice, setOperationNotice] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [responseGrowthSuggestion, setResponseGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
+  const [growthSuggestionBusy, setGrowthSuggestionBusy] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MarginSettingsSnapshot>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -163,6 +166,9 @@ export default function App() {
 
   const learning = workspace.learningLine?.current_learning;
   const learningSession = workspace.learningLine?.current_session;
+  const pendingGrowthSuggestion = responseGrowthSuggestion?.status === "pending"
+    ? responseGrowthSuggestion
+    : workspace.learningLine?.pending_suggestion || null;
   const growthPageModel = useMemo(() => buildGrowthPageModel(workspace.learningLine), [workspace.learningLine]);
   const tracePageModel = useMemo(
     () => buildTracePageModel(workspace.memoryView, workspace.profile, workspace.achievements),
@@ -230,6 +236,7 @@ export default function App() {
 
     try {
       const response = await workspace.sendReflect({ message: text });
+      setResponseGrowthSuggestion(response.result?.growth_suggestion || null);
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
@@ -244,6 +251,34 @@ export default function App() {
       setSendError(error instanceof Error ? error.message : "这句话暂时没能写入，请稍后再试。");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleConfirmGrowth = async () => {
+    if (!pendingGrowthSuggestion || growthSuggestionBusy) return;
+    setGrowthSuggestionBusy(true);
+    setSendError(null);
+    try {
+      await workspace.confirmGrowthSuggestion(pendingGrowthSuggestion.key);
+      setResponseGrowthSuggestion(null);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "这条成长线暂时没能形成，请稍后再试。");
+    } finally {
+      setGrowthSuggestionBusy(false);
+    }
+  };
+
+  const handleDismissGrowth = async () => {
+    if (!pendingGrowthSuggestion || growthSuggestionBusy) return;
+    setGrowthSuggestionBusy(true);
+    setSendError(null);
+    try {
+      await workspace.dismissGrowthSuggestion(pendingGrowthSuggestion.key);
+      setResponseGrowthSuggestion(null);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "暂时没能收起这条建议，请稍后再试。");
+    } finally {
+      setGrowthSuggestionBusy(false);
     }
   };
 
@@ -411,11 +446,19 @@ export default function App() {
             />
             </div>
             <ConversationAnnotations
-              growthSuggestion={learning?.topic ? {
+              growthSuggestion={pendingGrowthSuggestion ? {
+                title: "这段话也许值得继续生长",
+                detail: pendingGrowthSuggestion.reason,
+                experiment: pendingGrowthSuggestion.experiment,
+                pending: true,
+              } : learning?.topic ? {
                 title: "这条线可以继续生长",
                 detail: `“${learning.topic}”已经形成一条成长线，可以在另一页慢慢推进。`,
               } : undefined}
+              growthSuggestionBusy={growthSuggestionBusy}
               noticed={learning?.current_step?.action || "有些真正重要的话，往往会在停顿和反复里慢慢显出来。"}
+              onConfirmGrowth={handleConfirmGrowth}
+              onDismissGrowth={handleDismissGrowth}
               onOpenGrowth={() => setSection("learning")}
               prompt={learning?.topic
                 ? `如果不要求一次做得完整，关于“${learning.topic}”，下一小步可以是什么？`
