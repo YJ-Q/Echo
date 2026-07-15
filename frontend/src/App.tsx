@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import SidebarTabs from "./components/SidebarTabs";
 import ReflectiveMargin from "./components/ReflectiveMargin";
+import ConversationAnnotations from "./components/ConversationAnnotations";
+import GrowthJourney from "./components/GrowthJourney";
+import TraceWorkspace from "./components/TraceWorkspace";
 import SettingsSheet from "./components/SettingsSheet";
 import ManagementSheet from "./components/ManagementSheet";
-import ImprintCollection, { ImprintUnlockNotice } from "./components/ImprintCollection";
-import { ProfilePage, TraceSectionNav, type MemorySubpage } from "./components/TraceSections";
-import ShelfView from "./components/ShelfView";
-import TaskOutline from "./components/TaskOutline";
+import { ImprintUnlockNotice } from "./components/ImprintCollection";
 import WindowControls from "./components/WindowControls";
+import { buildGrowthPageModel, buildTracePageModel } from "./viewModels/paperWorkspace";
 import { useMarginWorkspace } from "./hooks/useMarginWorkspace";
 import type {
   MarginSettingsPatch,
   MarginSettingsSnapshot,
 } from "./electron";
 import type {
+  GrowthSuggestion,
   ManagementOverviewCandidate,
   ManagementProposal,
   MemoryCard,
@@ -28,7 +30,7 @@ import type {
 
 const NAVIGATION: NavigationTab[] = [
   { id: "journal", label: "思考片段" },
-  { id: "learning", label: "学习轨迹" },
+  { id: "learning", label: "成长轨迹" },
   { id: "memory", label: "留痕" },
   { id: "settings", label: "设置" },
 ];
@@ -59,7 +61,6 @@ const DEFAULT_SETTINGS: MarginSettingsSnapshot = {
 };
 
 type WorkspaceEnhancements = ReturnType<typeof useMarginWorkspace> & {
-  updateLearningStep?: (sessionId: number | string, stepIndex: number, status: string) => Promise<unknown>;
   managementProposals?: { proposals?: ManagementProposal[] } | null;
   createManagementProposal?: (input: Record<string, unknown>) => Promise<unknown>;
   cancelManagementProposal?: (id: number | string, reason?: string) => Promise<unknown>;
@@ -132,13 +133,14 @@ export default function App() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [operationNotice, setOperationNotice] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [responseGrowthSuggestion, setResponseGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
+  const [growthSuggestionBusy, setGrowthSuggestionBusy] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [settings, setSettings] = useState<MarginSettingsSnapshot>(DEFAULT_SETTINGS);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
   const [managementOpen, setManagementOpen] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<ManagementProposal | null>(null);
-  const [memorySubpage, setMemorySubpage] = useState<MemorySubpage>("traces");
   const [dismissedUnlockKey, setDismissedUnlockKey] = useState<string | null>(null);
   const seededConversation = useRef(false);
   const activeAudio = useRef<HTMLAudioElement | null>(null);
@@ -163,6 +165,14 @@ export default function App() {
 
   const learning = workspace.learningLine?.current_learning;
   const learningSession = workspace.learningLine?.current_session;
+  const pendingGrowthSuggestion = responseGrowthSuggestion?.status === "pending"
+    ? responseGrowthSuggestion
+    : workspace.learningLine?.pending_suggestion || null;
+  const growthPageModel = useMemo(() => buildGrowthPageModel(workspace.learningLine), [workspace.learningLine]);
+  const tracePageModel = useMemo(
+    () => buildTracePageModel(workspace.memoryView, workspace.profile, workspace.achievements),
+    [workspace.achievements, workspace.memoryView, workspace.profile],
+  );
   const learningTasks = useMemo<TaskNode[]>(() => (
     learning?.step_labels?.map((step) => ({
       id: String(step.index),
@@ -225,6 +235,7 @@ export default function App() {
 
     try {
       const response = await workspace.sendReflect({ message: text });
+      setResponseGrowthSuggestion(response.result?.growth_suggestion || null);
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
@@ -242,13 +253,42 @@ export default function App() {
     }
   };
 
-  const handleStepChange = async (task: TaskNode) => {
+  const handleConfirmGrowth = async () => {
+    if (!pendingGrowthSuggestion || growthSuggestionBusy) return;
+    setGrowthSuggestionBusy(true);
+    setSendError(null);
+    try {
+      await workspace.confirmGrowthSuggestion(pendingGrowthSuggestion.key);
+      setResponseGrowthSuggestion(null);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "这条成长线暂时没能形成，请稍后再试。");
+    } finally {
+      setGrowthSuggestionBusy(false);
+    }
+  };
+
+  const handleDismissGrowth = async () => {
+    if (!pendingGrowthSuggestion || growthSuggestionBusy) return;
+    setGrowthSuggestionBusy(true);
+    setSendError(null);
+    try {
+      await workspace.dismissGrowthSuggestion(pendingGrowthSuggestion.key);
+      setResponseGrowthSuggestion(null);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "暂时没能收起这条建议，请稍后再试。");
+    } finally {
+      setGrowthSuggestionBusy(false);
+    }
+  };
+
+  const handleStepChange = async (task: TaskNode, result = "") => {
     if (!workspace.updateLearningStep || learningSession?.id === undefined || task.status !== "active") return;
     const stepIndex = Number(task.id);
     try {
-      await workspace.updateLearningStep(learningSession.id, stepIndex, "done");
+      await workspace.updateLearningStep(learningSession.id, stepIndex, "done", result);
     } catch (error) {
       setSendError(error instanceof Error ? error.message : "学习步骤暂时未能更新。");
+      throw error instanceof Error ? error : new Error("学习步骤暂时未能更新。");
     }
   };
 
@@ -294,10 +334,6 @@ export default function App() {
     return result.transcript;
   };
 
-  const shelf = useMemo(
-    () => buildShelf(section, workspace, setOperationNotice, setPendingProposal),
-    [section, workspace],
-  );
   const managementShelf = useMemo(
     () => buildShelf("management", workspace, setOperationNotice, setPendingProposal),
     [workspace],
@@ -409,12 +445,26 @@ export default function App() {
               ttsAvailable={Boolean(workspace.apiInfo?.capabilities?.tts)}
             />
             </div>
-            <TaskOutline
-              context={learning?.summary || `已完成 ${learning?.completed_steps || 0} / ${learning?.total_steps || 0}`}
-              onStepChange={workspace.updateLearningStep ? handleStepChange : undefined}
-              ribbonLabel={workspace.refreshing ? "正在同步纸页" : "正在读取草稿"}
-              tasks={learningTasks}
-              title={learning?.topic || "尚未形成主线"}
+            <ConversationAnnotations
+              growthSuggestion={pendingGrowthSuggestion ? {
+                title: "这段话也许值得继续生长",
+                detail: pendingGrowthSuggestion.reason,
+                experiment: pendingGrowthSuggestion.experiment,
+                pending: true,
+              } : learning?.topic ? {
+                title: "这条线可以继续生长",
+                detail: `“${learning.topic}”已经形成一条成长线，可以在另一页慢慢推进。`,
+              } : undefined}
+              growthSuggestionBusy={growthSuggestionBusy}
+              noticed={learning?.current_step?.action || "有些真正重要的话，往往会在停顿和反复里慢慢显出来。"}
+              onConfirmGrowth={handleConfirmGrowth}
+              onDismissGrowth={handleDismissGrowth}
+              onOpenGrowth={() => setSection("learning")}
+              prompt={learning?.topic
+                ? `如果不要求一次做得完整，关于“${learning.topic}”，下一小步可以是什么？`
+                : "如果不急着得出结论，刚才哪句话还值得多停留一会儿？"}
+              ribbonLabel={workspace.refreshing ? "正在同步纸页" : "随对话慢慢形成"}
+              seen={learning?.summary || "这段对话里，已经有一些感受和想法开始变得清楚。"}
             />
           </>
         ) : section === "settings" ? (
@@ -426,34 +476,43 @@ export default function App() {
             saving={settingsSaving}
             settings={settings}
           />
+        ) : section === "learning" ? (
+          <GrowthJourney
+            currentAction={learning?.current_step?.action || "把这一小步做完，再回来留下结果。"}
+            model={growthPageModel}
+            onRecordExperiment={workspace.updateLearningStep ? async (result) => {
+              const activeTask = learningTasks.find((task) => task.status === "active");
+              if (!activeTask) throw new Error("当前没有可以记录结果的小实验。");
+              await handleStepChange(activeTask, result);
+            } : undefined}
+            otherLines={(workspace.learningLine?.sessions || []).map((session) => session.topic || "一条未命名的成长线").filter((topic) => topic !== learning?.topic)}
+            records={[
+              ...(workspace.memoryView?.growth_records || []).map((record) => ({
+                id: record.id,
+                timestamp: record.timestamp,
+                user_input: record.context,
+                memory_note: record.text,
+                tags: [record.source],
+              })),
+              ...(workspace.memoryView?.memories || []),
+            ]}
+          />
         ) : (
           <div className={`workspace-page section-paper section-paper-${section}`}>
-            {section === "memory" && <TraceSectionNav active={memorySubpage} onSelect={setMemorySubpage} />}
-            {section === "memory" && memorySubpage === "imprints" ? (
-              <ImprintCollection
+            {section === "memory" ? (
+              <TraceWorkspace
                 achievements={workspace.achievements}
+                keptItems={keptShelf.items}
+                keptSummary={keptShelf.summary}
+                model={tracePageModel}
+                notice={operationNotice}
                 onAcknowledge={acknowledgeUnlock}
-                onBack={() => setMemorySubpage("traces")}
-              />
-            ) : section === "memory" && memorySubpage === "profile" ? (
-              <ProfilePage
+                onOpenManagement={openManagement}
                 onOverride={workspace.overrideProfile}
-                onRefresh={workspace.refreshProfile}
+                onRefreshProfile={workspace.refreshProfile}
                 profile={workspace.profile}
               />
-            ) : (
-              <ShelfView
-                eyebrow={section === "memory" && memorySubpage === "kept" ? "被主动留下的" : undefined}
-                footerText={section === "memory" && memorySubpage === "kept" ? "长期留下并不意味着永远不能修正。" : undefined}
-                items={section === "memory" && memorySubpage === "kept" ? keptShelf.items : shelf.items}
-                notice={operationNotice}
-                onOpenImprints={section === "memory" ? () => setMemorySubpage("imprints") : undefined}
-                onOpenManagement={openManagement}
-                section={section}
-                summary={section === "memory" && memorySubpage === "kept" ? keptShelf.summary : shelf.summary}
-                title={section === "memory" && memorySubpage === "kept" ? "长期留下" : undefined}
-              />
-            )}
+            ) : null}
           </div>
         )}
         {managementOpen && (
@@ -473,7 +532,6 @@ export default function App() {
             onAcknowledge={acknowledgeUnlock}
             onOpen={() => {
               setSection("memory");
-              setMemorySubpage("imprints");
             }}
             record={newestUnlockRecord}
           />

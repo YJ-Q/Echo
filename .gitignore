@@ -1,6 +1,8 @@
 node_modules/
 frontend/dist/
 .runtime/
+release/
+build/icon.png
 .env
 data/*.json
 data/*.sqlite

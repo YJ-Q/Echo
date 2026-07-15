@@ -221,6 +221,163 @@ export async function getUserProfile() {
   );
 }
 
+export async function saveGrowthSuggestion(suggestion) {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  await db.run(
+    `
+      INSERT INTO growth_suggestions
+        (suggestion_key, topic, reason, experiment, source_input, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+      ON CONFLICT(suggestion_key) DO UPDATE SET
+        topic = excluded.topic,
+        reason = excluded.reason,
+        experiment = excluded.experiment,
+        source_input = excluded.source_input,
+        updated_at = CASE
+          WHEN growth_suggestions.status = 'pending' THEN excluded.updated_at
+          ELSE growth_suggestions.updated_at
+        END
+    `,
+    suggestion.key,
+    suggestion.topic,
+    suggestion.reason,
+    suggestion.experiment,
+    suggestion.source_input,
+    now,
+    now
+  );
+
+  return getGrowthSuggestion(suggestion.key);
+}
+
+export async function getGrowthSuggestion(key) {
+  const db = await getDb();
+  const row = await db.get(
+    'SELECT * FROM growth_suggestions WHERE suggestion_key = ?',
+    key
+  );
+  return mapGrowthSuggestionRow(row);
+}
+
+export async function getLatestPendingGrowthSuggestion() {
+  const db = await getDb();
+  const row = await db.get(`
+    SELECT *
+    FROM growth_suggestions
+    WHERE status = 'pending'
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `);
+  return mapGrowthSuggestionRow(row);
+}
+
+export async function dismissGrowthSuggestionRecord(key) {
+  const db = await getDb();
+  await db.run(
+    `
+      UPDATE growth_suggestions
+      SET status = 'dismissed', updated_at = ?
+      WHERE suggestion_key = ? AND status = 'pending'
+    `,
+    new Date().toISOString(),
+    key
+  );
+  return getGrowthSuggestion(key);
+}
+
+export async function confirmGrowthSuggestionRecord(key, steps) {
+  const db = await getDb();
+  let transactionOpen = false;
+
+  try {
+    await db.exec('BEGIN IMMEDIATE');
+    transactionOpen = true;
+    const row = await db.get(
+      'SELECT * FROM growth_suggestions WHERE suggestion_key = ?',
+      key
+    );
+
+    if (!row) {
+      await db.exec('ROLLBACK');
+      transactionOpen = false;
+      return null;
+    }
+
+    if (row.status === 'dismissed') {
+      const error = new Error('growth suggestion was dismissed');
+      error.status = 409;
+      error.code = 'growth_suggestion_dismissed';
+      throw error;
+    }
+
+    if (row.status === 'confirmed' && row.session_id) {
+      const sessionRow = await db.get(
+        `
+          SELECT id, topic, status, current_step, steps, created_at, updated_at
+          FROM learning_sessions
+          WHERE id = ?
+        `,
+        row.session_id
+      );
+      await db.exec('COMMIT');
+      transactionOpen = false;
+      return {
+        suggestion: mapGrowthSuggestionRow(row),
+        session: mapLearningSessionRow(sessionRow),
+        created: false
+      };
+    }
+
+    const now = new Date().toISOString();
+    const result = await db.run(
+      `
+        INSERT INTO learning_sessions
+          (topic, status, current_step, steps, created_at, updated_at)
+        VALUES (?, 'active', 0, ?, ?, ?)
+      `,
+      row.topic,
+      JSON.stringify(steps),
+      now,
+      now
+    );
+    await db.run(
+      `
+        UPDATE growth_suggestions
+        SET status = 'confirmed', session_id = ?, updated_at = ?
+        WHERE suggestion_key = ?
+      `,
+      result.lastID,
+      now,
+      key
+    );
+    const confirmedRow = await db.get(
+      'SELECT * FROM growth_suggestions WHERE suggestion_key = ?',
+      key
+    );
+    const sessionRow = await db.get(
+      `
+        SELECT id, topic, status, current_step, steps, created_at, updated_at
+        FROM learning_sessions
+        WHERE id = ?
+      `,
+      result.lastID
+    );
+    await db.exec('COMMIT');
+    transactionOpen = false;
+    return {
+      suggestion: mapGrowthSuggestionRow(confirmedRow),
+      session: mapLearningSessionRow(sessionRow),
+      created: true
+    };
+  } catch (error) {
+    if (transactionOpen) {
+      await db.exec('ROLLBACK').catch(() => {});
+    }
+    throw error;
+  }
+}
+
 export async function createLearningSession({ topic, steps }) {
   const db = await getDb();
   const now = new Date().toISOString();
@@ -1075,6 +1232,22 @@ export async function migrateMemoryStoreDatabase(db) {
     CREATE INDEX IF NOT EXISTS idx_learning_sessions_topic
       ON learning_sessions(topic);
 
+    CREATE TABLE IF NOT EXISTS growth_suggestions (
+      suggestion_key TEXT PRIMARY KEY,
+      topic TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      experiment TEXT NOT NULL,
+      source_input TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      session_id INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(session_id) REFERENCES learning_sessions(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_growth_suggestions_status_updated
+      ON growth_suggestions(status, updated_at DESC);
+
     CREATE TABLE IF NOT EXISTS learning_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id INTEGER,
@@ -1288,7 +1461,7 @@ function mapMemoryRow(row) {
   };
 }
 
-async function getLearningSessionById(id) {
+export async function getLearningSessionById(id) {
   const db = await getDb();
   const row = await db.get(
     `
@@ -1309,6 +1482,21 @@ function mapLearningSessionRow(row) {
     status: row.status,
     current_step: row.current_step,
     steps: safeJsonArray(row.steps),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+function mapGrowthSuggestionRow(row) {
+  if (!row) return null;
+  return {
+    key: row.suggestion_key,
+    topic: row.topic,
+    reason: row.reason,
+    experiment: row.experiment,
+    source_input: row.source_input,
+    status: row.status,
+    session_id: row.session_id,
     created_at: row.created_at,
     updated_at: row.updated_at
   };

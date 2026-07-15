@@ -2,8 +2,8 @@ import { upsertUserProfile } from '../storage/memoryStore.js';
 import { humanizeProfileValue } from './profileDictionary.js';
 import { extractLearningTopic } from './topicExtractor.js';
 
-export async function updateProfileFromInteraction(userInput, analysis) {
-  const signals = extractProfileSignals(userInput, analysis);
+export async function updateProfileFromInteraction(userInput, analysis, options = {}) {
+  const signals = extractProfileSignals(userInput, analysis, options);
 
   for (const signal of signals) {
     await upsertUserProfile(signal.key, signal.value, signal.confidence);
@@ -12,7 +12,7 @@ export async function updateProfileFromInteraction(userInput, analysis) {
   return signals;
 }
 
-export function extractProfileSignals(userInput, analysis) {
+export function extractProfileSignals(userInput, analysis, options = {}) {
   const signals = [];
   const language = detectLanguage(userInput);
   const text = userInput.toLowerCase();
@@ -22,6 +22,15 @@ export function extractProfileSignals(userInput, analysis) {
     value: language,
     confidence: 0.7
   });
+
+  if (options.allowGrowthSignals === false) {
+    signals.push({
+      key: 'echo_interaction_style',
+      value: 'reflective we-perspective with one next action',
+      confidence: 0.52
+    });
+    return signals;
+  }
 
   if (analysis.intent === 'learning') {
     const topic = extractLearningTopic(userInput);

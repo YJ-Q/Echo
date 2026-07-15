@@ -1,0 +1,28 @@
+appId: cn.margin.desktop
+productName: Margin
+artifactName: Margin-Setup-${version}-${arch}.${ext}
+directories:
+  output: release
+files:
+  - electron/**/*
+  - src/**/*
+  - frontend/dist/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - node_modules/sqlite3/**/*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  executableName: Margin
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  shortcutName: Margin

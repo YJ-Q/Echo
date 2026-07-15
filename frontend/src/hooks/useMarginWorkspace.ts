@@ -7,9 +7,11 @@ import {
   ApiInfoResponse,
   ChatRequest,
   ChatResponse,
+  confirmGrowthSuggestion,
   cancelManagementProposal,
   confirmManagementProposal,
   createManagementProposal,
+  dismissGrowthSuggestion,
   executeManagementProposal,
   fetchActions,
   fetchApiInfo,
@@ -23,6 +25,7 @@ import {
   fetchSummaries,
   generateSummary,
   LearningStepUpdateResponse,
+  GrowthSuggestionMutationResponse,
   isMarginApiError,
   MarginApiError,
   ManagementOverviewResponse,
@@ -76,6 +79,8 @@ export interface UseMarginWorkspaceResult extends MarginWorkspaceData {
   refresh: () => Promise<void>;
   sendChat: (input: string | ChatRequest) => Promise<ChatResponse>;
   sendReflect: (input: JsonObject & { message: string }) => Promise<ReflectResponse>;
+  confirmGrowthSuggestion: (key: string) => Promise<GrowthSuggestionMutationResponse>;
+  dismissGrowthSuggestion: (key: string) => Promise<GrowthSuggestionMutationResponse>;
   updateActionStatus: (
     id: number | string,
     status: 'pending' | 'active' | 'done' | 'dismissed'
@@ -86,7 +91,8 @@ export interface UseMarginWorkspaceResult extends MarginWorkspaceData {
   updateLearningStep: (
     sessionId: number | string,
     stepIndex: number | string,
-    status?: 'pending' | 'active' | 'done'
+    status?: 'pending' | 'active' | 'done',
+    result?: string
   ) => Promise<LearningStepUpdateResponse>;
   fetchManagementProposals: () => Promise<ManagementProposalListResponse>;
   createManagementProposal: (input: JsonObject) => Promise<ManagementProposalCreateResponse>;
@@ -247,6 +253,24 @@ export function useMarginWorkspace(options: UseMarginWorkspaceOptions = {}): Use
     [refresh]
   );
 
+  const workspaceConfirmGrowthSuggestion = useCallback(
+    async (key: string) => {
+      const result = await confirmGrowthSuggestion(key);
+      await refresh();
+      return result;
+    },
+    [refresh]
+  );
+
+  const workspaceDismissGrowthSuggestion = useCallback(
+    async (key: string) => {
+      const result = await dismissGrowthSuggestion(key);
+      await refresh();
+      return result;
+    },
+    [refresh]
+  );
+
   const workspaceExecuteManagementProposal = useCallback(
     async (id: number | string, confirmationText = '') => {
       const result = await executeManagementProposal(id, confirmationText);
@@ -257,10 +281,10 @@ export function useMarginWorkspace(options: UseMarginWorkspaceOptions = {}): Use
   );
 
   const workspaceUpdateLearningStep = useCallback(
-    async (sessionId: number | string, stepIndex: number | string, status: 'pending' | 'active' | 'done' = 'done') => {
-      const result = await updateLearningStep(sessionId, stepIndex, status);
-      void refresh();
-      return result;
+    async (sessionId: number | string, stepIndex: number | string, status: 'pending' | 'active' | 'done' = 'done', result = '') => {
+      const response = await updateLearningStep(sessionId, stepIndex, status, result);
+      await refresh();
+      return response;
     },
     [refresh]
   );
@@ -358,6 +382,8 @@ export function useMarginWorkspace(options: UseMarginWorkspaceOptions = {}): Use
     refresh,
     sendChat: workspaceSendChat,
     sendReflect: workspaceSendReflect,
+    confirmGrowthSuggestion: workspaceConfirmGrowthSuggestion,
+    dismissGrowthSuggestion: workspaceDismissGrowthSuggestion,
     updateActionStatus: workspaceUpdateActionStatus,
     generateSummary: workspaceGenerateSummary,
     synthesizeSpeech: workspaceSynthesizeSpeech,

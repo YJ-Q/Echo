@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { sendData, sendError } from '../lib/apiResponse.js';
-import { getMemories, getUserProfile, getUserStates } from '../storage/memoryStore.js';
+import { getLearningEvents, getMemories, getUserProfile, getUserStates } from '../storage/memoryStore.js';
 import { buildContext } from '../services/contextBuilder.js';
 import { buildMemoryViewModel } from '../services/memoryViewModel.js';
 import {
@@ -17,12 +17,23 @@ const router = Router();
 router.get('/', async (req, res, next) => {
   try {
     const limit = Number.parseInt(req.query.limit, 10);
-    const memories = await getMemories({
-      limit: Number.isFinite(limit) ? limit : 40
-    });
+    const [memories, learningEvents] = await Promise.all([
+      getMemories({ limit: Number.isFinite(limit) ? limit : 40 }),
+      getLearningEvents({ limit: 50 })
+    ]);
+    const growthRecords = learningEvents
+      .filter((event) => event.user_input && /(done|completed)$/i.test(event.event_type))
+      .map((event) => ({
+        id: `learning-event-${event.id}`,
+        timestamp: event.created_at,
+        text: event.user_input,
+        context: event.step_title || event.topic,
+        source: '成长记录'
+      }));
 
     sendData(res, {
       memories,
+      growth_records: growthRecords,
       current_memory: buildMemoryViewModel(memories)
     });
   } catch (error) {

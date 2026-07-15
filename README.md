@@ -49,7 +49,7 @@ Implemented:
 Still worth improving before a polished open-source `1.0`:
 
 - clean migration of early records that were corrupted by shell encoding
-- installer packaging, application icons, and release signing
+- release signing and automatic updates
 - optional speech-to-text provider for microphone input
 - persisted custom notebook sections
 
@@ -97,6 +97,24 @@ Start the desktop application:
 ```bash
 npm run desktop
 ```
+
+## Windows Installer
+
+Building the Windows x64 installer requires Node.js 22.12 or newer:
+
+```bash
+npm run dist:win
+```
+
+The installer is written to `release/Margin-Setup-<version>-x64.exe`. The build runs the UI typecheck, production frontend build, icon generation, and complete test suite before packaging.
+
+Verify the generated installer on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\smoke-win-installer.ps1 -InstallerPath release\Margin-Setup-0.1.0-x64.exe
+```
+
+The current installer is unsigned. Windows SmartScreen may display a warning; verify the SHA-256 value published with the build artifact before running it. Code signing is a separate release-security milestone.
 
 ## Environment
 

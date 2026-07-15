@@ -2,31 +2,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { Check, Feather, RefreshCw, X } from "lucide-react";
 import type { ProfileResponse, ProfileSignal } from "../lib/api";
 
-export type MemorySubpage = "traces" | "kept" | "profile" | "imprints";
-
-export function TraceSectionNav({ active, onSelect }: { active: MemorySubpage; onSelect: (section: MemorySubpage) => void }) {
-  const sections: Array<{ id: MemorySubpage; label: string }> = [
-    { id: "traces", label: "最近留下" },
-    { id: "kept", label: "长期留下" },
-    { id: "profile", label: "慢慢形成" },
-    { id: "imprints", label: "印记" },
-  ];
-
-  return (
-    <nav className="trace-section-nav" aria-label="留痕视图">
-      {sections.map((section) => (
-        <button
-          aria-current={active === section.id ? "page" : undefined}
-          className={active === section.id ? "is-active" : ""}
-          key={section.id}
-          onClick={() => onSelect(section.id)}
-          type="button"
-        >{section.label}</button>
-      ))}
-    </nav>
-  );
-}
-
 export function ProfilePage({
   profile,
   onRefresh,

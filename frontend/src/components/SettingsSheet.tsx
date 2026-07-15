@@ -22,7 +22,7 @@ function defaultModel(provider: MarginProvider) {
   const defaults: Record<MarginProvider, string> = {
     local: "margin-local",
     openai: "gpt-4.1-mini",
-    anthropic: "claude-3-5-sonnet-latest",
+    anthropic: "claude-sonnet-4-6",
     siliconflow: "deepseek-ai/DeepSeek-V3.2",
   };
   return defaults[provider];

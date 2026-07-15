@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSynthesisSignals } from '../src/services/profileSynthesisEngine.js';
+import * as profileSynthesis from '../src/services/profileSynthesisEngine.js';
+
+const { buildSynthesisSignals } = profileSynthesis;
 
 function createMemory({
   user_input,
@@ -37,6 +39,20 @@ test('buildSynthesisSignals writes sustained topic for repeated majority learnin
     value: 'Node.js',
     confidence: 0.68
   });
+});
+
+test('sustained learning topic requires a user-confirmed matching session', () => {
+  const signals = [{
+    key: 'sustained_learning_topic',
+    value: 'Node.js',
+    confidence: 0.68
+  }];
+
+  assert.deepEqual(profileSynthesis.filterConfirmedGrowthSignals(signals, []), []);
+  assert.deepEqual(
+    profileSynthesis.filterConfirmedGrowthSignals(signals, [{ topic: 'Node.js' }]),
+    signals
+  );
 });
 
 test('buildSynthesisSignals avoids early emotional baseline and recovery path from sparse signals', () => {

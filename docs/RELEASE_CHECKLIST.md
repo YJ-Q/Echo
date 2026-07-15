@@ -2,6 +2,17 @@
 
 This checklist covers the current desktop-first Margin release.
 
+## Latest Local Verification
+
+Verified on 2026-07-12 for Margin `0.1.0` Windows x64:
+
+- `npm run dist:win` completed successfully after TypeScript, UI build, icon build, and 186 automated tests
+- generated unsigned NSIS artifact `Margin-Setup-0.1.0-x64.exe`
+- installer smoke test passed clean install, backend health, chat persistence after relaunch, uninstall, and retained user data
+- SHA-256: `8ED20A864FDD831E67924A68841BF710FE99D713C41D0DA2CFC64D8B14665914`
+- packaged `app.asar` contains no project-level `.env`, database, test, release, export, or design-document directories
+- unsigned SmartScreen disclosure remains required before public distribution
+
 ## Before Push
 
 - confirm `npm test` passes
@@ -9,6 +20,12 @@ This checklist covers the current desktop-first Margin release.
 - confirm `.env.example` matches the current runtime config
 - confirm `docs/API_CONTRACT.md` matches current route behavior
 - confirm `npm run build:ui` passes and the desktop shell loads the built frontend
+- confirm `npm run dist:win` produces `release/Margin-Setup-<version>-x64.exe`
+- confirm `scripts/smoke-win-installer.ps1` passes clean install, relaunch, persistence, and uninstall checks
+- confirm the installer SHA-256 is published beside the artifact
+- confirm the unsigned-build and SmartScreen warning are disclosed
+- confirm reinstall preserves SQLite data and encrypted settings in the user-data directory
+- confirm uninstall removes application files without deleting user data
 - confirm the 4:3 window ratio and minimum size behave correctly
 - confirm the left paper tabs align with the generated notebook background
 - confirm backup/import docs are present and readable

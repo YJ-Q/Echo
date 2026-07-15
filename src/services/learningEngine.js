@@ -1,8 +1,12 @@
 import {
   addLearningEvent,
+  confirmGrowthSuggestionRecord,
   createLearningSession,
+  dismissGrowthSuggestionRecord,
   getActiveLearningSession,
+  getGrowthSuggestion,
   getLatestActiveLearningSession,
+  upsertUserProfile,
   updateLearningStep
 } from '../storage/memoryStore.js';
 import { buildLearningEvent, LEARNING_EVENT_TYPES } from './learningEvents.js';
@@ -67,6 +71,67 @@ export function buildLearningSteps(topic) {
       status: 'pending'
     }
   ];
+}
+
+export function buildGrowthSteps(topic, experiment) {
+  return [
+    {
+      title: '完成本周小实验',
+      action: experiment,
+      status: 'active'
+    },
+    {
+      title: '留下真实情境记录',
+      action: `写下关于“${topic}”的一次真实发生。`,
+      status: 'pending'
+    },
+    {
+      title: '用自己的话回看变化',
+      action: '说说这次尝试让你对自己多看见了什么。',
+      status: 'pending'
+    }
+  ];
+}
+
+export async function confirmGrowthSuggestion(key) {
+  const suggestion = await getGrowthSuggestion(key);
+  if (!suggestion) return null;
+
+  const result = await confirmGrowthSuggestionRecord(
+    key,
+    buildGrowthSteps(suggestion.topic, suggestion.experiment)
+  );
+  if (!result) return null;
+
+  if (result.created) {
+    await addLearningEvent(buildLearningEvent({
+      session: result.session,
+      eventType: LEARNING_EVENT_TYPES.SESSION_CREATED,
+      reason: 'user_confirmed_growth_suggestion',
+      userInput: suggestion.source_input
+    }));
+  }
+
+  await upsertUserProfile('current_learning_focus', result.suggestion.topic, 0.9, { force: true });
+  await upsertUserProfile('active_growth_area', result.suggestion.topic, 0.82, { force: true });
+
+  return {
+    suggestion: result.suggestion,
+    session: result.session,
+    already_confirmed: !result.created
+  };
+}
+
+export async function dismissGrowthSuggestion(key) {
+  const suggestion = await getGrowthSuggestion(key);
+  if (!suggestion) return null;
+  if (suggestion.status === 'confirmed') {
+    const error = new Error('confirmed growth suggestion cannot be dismissed');
+    error.status = 409;
+    error.code = 'growth_suggestion_already_confirmed';
+    throw error;
+  }
+  return dismissGrowthSuggestionRecord(key);
 }
 
 export async function assessLearningProgress(userInput) {

@@ -130,7 +130,8 @@ export function createTtsProvider({ env = process.env, fetchImpl = global.fetch 
 
       return {
         mimeType: mimeTypeForFormat(config.response_format),
-        data: base64
+        data: base64,
+        traceId: response.headers.get('x-siliconcloud-trace-id') || null
       };
     }
   };

@@ -1,8 +1,11 @@
-import { getMemories, upsertUserProfile } from '../storage/memoryStore.js';
+import { getLearningSessions, getMemories, upsertUserProfile } from '../storage/memoryStore.js';
 import { extractLearningTopic } from './topicExtractor.js';
 
 export async function synthesizeProfileFromMemories({ limit = 40 } = {}) {
-  const memories = await getMemories({ limit });
+  const [memories, learningSessions] = await Promise.all([
+    getMemories({ limit }),
+    getLearningSessions({ limit: 100 })
+  ]);
 
   if (memories.length === 0) {
     return {
@@ -13,7 +16,10 @@ export async function synthesizeProfileFromMemories({ limit = 40 } = {}) {
     };
   }
 
-  const signals = buildSynthesisSignals(memories);
+  const signals = filterConfirmedGrowthSignals(
+    buildSynthesisSignals(memories),
+    learningSessions
+  );
 
   for (const signal of signals) {
     await upsertUserProfile(signal.key, signal.value, signal.confidence);
@@ -25,6 +31,17 @@ export async function synthesizeProfileFromMemories({ limit = 40 } = {}) {
       memories_considered: memories.length
     }
   };
+}
+
+export function filterConfirmedGrowthSignals(signals, learningSessions) {
+  const confirmedTopics = new Set(
+    (learningSessions || []).map((session) => session.topic).filter(Boolean)
+  );
+
+  return (signals || []).filter((signal) => (
+    signal.key !== 'sustained_learning_topic'
+    || confirmedTopics.has(signal.value)
+  ));
 }
 
 const MIN_EMOTIONAL_BASELINE_SAMPLES = 4;
