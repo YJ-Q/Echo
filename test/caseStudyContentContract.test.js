@@ -75,3 +75,25 @@ test("E011 identifies the product test count as a pre-case-study baseline", () =
   assert.ok(baseline);
   assert.match(baseline.claim, /核心产品|制作前基线/);
 });
+
+test("English edition is complete and keeps portfolio-critical language", () => {
+  const en = fs.readFileSync(enPath, "utf8");
+  assert.match(en, /A Place for the Self Still in Progress/);
+  assert.match(en, /not yet validated with external users/i);
+  assert.match(en, /Implemented/);
+  assert.match(en, /Scenario-validated/);
+  assert.match(en, /Hypothesis/);
+  assert.match(en, /108\/108/);
+  const words = en
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/[^A-Za-z0-9'-]+/g, " ")
+    .trim()
+    .split(/\s+/);
+  assert.ok(words.length >= 4000);
+});
+
+test("English edition contains no untranslated Chinese body paragraphs", () => {
+  const en = fs.readFileSync(enPath, "utf8");
+  const withoutApprovedTitle = en.replace("Margin：为尚未整理好的自己，留一个位置", "");
+  assert.doesNotMatch(withoutApprovedTitle, /[\u3400-\u9fff]{8,}/);
+});
