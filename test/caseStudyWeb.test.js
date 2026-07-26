@@ -156,3 +156,18 @@ test("responsive shell contains every evidence asset and local overflow boundari
   assert.match(css, /\.chapter-rail\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(css, /\.table-scroll\s*\{[^}]*overflow-x:\s*auto/s);
 });
+
+test("mobile header and Chinese title fit without clipping controls or glyphs", () => {
+  const css = fs.readFileSync(
+    new URL("../case-study/web/styles.css", import.meta.url),
+    "utf8"
+  );
+  assert.match(css, /\.site-header\s*\{[^}]*min-width:\s*0/s);
+  assert.match(css, /\.wordmark\s*\{[^}]*min-width:\s*0/s);
+  assert.match(css, /\.language-switch\s*\{[^}]*flex:\s*0 0 auto/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*860px\)[\s\S]*?h1,[\s\S]*?\{[^}]*font-size:\s*clamp\(38px,\s*10\.5vw,\s*48px\)[^}]*overflow-wrap:\s*anywhere[^}]*text-wrap:\s*wrap/s
+  );
+  assert.doesNotMatch(css, /(?:html|body)\s*\{[^}]*overflow-x:\s*(?:hidden|clip)/s);
+});

@@ -91,6 +91,8 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   min-height: 64px;
   padding: 0 32px;
   border-bottom: 1px solid var(--rule);
@@ -108,12 +110,15 @@ li {
 
 .wordmark {
   display: flex;
+  flex: 1 1 auto;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
   min-height: 44px;
   font-size: 12px;
   line-height: 44px;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .wordmark-edition {
@@ -124,6 +129,7 @@ li {
 
 .language-switch {
   display: flex;
+  flex: 0 0 auto;
   gap: 4px;
   font-size: 11px;
   line-height: 1;
@@ -503,7 +509,24 @@ tbody tr:last-child td {
   }
 
   .site-header {
+    gap: 12px;
     padding: 0 18px;
+  }
+
+  .wordmark {
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: .09em;
+  }
+
+  .wordmark-edition {
+    font-size: 8px;
+    letter-spacing: .13em;
+  }
+
+  .language-switch button {
+    min-width: 48px;
+    padding: 0 8px;
   }
 
   .case-layout {
@@ -552,8 +575,12 @@ tbody tr:last-child td {
 
   h1,
   html[data-active-language="en"] h1 {
+    max-width: 100%;
     margin-top: 20px;
-    font-size: clamp(42px, 13vw, 62px);
+    font-size: clamp(38px, 10.5vw, 48px);
+    line-height: 1.16;
+    overflow-wrap: anywhere;
+    text-wrap: wrap;
   }
 
   .case-subtitle {
