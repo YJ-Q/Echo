@@ -1,377 +1,377 @@
-# Margin AI Product Case Study Design
+# Margin AI 产品 Case Study 设计说明
 
-Date: 2026-07-26  
-Status: Approved design, pending implementation plan
+日期：2026-07-26
+状态：设计已确认，等待实施计划
 
-## 1. Objective
+## 1. 项目目标
 
-Create a bilingual portfolio case study for Margin aimed primarily at AI product manager roles.
+为 Margin 制作一份主要面向 AI 产品经理岗位的中英双语作品集案例。
 
-The case study will be delivered in three editions built from one evidence base:
+Case Study 基于同一套事实与证据，最终形成三种交付物：
 
-- a long-form bilingual web experience with Chinese and English language switching
-- a standalone Chinese PDF
-- a standalone English PDF
+- 支持中英文切换的长篇网页
+- 独立中文版 PDF
+- 独立英文版 PDF
 
-The case study must demonstrate product judgment, AI product-system thinking, scope discipline, and honest validation boundaries. It must not read like a development log, a feature inventory, or a UI-only portfolio piece.
+案例需要重点证明产品判断、AI 产品系统思考、范围控制和对验证边界的诚实认知。最终内容不能写成开发日志、功能清单或仅展示界面的 UI 作品。
 
-## 2. Project Context
+## 2. 项目背景
 
-Margin is an independently conceived and implemented AI companion product. The creator was responsible for product definition, interaction and visual decisions, system design, implementation, and validation.
+Margin 是由创作者独立构思并实现的 AI 陪伴产品。创作者独立负责产品定义、交互与视觉决策、系统设计、实现和验证。
 
-The current project stage is a functional MVP with scenario and technical validation. It has not yet been validated with real external users. The case study must preserve this distinction.
+项目当前处于可运行 MVP 阶段，已经完成技术验证和场景验证，但尚未经过真实外部用户验证。Case Study 必须始终保留这一区别。
 
-The product is positioned as a second-self companion rather than:
+Margin 被定位为“第二自我式陪伴空间”，而不是：
 
-- a generic chatbot
-- a task manager
-- a planner-first productivity product
-- a therapy substitute
-- a voice-assistant product
+- 通用聊天机器人
+- 任务管理器
+- 规划优先的效率产品
+- 心理治疗替代品
+- 语音助手产品
 
-Its central promise is that the user does not need to become organized before arriving. Margin receives what is still unresolved, keeps the live line visible, and helps the user continue from the last trace.
+产品的核心承诺是：用户不需要先整理好自己才能来到这里。Margin 先接住仍未解决的状态，保留仍然鲜活的线，再帮助用户从上次留下的痕迹继续。
 
-## 3. Audience and Hiring Signal
+## 3. 目标读者与求职信号
 
-### Primary audience
+### 主要读者
 
-Recruiters, hiring managers, and product leaders evaluating candidates for AI product manager roles.
+评估 AI 产品经理候选人的招聘人员、用人经理和产品负责人。
 
-### Intended hiring signals
+### 希望传递的能力
 
-After reading the case study, the audience should conclude that the creator can:
+读完案例后，读者应当能够判断创作者具备以下能力：
 
-1. define a product problem from an ambiguous human need
-2. distinguish a genuine product opportunity from a feature extension
-3. translate an abstract value proposition into AI behavior, product boundaries, and a coherent system loop
-4. make and explain MVP trade-offs
-5. connect product principles to interaction, visual design, technical behavior, and acceptance criteria
-6. distinguish implementation, scenario validation, user validation, and market validation
+1. 从模糊的人类需求中定义产品问题
+2. 区分真正的产品机会与简单的功能扩展
+3. 把抽象价值主张转化为 AI 行为、产品边界和完整闭环
+4. 做出并解释 MVP 取舍
+5. 把产品原则落实到交互、视觉、技术行为和验收标准
+6. 区分功能实现、场景验证、用户验证和市场验证
 
-### Content weighting
+### 内容权重
 
-- 55% product judgment and strategy
-- 25% product structure, AI behavior, and system-loop design
-- 15% interface and experience decisions
-- 5% technical implementation detail
+- 55%：产品判断与策略
+- 25%：产品结构、AI 行为与系统闭环
+- 15%：界面与体验决策
+- 5%：技术实现细节
 
-Technical details are evidence for product decisions, not the narrative center.
+技术细节用于证明产品决策，不作为叙事中心。
 
-## 4. Core Thesis and Title
+## 4. 核心标题与命题
 
-### Chinese title
+### 中文标题
 
 > Margin：为尚未整理好的自己，留一个位置
 
-### English title
+### 英文标题
 
 > Margin: A Place for the Self Still in Progress
 
-### Core thesis
+### 核心命题
 
 > 用户不需要先整理好自己，才值得被理解。
 
-English adaptation:
+英文表达：
 
 > People should not have to arrive organized in order to be understood.
 
-The title and thesis deliberately keep the person, rather than AI memory technology, at the center.
+标题和核心命题需要始终以“人”为主角，不能让 AI 记忆技术取代产品真正的关系定位。
 
-## 5. Narrative Strategy
+## 5. 叙事策略
 
-The case study uses a product-strategy narrative supported by implementation evidence and visual experience design.
+案例采用“产品策略主线 + 实现证据 + 体验设计”的混合叙事方式。
 
-The story progresses through five claims:
+全文依次证明五个判断：
 
-1. People often need support most when they cannot yet formulate a clear request.
-2. General chat products can answer the current message but often fail to preserve what remains alive across time.
-3. The opportunity is not a more capable chatbot but a second-self space that can receive unfinished states without immediately turning them into tasks.
-4. Margin responds through selective memory, a visible live line, gentle continuation, reflection, and retained traces.
-5. A functional MVP and scenario validation demonstrate that this product model can be implemented coherently; real user value and market demand remain hypotheses for the next phase.
+1. 人最需要支持时，往往还无法提出一个清晰的问题。
+2. 通用聊天产品能够回答当前消息，却很难跨越时间保留什么仍然鲜活、什么值得继续。
+3. 产品机会不是做一个能力更强的聊天机器人，而是创造一个允许用户先放下未完成状态的第二自我空间。
+4. Margin 通过选择性记忆、可见的当前线索、轻量继续、反思和痕迹积累回应这一机会。
+5. 可运行 MVP 和场景验证证明了这套产品模型能够被一致地实现；真实用户价值与市场需求仍属于下一阶段假设。
 
-The case study must not claim that the problem statement is already proven through user research. It is a product hypothesis derived from the creator's observation and must be labeled accordingly.
+案例不能声称问题已经通过用户研究得到证明。当前问题定义来自创作者观察，必须明确标记为仍待外部验证的产品假设。
 
-## 6. Chapter Architecture
+## 6. 章节结构
 
-### 01. Project Overview
+### 01. 项目概览
 
-Purpose: establish what was built, who built it, the stage, and why the work matters.
+目的：说明做了什么、由谁完成、处于什么阶段，以及为什么值得阅读。
 
-Evidence:
+证据：
 
-- independent 0-to-1 ownership
-- product role and adjacent execution responsibilities
-- project scope and constraints
-- current MVP status
+- 独立从 0 到 1 完成
+- 产品角色以及为落地承担的相邻职责
+- 项目范围和约束
+- 当前 MVP 状态
 
-### 02. The Unmet Moment
+### 02. 未被满足的时刻
 
-Purpose: define the human situation before describing the product.
+目的：先定义人的处境，再介绍产品。
 
-Content:
+内容：
 
-- arriving with an unclear or emotionally unfinished state
-- repeatedly starting over
-- losing the live line between conversations
-- the pressure created when support immediately becomes task management
+- 用户带着模糊或尚未完成的情绪状态到来
+- 每次对话都需要重新开始
+- 跨越对话后，仍然鲜活的线索被丢失
+- 当陪伴立即变成任务管理时产生的压力
 
-The section must label these as problem hypotheses that require external user research.
+本章必须明确说明：这些是需要通过真实用户研究验证的问题假设。
 
-### 03. Reframing the Problem
+### 03. 重新定义问题
 
-Purpose: explain why the response is not another chatbot, task manager, therapy product, or voice assistant.
+目的：解释为什么答案不是另一个聊天机器人、任务管理器、治疗产品或语音助手。
 
-Evidence:
+证据：
 
-- category-boundary comparison
-- rejected framings and their consequences
-- the shift from organizing the user to holding continuity
+- 产品类别与边界对比
+- 被否决的问题定义及其后果
+- 从“整理用户”到“保留连续性”的转变
 
-### 04. From Echo to Margin
+### 04. 从 Echo 到 Margin
 
-Purpose: present the name and positioning change as evidence of better problem definition, not as a cosmetic rebrand.
+目的：把名称和定位变化呈现为问题定义逐渐清晰的证据，而不是一次表面换名。
 
-Content:
+内容：
 
-- the earlier capability-centered framing
-- the emerging paper, margin, trace, and continuation language
-- decisions that reduced or removed planner-first, dashboard, hardware, and voice-first signals
-- the final second-self companion position
+- 早期以功能和能力为中心的表达
+- 纸、页边、痕迹和继续等语言如何逐渐出现
+- 为什么减少或移除规划优先、仪表盘、硬件感和语音优先的信号
+- 最终形成“第二自我式陪伴空间”的定位
 
-### 05. Product Principles
+### 05. 产品原则
 
-Purpose: show how an emotional proposition became operational decision rules.
+目的：展示如何把情感价值主张转化为可执行的产品决策规则。
 
-Principles:
+产品原则：
 
-- Arrival Before Action
-- Continuity Over Inventory
-- Notes, Not Orders
-- Traces, Not Scores
-- Quiet Readability
+- 先到场，再行动（Arrival Before Action）
+- 连续性优先于信息库存（Continuity Over Inventory）
+- 留下批注，而不是下达命令（Notes, Not Orders）
+- 看见痕迹，而不是计算分数（Traces, Not Scores）
+- 安静、清晰地阅读（Quiet Readability）
 
-Each principle must include:
+每条原则必须包含：
 
-- the user tension it addresses
-- the product behavior it creates
-- at least one design or scope consequence
+- 它回应的用户矛盾
+- 它要求产品表现出的行为
+- 至少一个由此产生的设计或范围取舍
 
-### 06. The Core Product Loop
+### 06. 核心产品闭环
 
-Purpose: show the operating model that makes the product proposition concrete.
+目的：说明产品定位如何被转化为具体运行机制。
 
-Loop:
+闭环：
 
-1. arrive without needing to be organized
-2. surface and preserve the live line
-3. retain only useful traces through selective memory
-4. offer one low-pressure continuation
-5. make growth visible as accumulated traces rather than scores
+1. 用户无需整理好自己即可到场
+2. 找到并保留当前仍然鲜活的线
+3. 通过选择性记忆保留真正有用的痕迹
+4. 提供一个低压力的继续方向
+5. 用积累的痕迹而不是分数呈现成长
 
-The chapter must connect Talk, Continue, Reflect, and Remember to this loop without turning the section into a feature list.
+本章需要把 Talk、Continue、Reflect 和 Remember 放入同一闭环，但不能退化为功能清单。
 
-### 07. MVP Scope and Trade-offs
+### 07. MVP 范围与取舍
 
-Purpose: demonstrate scope discipline.
+目的：证明范围控制能力。
 
-Include:
+包括：
 
-- in-scope capabilities
-- explicit non-goals
-- why read-aloud remains secondary
-- why heavy planning, workflow administration, gamification, and diagnostic behavior were excluded
-- what was deferred and why
+- 第一版纳入的能力
+- 明确不做的事情
+- 为什么朗读功能保持次要地位
+- 为什么排除重型规划、工作流管理、游戏化和诊断式行为
+- 哪些能力被延后，以及延后的原因
 
-### 08. AI and Memory Design
+### 08. AI 与记忆设计
 
-Purpose: demonstrate AI product-system thinking.
+目的：证明 AI 产品系统思考能力。
 
-Content:
+内容：
 
-- conversation input and state aggregation
-- layered and selective memory
-- live-line retrieval and continuity
-- learning, action, reflection, and memory relationships
-- explainability output
-- provider fallback behavior
-- safety and relational boundaries
+- 对话输入与状态聚合
+- 分层和选择性记忆
+- 当前线索的召回与连续性
+- 学习、行动、反思与记忆之间的关系
+- 可解释性输出
+- 模型服务失败时的回退行为
+- 安全边界与关系边界
 
-The system explanation must use plain product language. API and database details appear only where they prove a product behavior or constraint.
+系统说明必须使用产品语言。只有在技术细节能够证明某个产品行为或约束时，才展示 API 或数据库内容。
 
-### 09. Experience Expression
+### 09. 体验表达
 
-Purpose: show how the positioning is expressed through the product interface.
+目的：展示产品定位如何落实为界面和交互。
 
-Evidence:
+证据：
 
-- paper, ink, margin notes, traces, and continuation as repeated metaphors
-- text as the visual protagonist
-- quiet hierarchy and low-pressure calls to action
-- key views: Now, Learn, Actions, Reflections, and Memory
-- examples of interface language and motion choices
+- 纸、墨、页边批注、痕迹和继续等重复出现的隐喻
+- 文字作为视觉主角
+- 安静的信息层级和低压力行动邀请
+- Now、Learn、Actions、Reflections 和 Memory 等关键页面
+- 界面文案与动效决策示例
 
-### 10. Validation, Limits, and Next Experiments
+### 10. 验证、局限与下一步实验
 
-Purpose: establish rigor and credibility.
+目的：建立严谨性与可信度。
 
-Include:
+包括：
 
-- implemented capabilities
-- automated test evidence
-- scenario-based functional acceptance
-- real findings and known misclassifications
-- what has not been validated
-- a proposed external-user research and experiment sequence
+- 已实现的能力
+- 自动化测试证据
+- 基于场景的功能验收
+- 已发现的真实问题与误判
+- 尚未得到验证的部分
+- 下一阶段外部用户研究和实验顺序
 
-The final section must distinguish:
+结尾必须清楚区分：
 
-- a system that works as implemented
-- a product loop that behaves coherently in test scenarios
-- a user problem that still requires external validation
-- a market opportunity that has not yet been established
+- 系统能够按预期运行
+- 产品闭环在测试场景中表现一致
+- 用户问题仍需外部验证
+- 市场机会尚未得到证明
 
-## 7. Visual Direction
+## 7. 视觉方向
 
-### Selected direction: Editorial Evidence
+### 已选方向：编辑出版感 + 产品证据
 
-The visual language combines:
+视觉语言由以下部分组成：
 
-- warm paper surfaces
-- ink-like typography
-- restrained terracotta margin rules
-- editorial serif display type
-- clear sans-serif evidence labels
-- margin annotations and decision notes
-- rigorous diagrams, matrices, and fact modules
+- 温暖的纸张表面
+- 接近墨迹的文字质感
+- 克制的赤陶色页边线
+- 用于标题的编辑型衬线字体
+- 用于事实与证据标签的清晰无衬线字体
+- 页边批注和决策注释
+- 严格的系统图、矩阵和事实模块
 
-This direction conveys Margin's relational and literary character while remaining legible as an AI product management case study.
+这一方向既能表达 Margin 的关系定位和文学气质，也能保证它作为 AI 产品经理案例具备足够的证据密度。
 
-### Rejected directions
+### 未采用的方向
 
-#### Product Systems
+#### 产品系统型
 
-Strength: high scanning efficiency and strong system explanation.  
-Reason not selected as the primary direction: too close to a conventional consulting or product report and insufficiently distinctive for Margin.
+优点：扫描效率高，适合解释系统。
+未作为主方向的原因：过于接近常规咨询报告或产品报告，不能充分体现 Margin 的独特性。
 
-Its system diagrams and validation modules will still be used inside the selected direction.
+其中的系统图和验证模块仍会被吸收到最终方向中。
 
-#### Quiet Narrative
+#### 安静叙事型
 
-Strength: strongest emotional immersion and closest to the current product atmosphere.  
-Reason not selected as the primary direction: insufficient evidence density for product-manager evaluation.
+优点：情绪沉浸最强，也最接近当前产品氛围。
+未作为主方向的原因：产品证据密度不足，容易被理解为品牌展示。
 
-Its use of whitespace and quiet pacing will still inform section openings and interludes.
+其中的留白和安静节奏仍会用于章节开场和叙事过渡。
 
-## 8. Web Experience
+## 8. 网页体验
 
-The web edition is a long-form editorial experience.
+网页版本采用长篇编辑叙事。
 
-### Structure
+### 结构
 
-- opening thesis and concise project facts
-- persistent or easily accessible chapter index
-- alternating editorial narrative and evidence modules
-- large product images where interface evidence matters
-- decision notes in the margin
-- system diagrams at moments of structural explanation
-- chapter-level conclusion statements
-- language switch between full Chinese and English versions
+- 核心命题和精简项目事实
+- 固定或易于访问的章节索引
+- 编辑型叙事与证据模块交替出现
+- 在需要证明界面决策时使用大幅产品截图
+- 在页边呈现决策批注
+- 在解释结构时使用系统图
+- 每章结尾给出一个明确判断
+- 中文和英文完整版本切换
 
-Chinese and English must not be displayed as dense side-by-side body copy. Each language is a complete reading mode.
+中文和英文正文不能密集并排显示。每种语言都是一套独立、完整的阅读模式。
 
-### Content ratio
+### 内容比例
 
-Approximately:
+大致比例：
 
-- 55% argument and explanation
-- 45% visual evidence
+- 55%：论证和解释
+- 45%：视觉证据
 
-### Responsive behavior
+### 响应式行为
 
-The web edition must preserve reading hierarchy on desktop and mobile. Margin annotations may move inline on narrow viewports, but their relationship to the relevant evidence must remain clear.
+网页必须在桌面端和移动端保留清晰的阅读层级。窄屏下，页边批注可以移入正文，但必须保持它与对应证据之间的关系。
 
-## 9. PDF Experience
+## 9. PDF 体验
 
-Create separate Chinese and English PDFs, each approximately 16 to 20 pages.
+分别制作中文和英文 PDF，每个版本约 16–20 页。
 
-### Page rhythm
+### 页面节奏
 
-- one main claim per page
-- section-opening pages for narrative transitions
-- product-loop and system-diagram pages
-- full-bleed or large-scale interface evidence
-- concise decision and trade-off pages
-- a validation-boundary summary near the end
+- 每页只证明一个核心判断
+- 使用章节页完成叙事转场
+- 使用产品闭环图和系统图解释结构
+- 关键界面使用全幅或大幅展示
+- 用精简页面呈现决策与取舍
+- 在结尾附近总结验证边界
 
-### Content ratio
+### 内容比例
 
-Approximately:
+大致比例：
 
-- 30% text
-- 70% diagrams, matrices, product screens, and editorial composition
+- 30%：文字
+- 70%：图表、矩阵、产品界面和编辑型构图
 
-The PDF is not a printout of the website. It is a shorter interview and portfolio-review edition built from the same evidence.
+PDF 不是网页的打印版，而是使用相同证据重新编排的面试和作品集快速阅读版本。
 
-## 10. Evidence Model
+## 10. 证据模型
 
-Every substantive claim must be classified internally during production as one of:
+制作过程中，每一项实质性结论都必须在内部被归入以下三类之一。
 
-### Implemented
+### 已实现（Implemented）
 
-Directly supported by current code, API behavior, product UI, or an executable workflow.
+能够由当前代码、API 行为、产品界面或可执行流程直接证明。
 
-### Scenario-validated
+### 已通过场景验证（Scenario-validated）
 
-Supported by automated tests, functional acceptance scenarios, or repeatable local verification.
+能够由自动化测试、功能验收场景或可重复的本地验证证明。
 
-### Hypothesis
+### 假设（Hypothesis）
 
-A product, user, or market proposition that still needs external validation.
+仍需通过外部用户验证的产品、用户或市场判断。
 
-These classifications should be visible where ambiguity could cause overclaiming. The final writing does not need to badge every sentence, but must never blur these categories.
+当内容可能引起误解时，需要让读者看见上述分类。最终文案不必为每句话添加标签，但绝不能模糊三者的边界。
 
-### Permitted evidence sources
+### 可以使用的证据来源
 
-- repository code
-- current UI and generated screenshots
-- product positioning and design-language documents
-- API and architecture documents
-- functional acceptance records
-- automated test results
-- changelog and Git history
+- 仓库代码
+- 当前界面与重新生成的截图
+- 产品定位和设计语言文档
+- API 与架构文档
+- 功能验收记录
+- 自动化测试结果
+- CHANGELOG 和 Git 历史
 
-### Prohibited evidence practices
+### 禁止使用的证据方式
 
-- invented interviews, personas, or quotes
-- fabricated usage, retention, conversion, or satisfaction metrics
-- treating self-use as representative user research
-- presenting automated test success as proof of user value
-- presenting product intuition as established market fact
-- using personal memory data in public screenshots
+- 虚构用户访谈、人物画像或用户原话
+- 虚构使用量、留存率、转化率或满意度
+- 把个人使用经验当作有代表性的用户研究
+- 把自动化测试通过当作用户价值证明
+- 把产品直觉包装成已确定的市场事实
+- 在公开截图中使用真实个人记忆数据
 
-All demonstrated personal scenarios must use fictional or anonymized content.
+所有展示情境必须使用虚构或匿名化内容。
 
-## 11. Bilingual Writing Strategy
+## 11. 双语写作策略
 
-### Chinese edition
+### 中文版
 
-The Chinese text is the source edition and preserves the product's calm, literate voice.
+中文是内容母版，需要保留 Margin 安静、克制、有文字感的产品气质。
 
-### English edition
+### 英文版
 
-The English text is adapted for international AI product hiring contexts. It must:
+英文版面向国际 AI 产品岗位重新表达。它必须：
 
-- preserve the core meaning
-- use direct product language
-- avoid literal sentence-by-sentence translation
-- explain culturally specific metaphors when necessary
-- retain the relational distinction between accompaniment and management
+- 保留核心含义
+- 使用直接、清楚的产品语言
+- 避免逐句机械翻译
+- 在必要时解释中文语境特有的隐喻
+- 保留“陪伴”与“管理”之间的关系差异
 
-Terminology must be consistent across the web and PDF editions.
+网页和 PDF 中的关键术语必须保持一致。
 
-## 12. Delivery Components
+## 12. 交付组成
 
-The case study will live under `case-study/` as a standalone portfolio artifact within the repository:
+Case Study 作为仓库内相对独立的作品集产物，统一存放在 `case-study/`：
 
 ```text
 case-study/
@@ -396,86 +396,92 @@ case-study/
 └── REVIEW.md
 ```
 
-The web edition will use portable static HTML, CSS, and minimal JavaScript so it can be reviewed locally without a backend. The PDF editions will use dedicated print-layout HTML sources and a headless-browser export pipeline; they will not be browser printouts of the long-form web page.
+网页使用可移植的静态 HTML、CSS 和少量 JavaScript，不依赖后端即可本地审阅。PDF 使用独立的打印排版 HTML 和无头浏览器导出流程，不能直接把长篇网页打印成 PDF。
 
-The evidence map will link every material claim to a repository source or identify it as a hypothesis. The glossary will keep key Chinese and English product terms consistent. `REVIEW.md` will record content, privacy, responsive, and PDF-rendering checks.
+`evidence-map.md` 负责把每项重要结论连接到仓库证据，或明确将其标记为假设。`glossary.md` 负责统一中英文产品术语。`REVIEW.md` 记录内容、隐私、响应式和 PDF 渲染检查结果。
 
-## 13. Failure Handling and Editorial Safeguards
+## 13. 异常处理与编辑保护
 
-### Missing evidence
+### 缺少证据
 
-If a desired claim cannot be supported by the repository, it must be:
+如果某项结论无法从仓库获得支持，必须选择以下方式之一：
 
-- removed
-- narrowed
-- or explicitly labeled as a hypothesis or next-step intention
+- 删除
+- 缩小结论范围
+- 明确标记为假设或下一步意图
 
-### Weak or outdated UI evidence
+### 界面证据过时或不一致
 
-If a current interface screenshot conflicts with the final product position, the case study must explain it as an iteration state or omit it. It must not silently imply that an outdated view represents the final design.
+如果当前界面截图与最终产品定位冲突，需要将它解释为某个迭代阶段，或者不使用。不能默认让读者把过时界面理解为最终设计。
 
-### Name ambiguity
+### Echo 与 Margin 名称混用
 
-The repository and earlier materials use both Echo and Margin. The case study must explicitly explain the transition and use Margin as the current product name. Technical artifacts that still use Echo may be shown only with sufficient context.
+仓库和早期资料中同时存在 Echo 与 Margin。案例必须主动解释这次定位变化，并统一使用 Margin 作为当前产品名称。仍然使用 Echo 的技术材料只能在上下文充分时出现。
 
-### Translation ambiguity
+### 翻译歧义
 
-Where Chinese product concepts do not map directly to English, meaning takes priority over literal structure. Key terms must be recorded in a bilingual terminology list before final layout.
+当中文产品概念无法直接对应英文时，以含义准确为优先，不能拘泥于原句结构。最终排版前必须建立中英文术语表。
 
-### Sensitive content
+### 敏感内容
 
-All screenshots and examples must be reviewed for personal information, credentials, local paths, keys, and memory content before export.
+所有截图和案例数据在导出前必须检查：
 
-## 14. Quality Assurance
+- 个人信息
+- API 密钥和凭据
+- 本地文件路径
+- 私人记忆内容
+- 其他不适合公开的项目数据
 
-### Content QA
+## 14. 质量验收
 
-- every section proves one clear product-management capability
-- no unsupported user or market claims
-- all numbers are traceable to current evidence
-- no contradiction between product positioning and feature description
-- the creator's role is explicit without implying a team
-- current limitations are visible
+### 内容验收
 
-### Web QA
+- 每一章证明一种明确的产品经理能力
+- 不包含缺少支持的用户或市场结论
+- 所有数字均能回溯到当前证据
+- 产品定位与功能描述之间不存在矛盾
+- 明确说明创作者独立完成，不暗示存在团队
+- 当前局限清楚可见
 
-- core thesis, role, scope, and project stage are understandable within 30 seconds
-- major product decisions are discoverable within 3 minutes
-- Chinese and English modes are complete
-- responsive reading hierarchy works on desktop and mobile
-- images remain legible
-- no overflow, broken links, missing assets, or inaccessible low-contrast text
+### 网页验收
 
-### PDF QA
+- 招聘方能在 30 秒内理解核心命题、创作者角色、项目范围和阶段
+- 能在 3 分钟内找到主要产品决策
+- 中文和英文阅读模式均完整
+- 桌面端和移动端阅读层级清晰
+- 图片和图表可辨认
+- 不存在溢出、断链、资源缺失或低对比度文字
 
-- both language editions render without clipping or overflow
-- every page has one primary claim
-- diagrams and screenshots remain readable at common viewing sizes
-- page numbering and chapter progression are consistent
-- embedded links work where included
+### PDF 验收
 
-### Portfolio success criteria
+- 中文版和英文版均无文字裁切或溢出
+- 每页只有一个主要判断
+- 图表和截图在常见阅读尺寸下可辨认
+- 页码与章节顺序一致
+- 所有保留的链接均可使用
 
-After a full read, the audience can clearly distinguish:
+### 作品集成功标准
 
-- the original human problem hypothesis
-- the product opportunity and category boundary
-- the creator's decision process
-- the implemented system
-- the scenario validation
-- the unvalidated user and market assumptions
+完整阅读后，读者可以清楚区分：
 
-## 15. Scope Boundaries
+- 最初的人类问题假设
+- 产品机会和类别边界
+- 创作者的决策过程
+- 已实现的系统
+- 已完成的场景验证
+- 尚未验证的用户和市场假设
 
-This work produces a truthful, portfolio-ready case study of the current project.
+## 15. 范围边界
 
-It does not include:
+本次工作只负责基于当前项目制作真实、可用于求职的 Case Study。
 
-- inventing or conducting user research without separate approval and participants
-- redesigning the Margin product itself
-- changing backend or frontend product behavior
-- claiming product-market fit
-- publishing to a public domain without explicit approval
-- adding analytics or collecting visitor data
+不包括：
 
-Deployment, if desired, will be treated as a separate explicit step in the implementation plan.
+- 在没有参与者和单独授权的情况下虚构或开展用户研究
+- 重新设计 Margin 产品本身
+- 修改后端或前端产品行为
+- 宣称已经获得产品市场匹配
+- 未经明确授权发布到公开域名
+- 添加访问分析或收集访客数据
+
+如需公开部署，将在实施计划中作为单独、需要明确确认的步骤处理。
