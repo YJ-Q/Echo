@@ -13,3 +13,4 @@ data/backups/
 npm-debug.log*
 huashu-design/
 design-references/
+.worktrees/
