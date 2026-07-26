@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img">
+  <title>Margin 的三层验证边界 / Margin three-layer validation boundary</title>
+  <desc>已实现、已通过场景验证和仍待验证的假设被并列呈现，不构成自动递进的成功漏斗。Implemented, scenario-validated, and hypothetical claims are separate evidence states, not a success funnel.</desc>
+  <rect width="1600" height="900" fill="#F4EEDF"/>
+  <rect x="54" y="56" width="6" height="788" fill="#A74735"/>
+  <g font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="96" y="105" fill="#A74735" font-size="20" letter-spacing="3">VALIDATION BOUNDARY · 04</text>
+    <text x="96" y="157" fill="#25211C" font-family="Georgia, Songti SC, serif" font-size="38">证据有层级，但不会自动递进</text>
+    <text x="96" y="198" fill="#6E6257" font-size="21">Three evidence states shown side by side — explicitly not a success funnel.</text>
+    <rect x="104" y="247" width="426" height="475" rx="4" fill="#25211C"/>
+    <text x="152" y="320" fill="#F4EEDF" font-size="32">01 · 已实现</text>
+    <text x="152" y="357" fill="#D6CABB" font-size="19" letter-spacing="1">IMPLEMENTED</text>
+    <line x1="152" y1="395" x2="482" y2="395" stroke="#A74735" stroke-width="4"/>
+    <text x="152" y="447" fill="#D6CABB" font-size="22">系统存在并可运行</text>
+    <text x="152" y="502" fill="#F4EEDF" font-size="21">代码 · API · 当前界面</text>
+    <text x="152" y="544" fill="#F4EEDF" font-size="21">可执行工作流</text>
+    <text x="152" y="650" fill="#AFA398" font-size="18">证明：可用性</text>
+    <text x="152" y="682" fill="#AFA398" font-size="17">PROVES: FUNCTIONAL EXISTENCE</text>
+    <rect x="587" y="247" width="426" height="475" rx="4" fill="#FBF8F0" stroke="#A74735" stroke-width="4"/>
+    <text x="635" y="320" fill="#25211C" font-size="32">02 · 场景验证</text>
+    <text x="635" y="357" fill="#6E6257" font-size="19" letter-spacing="1">SCENARIO-VALIDATED</text>
+    <line x1="635" y1="395" x2="965" y2="395" stroke="#A74735" stroke-width="4"/>
+    <text x="635" y="447" fill="#6E6257" font-size="22">在设定场景中行为一致</text>
+    <text x="635" y="502" fill="#25211C" font-size="21">自动化测试 · 功能验收</text>
+    <text x="635" y="544" fill="#25211C" font-size="21">108 / 108 核心测试通过</text>
+    <text x="635" y="650" fill="#A74735" font-size="18">不等于：真实用户价值</text>
+    <text x="635" y="682" fill="#8D8175" font-size="17">DOES NOT PROVE: USER VALUE</text>
+    <rect x="1070" y="247" width="426" height="475" rx="4" fill="#F4EEDF" stroke="#CFC2B2" stroke-width="4"/>
+    <text x="1118" y="320" fill="#25211C" font-size="32">03 · 待验证假设</text>
+    <text x="1118" y="357" fill="#6E6257" font-size="19" letter-spacing="1">HYPOTHESIS</text>
+    <line x1="1118" y1="395" x2="1448" y2="395" stroke="#CFC2B2" stroke-width="4"/>
+    <text x="1118" y="447" fill="#6E6257" font-size="22">仍需外部用户与市场验证</text>
+    <text x="1118" y="502" fill="#25211C" font-size="21">问题强度 · 连续性感受</text>
+    <text x="1118" y="544" fill="#25211C" font-size="21">目标人群 · 使用意愿</text>
+    <text x="1118" y="650" fill="#8D8175" font-size="18">下一步：访谈与真实使用</text>
+    <text x="1118" y="682" fill="#8D8175" font-size="17">NEXT: EXTERNAL VALIDATION</text>
+  </g>
+  <g font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">
+    <line x1="105" y1="780" x2="236" y2="780" stroke="#A74735" stroke-width="4"/>
+    <text x="258" y="788" fill="#6E6257" font-size="20">并列的证据状态，不是已完成的增长路径</text>
+  </g>
+</svg>

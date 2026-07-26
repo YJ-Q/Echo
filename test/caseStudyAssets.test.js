@@ -11,6 +11,13 @@ const screenshotNames = [
   "achievements.png"
 ];
 
+const diagramNames = [
+  "category-boundary.svg",
+  "product-loop.svg",
+  "memory-system.svg",
+  "validation-layers.svg"
+];
+
 function pngSize(buffer) {
   assert.equal(buffer.toString("ascii", 1, 4), "PNG");
   return {
@@ -80,4 +87,24 @@ test("case study capture rejects loading and object-string artifacts", () => {
   assert.match(source, /\[object Object\]/);
   assert.match(source, /"Node\.js"/);
   assert.match(source, /throw new Error\(`Unsafe screenshot/);
+});
+
+test("case study diagrams are accessible and self-contained", () => {
+  for (const name of diagramNames) {
+    const path = new URL(`../case-study/assets/diagrams/${name}`, import.meta.url);
+    const svg = fs.readFileSync(path, "utf8");
+
+    assert.match(svg, /viewBox="0 0 1600 900"/);
+    assert.match(svg, /role="img"/);
+    assert.match(svg, /<title>[^<]+<\/title>/);
+    assert.match(svg, /<desc>[^<]+<\/desc>/);
+    assert.doesNotMatch(svg, /(?:href|src)=["']https?:\/\//);
+    assert.doesNotMatch(svg, /@font-face|url\((?!#)/);
+    assert.doesNotMatch(svg, /<foreignObject/);
+    assert.doesNotMatch(svg, /overflow\s*=\s*["']visible["']/);
+
+    const fontSizes = [...svg.matchAll(/font-size="(\d+)"/g)].map((match) => Number(match[1]));
+    assert.ok(fontSizes.length > 0, `${name} must declare legible text sizes`);
+    assert.ok(Math.min(...fontSizes) >= 17, `${name} must not use text smaller than 17px`);
+  }
 });
