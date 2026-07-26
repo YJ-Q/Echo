@@ -12,7 +12,7 @@
 | E008 | Now 页把当前状态、活线和下一步放在同一到场体验中 | Implemented | docs/NOW_PAGE_INFORMATION_ARCHITECTURE.md<br>public/index.html | loop,experience |
 | E009 | 当前界面包含 Now、Learn、Actions、Memory、Management 和 Achievements 视图 | Implemented | public/index.html<br>public/app.js | experience |
 | E010 | 功能验收覆盖初次进入、聊天、学习、行动、总结、记忆和 TTS 不可用状态 | Scenario-validated | docs/FUNCTIONAL_ACCEPTANCE.md | validation |
-| E011 | 现有自动化测试在 2026-07-26 本地运行结果为 112/112 通过 | Scenario-validated | test/*.test.js<br>command:npm test | overview,validation |
+| E011 | Case Study 制作前实测的核心产品自动化测试基线为 108/108 通过 | Scenario-validated | test/*.test.js<br>command:npm test | overview,validation |
 | E012 | 学习相关性和主题提取曾出现误判，并被记录为真实发现 | Scenario-validated | docs/FUNCTIONAL_ACCEPTANCE.md | validation |
 | E013 | Action 建议具有去重和状态优先级规则 | Scenario-validated | test/api.test.js<br>test/actionSelectionEngine.test.js | system,validation |
 | E014 | 记忆召回同时考虑主题连续性和核心锚点 | Scenario-validated | test/api.test.js<br>src/services/contextBuilder.js | system,validation |

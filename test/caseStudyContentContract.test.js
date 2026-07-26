@@ -55,7 +55,7 @@ test("Chinese master contains all ten chapters and explicit validation language"
   ]);
   assert.match(zh, /尚未经过真实外部用户验证/);
   assert.match(zh, /用户不需要先整理好自己，才值得被理解/);
-  assert.match(zh, /112\/112/);
+  assert.match(zh, /108\/108/);
   assert.match(zh, /Implemented/);
   assert.match(zh, /Scenario-validated/);
   assert.match(zh, /Hypothesis/);
@@ -67,4 +67,11 @@ test("every chapter in the Chinese master cites evidence", () => {
   const sections = zh.split(/<!--\s*section:/).slice(1);
   assert.equal(sections.length, 10);
   assert.ok(sections.every((section) => /<!--\s*evidence:/.test(section)));
+});
+
+test("E011 identifies the product test count as a pre-case-study baseline", () => {
+  const evidence = parseEvidenceMap(fs.readFileSync(evidencePath, "utf8"));
+  const baseline = evidence.find((row) => row.id === "E011");
+  assert.ok(baseline);
+  assert.match(baseline.claim, /核心产品|制作前基线/);
 });
