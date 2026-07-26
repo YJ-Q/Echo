@@ -45,3 +45,26 @@ test("case study parser returns stable section and evidence ids", () => {
   assert.deepEqual(parsed.sectionIds, ["overview"]);
   assert.deepEqual(parsed.evidenceIds, ["E001", "E002"]);
 });
+
+test("Chinese master contains all ten chapters and explicit validation language", () => {
+  const zh = fs.readFileSync(zhPath, "utf8");
+  const parsed = parseCaseStudy(zh);
+  assert.deepEqual(parsed.sectionIds, [
+    "overview", "unmet", "reframe", "evolution", "principles",
+    "loop", "mvp", "system", "experience", "validation"
+  ]);
+  assert.match(zh, /尚未经过真实外部用户验证/);
+  assert.match(zh, /用户不需要先整理好自己，才值得被理解/);
+  assert.match(zh, /112\/112/);
+  assert.match(zh, /Implemented/);
+  assert.match(zh, /Scenario-validated/);
+  assert.match(zh, /Hypothesis/);
+  assert.ok(zh.replace(/[#>*_`|<>\-\s]/g, "").length >= 7000);
+});
+
+test("every chapter in the Chinese master cites evidence", () => {
+  const zh = fs.readFileSync(zhPath, "utf8");
+  const sections = zh.split(/<!--\s*section:/).slice(1);
+  assert.equal(sections.length, 10);
+  assert.ok(sections.every((section) => /<!--\s*evidence:/.test(section)));
+});
