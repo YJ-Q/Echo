@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Margin：为尚未整理好的自己，留一个位置</title>
+  <link rel="stylesheet" href="./pdf.css">
+</head>
+<body>
+    <section class="pdf-page pdf-page--cover">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>Margin：为尚未整理好的自己，留一个位置</h1>
+      <div class="page-body"><p>一个从模糊的人类处境出发，被落实为 AI 行为、产品边界与可运行闭环的独立产品案例</p><p>独立 AI 产品经理 / 产品设计与实现 · 2026</p></div>
+
+      <span class="page-number">01 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>项目概览</h1>
+      <div class="page-body"><p><strong>本章结论：我独立完成的不是一组彼此分散的 AI 功能，而是一套从产品定位、行为原则到可运行 MVP 的完整闭环；它证明了方案能够被实现和测试，但还没有证明市场需要它。</strong></p><p>Margin 是一个以“第二自我”为关系定位的个人 AI 陪伴空间。它不以安排更多任务为首要目标，而是先接住用户当下尚未理清的状态，保留仍然重要的线索，再在合适的时候帮助用户继续。它想解决的不是“AI 能否再回答一个问题”，而是“当一段生活跨过多次对话以后，什么应该被留下，用户回来时又该从哪里接上”。这一定义已经成为产品的功能与表达约束，而不只是一句品牌文案。【Implemented】</p><p>这是一个由我独立从 0 到 1 推进的项目。我同时承担产品定位、范围定义、信息架构、AI 行为设计、记忆与状态机制设计、界面实现以及验收工作。选择独立完成并不意味着每个环节都同样成熟；它意味着我必须把一个模糊命题连续翻译成可做决策的原则、可交付的能力和可被检查的结果。这个案例因此重点展示我的 AI 产品判断：如何缩小问题，如何控制技术诱惑，如何让模型能力服务于明确的用户关系，以及如何诚实标记验证边界。</p></div>
+
+      <span class="page-number">02 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--statement">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>核心命题</h1>
+      <div class="page-body"><blockquote>用户不需要先整理好自己，才值得被理解。</blockquote></div>
+
+      <span class="page-number">03 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>未被满足的时刻</h1>
+      <div class="page-body"><p><strong>本章结论：Margin 选择的不是“信息不够清楚”这个表层问题，而是人在最需要支持时，往往恰好没有能力先把自己整理成一个合格提示词。</strong></p><p>项目的起点来自我的创作者观察：人在疲惫、混乱、拖延或同时被多件事牵扯时，常常只能说出半句话。他可能知道哪里“不对”，却无法给出明确目标；记得上次谈过某件事，却不想从背景重新解释；也可能只是想先把此刻放下，而不是马上得到方案。【Hypothesis】这不是已经完成的用户研究结论，更不是对某类人群的普遍断言。它是我从自身处境中提炼出的产品机会，必须在下一阶段由真实目标用户检验。</p><p>这个观察里有三个相互连接的摩擦。第一是<strong>表达门槛</strong>：许多 AI 产品在输入框前保持中立，却把定义问题的成本留给用户。问题越模糊，用户越需要先分析自己的目标、背景和期望输出，才能换来有效回答。第二是<strong>重复开始</strong>：对话可以保存，并不等于重要线索仍然可见。用户回来后仍需翻历史、重述上下文，或重新决定“现在最值得继续什么”。第三是<strong>连续性丢失</strong>：一次回复可能很好，但一段学习、一个卡点或一种反复出现的启动阻力，会在新会话中退回散落的信息。</p></div>
+
+      <span class="page-number">04 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--diagram">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>不是另一个聊天机器人</h1>
+      <div class="page-body"><p><strong>本章结论：我把产品机会从“提供更多 AI 能力”重新定义为“建立一种不以管理为中心的连续关系”，并用四条品类边界控制范围。</strong></p></div>
+      <div class="page-assets page-assets--diagram"><img src="../assets/diagrams/category-boundary.svg" alt=""></div>
+      <span class="page-number">05 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>从 Echo 到 Margin</h1>
+      <div class="page-body"><p><strong>本章结论：Echo 到 Margin 不是一次换名包装，而是一次问题定义的收紧——从展示可以做多少功能，转向确认这些能力共同服务什么关系。</strong></p><p>Echo 阶段已经积累聊天、学习、行动、记忆与总结等能力，但“拥有这些模块”无法自动形成明确产品。它们既可以被组织成效率助手，也可以成为学习教练、情绪记录器或通用个人 Agent。功能集合越完整，方向反而越容易模糊：每个模块都有合理性，却缺少一个能拒绝需求的核心标准。【Implemented】</p><p>Margin 的出现把判断从“还可以增加什么”改成“什么值得被留在页边”。纸、墨、页边、痕迹与继续不只是视觉关键词，它们把关系定位翻译成产品约束：页面应该接住未完成内容；记忆应该像经过挑选的批注；下一步应该像一行轻提示；成长应该像逐渐可见的书写痕迹，而不是分数。【Implemented】名称变化因此对应了问题变化：Echo 强调回应，Margin 强调承载与接续。</p></div>
+
+      <span class="page-number">06 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>五条产品原则</h1>
+      <div class="page-body"><p><strong>本章结论：五项产品原则不是品牌形容词，而是处理用户矛盾、约束 AI 行为和裁剪 MVP 范围的决策规则。</strong></p><p><strong>用户矛盾：</strong>需要帮助时，用户可能只有情绪或模糊片段；如果产品立即追问目标、拆任务，会把“获得帮助”变成另一项工作。</p><p><strong>产品行为：</strong>对话先确认当下、回应具体内容和情绪强度，再判断用户是想倾诉、闲聊、反思还是推进。只有出现行动意图时，才提出一个小而可拒绝的下一步。【Implemented】</p><p><strong>范围后果：</strong>Now 页必须让输入和被接住的感觉先于任务队列；AI 回复不能把每种表达都强行转成计划。</p></div>
+
+      <span class="page-number">07 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--diagram">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>核心产品闭环</h1>
+      <div class="page-body"><p><strong>本章结论：Margin 用“到场 → 保留活线 → 选择性记忆 → 轻量继续 → 留下痕迹”把一次对话变成可跨会话延续的关系闭环。</strong></p></div>
+      <div class="page-assets page-assets--diagram"><img src="../assets/diagrams/product-loop.svg" alt=""></div>
+      <span class="page-number">08 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--statement">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>四个功能，一个关系闭环</h1>
+      <div class="page-body"><ul><li>Talk：先接住</li><li>Continue：保留活线</li><li>Remember：选择性保留</li><li>Reflect：让痕迹可见</li></ul></div>
+
+      <span class="page-number">09 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>MVP 纳入什么</h1>
+      <div class="page-body"><p><strong>本章结论：MVP 只纳入能够证明“接住—接续—保留—回看”闭环的能力，并明确拒绝会把产品拉回效率工具或人格表演的方向。</strong></p><p>这些能力共同回答一个 MVP 问题：当用户以模糊表达进入，系统能否接住当下、识别并保留一条可继续的线、在之后带回相关内容，并用不施压的方式形成回看？聊天或记忆单独存在都无法证明这个闭环；把它们连接起来，才使定位成为可运行产品。</p></div>
+
+      <span class="page-number">10 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--statement">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>明确不做什么</h1>
+      <div class="page-body"><ul><li>不做重型规划</li><li>不做任务压力升级</li><li>不做诊断</li><li>不做语音人格</li><li>不把成长变成分数</li></ul></div>
+
+      <span class="page-number">11 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>AI 与状态聚合</h1>
+      <div class="page-body"><p><strong>本章结论：系统设计的重点不是展示复杂数据结构，而是把“现在如何回应、为什么带回这条线、失败时如何保持可用”变成稳定的产品行为。</strong></p><p>系统不会要求每个页面分别猜测当前重点，而是聚合 <code>current_action</code>、<code>current_learning</code>、<code>current_reflection</code> 与 <code>current_memory</code>，再结合当前状态形成一致的继续入口。【Implemented】产品意义在于：用户看到的是一个已被整理过的“现在”，而不是分散在聊天记录、任务列表和记忆库里的原始数据。聚合同时保留解释信息，让前端可以说明某个建议来自学习线、待办动作还是近期反思。</p></div>
+
+      <span class="page-number">12 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--diagram">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>选择性记忆系统</h1>
+      <div class="page-body"><p><strong>本章结论：系统设计的重点不是展示复杂数据结构，而是把“现在如何回应、为什么带回这条线、失败时如何保持可用”变成稳定的产品行为。</strong></p></div>
+      <div class="page-assets page-assets--diagram"><img src="../assets/diagrams/memory-system.svg" alt=""></div>
+      <span class="page-number">13 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>体验语言</h1>
+      <div class="page-body"><p><strong>本章结论：Margin 的视觉语言不是给通用 AI 套一层温暖皮肤，而是用纸、墨、页边与低压力交互，把“先接住、再继续”的优先级落实到页面。</strong></p><p><strong>纸</strong>提供承载感。暖色、低反差的页面比冷色控制台更接近一个可以暂时放下内容的空间；轻微层叠表达时间和痕迹，但不会把界面做成拟物笔记本。<strong>墨</strong>强调文字的重量。对话、当前线和反思是主角，图标、光效和装饰只帮助阅读。<strong>页边</strong>对应信息层级：次要提醒像批注一样待在侧面，不与正在发生的对话争夺注意力。<strong>痕迹</strong>对应时间：用户回来时看见的是上次留下的线，而不是突然出现的一套新建议。【Implemented】</p><p>Now 页承担主入口。它把当前状态、对话、活线与下一步放在同一个到场体验中，并要求任何时候都能以最低摩擦回到说话。【Implemented】页面优先级不是“展示多少状态”，而是依次回答：我现在大致在哪里，产品是否仍接得上，哪条线还活着，如果想继续最小的一步是什么。完整任务、详细记忆和复杂历史被留给更深页面，避免首页变成仪表盘。</p></div>
+
+      <span class="page-number">14 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--screens">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>当前产品界面</h1>
+      <div class="page-body"><p>所有界面来自临时空白数据库，不包含真实个人数据。</p></div>
+      <div class="page-assets page-assets--screens"><img src="../assets/screenshots/now.png" alt=""><img src="../assets/screenshots/learn.png" alt=""><img src="../assets/screenshots/memory.png" alt=""></div>
+      <span class="page-number">15 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--evidence">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>场景验证与自动化测试</h1>
+      <div class="page-body"><p><strong>本章结论：当前验证证明核心逻辑可以运行、预设场景能够闭环，并暴露了具体错误；它没有证明真实用户价值，下一步必须从“测试系统”转向“测试问题与关系”。</strong></p><p>我在隔离实例和临时数据环境中检查了初次进入、普通聊天、创建与继续学习线、学习卡住、步骤完成、建议行动与激活、每日总结、记忆置顶与召回，以及 TTS 未配置状态。【Scenario-validated】这些场景覆盖从空白到有状态、从表达到账户内连续性、从正常路径到能力不可用的主要链路。它们说明 MVP 的关键模块能够互相交接，而不是只能分别演示。</p><p>验收也留下两项重要发现。第一，已有活动学习线时，一段与学习无关的普通聊天曾被误记为 <code>step_attempted</code>，说明系统把“文字足够长”错误当成“与当前学习相关”。这会污染学习时间线，也会让产品显得在用户只想说话时仍强行推进。第二，学习主题提取曾把 “JavaScript. Help me study” 整段作为主题，导致步骤标题、总结与后续召回出现噪声。【Scenario-validated】发现真实错误比展示一条顺畅 Demo 更有价值，因为它直接指出下一轮的产品风险：连续性如果缺少相关性门控，会从“记得”变成“误判”。</p></div>
+
+      <span class="page-number">16 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--diagram">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>三层验证边界</h1>
+      <div class="page-body"><p>实现、场景验证与用户价值不是同一件事。</p></div>
+      <div class="page-assets page-assets--diagram"><img src="../assets/diagrams/validation-layers.svg" alt=""></div>
+      <span class="page-number">17 / 18</span>
+    </section>
+
+    <section class="pdf-page pdf-page--closing">
+      <p class="page-kicker">MARGIN / AI PRODUCT CASE STUDY</p>
+      <h1>局限与下一步实验</h1>
+      <div class="page-body"><p><strong>本章结论：当前验证证明核心逻辑可以运行、预设场景能够闭环，并暴露了具体错误；它没有证明真实用户价值，下一步必须从“测试系统”转向“测试问题与关系”。</strong></p><p>我在隔离实例和临时数据环境中检查了初次进入、普通聊天、创建与继续学习线、学习卡住、步骤完成、建议行动与激活、每日总结、记忆置顶与召回，以及 TTS 未配置状态。【Scenario-validated】这些场景覆盖从空白到有状态、从表达到账户内连续性、从正常路径到能力不可用的主要链路。它们说明 MVP 的关键模块能够互相交接，而不是只能分别演示。</p><p>验收也留下两项重要发现。第一，已有活动学习线时，一段与学习无关的普通聊天曾被误记为 <code>step_attempted</code>，说明系统把“文字足够长”错误当成“与当前学习相关”。这会污染学习时间线，也会让产品显得在用户只想说话时仍强行推进。第二，学习主题提取曾把 “JavaScript. Help me study” 整段作为主题，导致步骤标题、总结与后续召回出现噪声。【Scenario-validated】发现真实错误比展示一条顺畅 Demo 更有价值，因为它直接指出下一轮的产品风险：连续性如果缺少相关性门控，会从“记得”变成“误判”。</p><blockquote>先留一个位置，再从痕迹继续。</blockquote></div>
+
+      <span class="page-number">18 / 18</span>
+    </section>
+  </body>
+</html>

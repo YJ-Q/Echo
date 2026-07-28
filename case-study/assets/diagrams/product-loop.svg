@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img">
+  <title>Margin 核心产品闭环 / Margin core product loop</title>
+  <desc>用户从无需整理的到场开始，经过保留活线、选择性记忆和轻量继续，留下可再次接续的痕迹。The loop lets a user arrive unfinished and return without starting over.</desc>
+  <defs>
+    <marker id="arrow-terracotta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#A74735"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#B6A999"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="900" fill="#F4EEDF"/>
+  <rect x="54" y="56" width="6" height="788" fill="#A74735"/>
+  <g font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="96" y="105" fill="#A74735" font-size="20" letter-spacing="3">CORE LOOP · 02</text>
+    <text x="96" y="157" fill="#25211C" font-family="Georgia, Songti SC, serif" font-size="38">连续性，不靠更长的对话历史</text>
+    <text x="96" y="198" fill="#6E6257" font-size="21">Continuity comes from preserved threads, not an endless transcript.</text>
+  </g>
+  <path d="M180 432H1416" fill="none" stroke="#A74735" stroke-width="5" marker-end="url(#arrow-terracotta)"/>
+  <g font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" text-anchor="middle">
+    <g transform="translate(190 432)">
+      <circle r="78" fill="#FBF8F0" stroke="#A74735" stroke-width="4"/>
+      <text y="8" fill="#25211C" font-size="31">到场</text>
+      <text y="124" fill="#6E6257" font-size="20">ARRIVE</text>
+      <text y="152" fill="#6E6257" font-size="18">无需先整理好</text>
+    </g>
+    <g transform="translate(495 432)">
+      <circle r="78" fill="#FBF8F0" stroke="#CFC2B2" stroke-width="4"/>
+      <text y="8" fill="#25211C" font-size="28">保留活线</text>
+      <text y="124" fill="#6E6257" font-size="20">KEEP ALIVE</text>
+      <text y="152" fill="#6E6257" font-size="18">此刻仍有张力</text>
+    </g>
+    <g transform="translate(800 432)">
+      <circle r="94" fill="#FBF8F0" stroke="#CFC2B2" stroke-width="4"/>
+      <text y="-8" fill="#25211C" font-size="27">选择性</text>
+      <text y="29" fill="#25211C" font-size="27">记忆</text>
+      <text y="140" fill="#6E6257" font-size="20">REMEMBER</text>
+      <text y="168" fill="#6E6257" font-size="18">只留下有用痕迹</text>
+    </g>
+    <g transform="translate(1105 432)">
+      <circle r="78" fill="#FBF8F0" stroke="#CFC2B2" stroke-width="4"/>
+      <text y="8" fill="#25211C" font-size="28">轻量继续</text>
+      <text y="124" fill="#6E6257" font-size="20">CONTINUE</text>
+      <text y="152" fill="#6E6257" font-size="18">只给一个下一步</text>
+    </g>
+    <g transform="translate(1410 432)">
+      <circle r="78" fill="#25211C"/>
+      <text y="8" fill="#F4EEDF" font-size="27">留下痕迹</text>
+      <text y="124" fill="#6E6257" font-size="20">LEAVE A TRACE</text>
+      <text y="152" fill="#6E6257" font-size="18">可再次接续</text>
+    </g>
+  </g>
+  <path d="M1410 650C1410 800 190 800 190 650" fill="none" stroke="#B6A999" stroke-width="3" marker-end="url(#arrow-muted)"/>
+  <rect x="548" y="718" width="504" height="58" fill="#F4EEDF"/>
+  <text x="800" y="755" text-anchor="middle" fill="#6E6257" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="23">下一次到来，不必从零开始 · Return without starting over</text>
+</svg>
