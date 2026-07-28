@@ -122,7 +122,7 @@ test("checked-in generated content exactly matches both Markdown sources", () =>
     new URL("../case-study/web/content.generated.js", import.meta.url),
     "utf8"
   );
-  assert.equal(generated, expected);
+  assert.equal(generated.replace(/\r\n/g, "\n"), expected);
   for (const language of Object.values(buildAllContent())) {
     assert.equal(language.sections.length, 10);
     assert.ok(language.sections.every((section) => /^<h2>/.test(section.html)));
@@ -170,4 +170,14 @@ test("mobile header and Chinese title fit without clipping controls or glyphs", 
     /@media\s*\(max-width:\s*860px\)[\s\S]*?h1,[\s\S]*?\{[^}]*font-size:\s*clamp\(38px,\s*10\.5vw,\s*48px\)[^}]*overflow-wrap:\s*anywhere[^}]*text-wrap:\s*wrap/s
   );
   assert.doesNotMatch(css, /(?:html|body)\s*\{[^}]*overflow-x:\s*(?:hidden|clip)/s);
+});
+
+test("case study root provides a static-hosting entry point", () => {
+  const html = fs.readFileSync(
+    new URL("../case-study/index.html", import.meta.url),
+    "utf8"
+  );
+  assert.match(html, /url=web\/index\.html/i);
+  assert.match(html, /href="web\/index\.html"/i);
+  assert.doesNotMatch(html, /https?:\/\//i);
 });
