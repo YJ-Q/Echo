@@ -108,3 +108,15 @@ test("case study diagrams are accessible and self-contained", () => {
     assert.ok(Math.min(...fontSizes) >= 17, `${name} must not use text smaller than 17px`);
   }
 });
+
+test("recruiter delivery includes both non-empty PDF editions", () => {
+  for (const name of [
+    "margin-case-study.zh.pdf",
+    "margin-case-study.en.pdf"
+  ]) {
+    const path = new URL(`../case-study/dist/${name}`, import.meta.url);
+    const buffer = fs.readFileSync(path);
+    assert.ok(buffer.length > 1_000_000, `${name} is missing or unexpectedly small`);
+    assert.equal(buffer.toString("ascii", 0, 4), "%PDF");
+  }
+});
