@@ -89,9 +89,13 @@ test('current product and design documents use Margin naming', async () => {
     'docs/gemini-design-preview.html'
   ]) {
     const source = await readFile(file, 'utf8');
-    assert.doesNotMatch(source, /\bEcho\b/u, file);
+    const brandCopy = source.replaceAll('D:\\Echo\\', 'D:\\LEGACY_REPOSITORY\\');
+    assert.doesNotMatch(brandCopy, /\bEcho\b/u, file);
     assert.match(source, /\bMargin\b/u, file);
   }
+
+  const currentUiSpec = await readFile('docs/CURRENT_UI_DESIGN_SPEC.html', 'utf8');
+  assert.match(currentUiSpec, /D:\\Echo\\public\\index\.html/u);
 });
 
 test('historical design documents declare their Echo-era status', async () => {
