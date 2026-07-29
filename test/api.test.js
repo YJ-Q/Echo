@@ -1,12 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../src/app.js';
+import { loadRuntimeConfig } from '../src/config/env.js';
 import { resetTtsProvider } from '../src/services/ttsProvider.js';
-import { closeMemoryStore, ensureMemoryStore, saveSummary } from '../src/storage/memoryStore.js';
-import { exportEchoDataSnapshot, importEchoDataSnapshot } from '../src/services/backupService.js';
+import { closeMemoryStore, configureMemoryStore, ensureMemoryStore, getSummaries, saveSummary } from '../src/storage/memoryStore.js';
+import {
+  createSqliteBackup,
+  exportEchoDataSnapshot,
+  exportMarginDataSnapshot,
+  importEchoDataSnapshot,
+  importMarginDataSnapshot
+} from '../src/services/backupService.js';
+
+test('GET /api, /health, and /state identify the current product as Margin', async () => {
+  const ctx = await startTestServer();
+
+  try {
+    for (const endpoint of ['/api', '/health', '/state']) {
+      const response = await fetch(`${ctx.baseUrl}${endpoint}`);
+      const body = await response.json();
+
+      assert.equal(response.status, 200);
+      assert.equal(body.data.name, 'Margin');
+    }
+  } finally {
+    await ctx.cleanup();
+  }
+});
 
 test('POST /tts returns a stable code for upstream HTTP failures', async () => {
   const ctx = await startTestServer();
@@ -2187,10 +2210,15 @@ test('backup export writes a JSON snapshot with core Echo tables', async () => {
 
     const exportDir = path.join(ctx.tempDir, 'exports');
     const result = await exportEchoDataSnapshot({ outDir: exportDir });
+    const sqliteBackup = await createSqliteBackup({ outDir: exportDir });
     const raw = await import('node:fs/promises').then((fs) => fs.readFile(result.file_path, 'utf8'));
     const parsed = JSON.parse(raw);
 
     assert.equal(result.format, 'json');
+    assert.match(path.basename(result.file_path), /^margin-export-.+\.json$/u);
+    assert.match(path.basename(sqliteBackup.file_path), /^margin-backup-.+\.sqlite$/u);
+    assert.equal(exportMarginDataSnapshot, exportEchoDataSnapshot);
+    assert.equal(importMarginDataSnapshot, importEchoDataSnapshot);
     assert.ok(result.counts.conversations >= 1);
     assert.ok(Array.isArray(parsed.data.conversations));
     assert.ok(Array.isArray(parsed.data.user_profile));
@@ -2200,42 +2228,50 @@ test('backup export writes a JSON snapshot with core Echo tables', async () => {
   }
 });
 
-test('backup import restores a JSON snapshot into a fresh Echo database', async () => {
-  const source = await startTestServer();
-  let sourceCleaned = false;
+test('backup import restores a legacy JSON snapshot into a fresh Margin database', async () => {
   let importDir = '';
   let snapshotDir = '';
   let importedServer = null;
 
   try {
-    await fetch(`${source.baseUrl}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: '我想学 TypeScript，而且最近总在开始前犹豫。'
-      })
-    });
-
     snapshotDir = await mkdtemp(path.join(os.tmpdir(), 'echo-snapshot-'));
-    const exportDir = snapshotDir;
-    const snapshot = await exportEchoDataSnapshot({ outDir: exportDir });
-
-    await source.cleanup();
-    sourceCleaned = true;
+    const legacySnapshotPath = path.join(snapshotDir, 'echo-export-legacy.json');
+    await writeFile(legacySnapshotPath, `${JSON.stringify({
+      exported_at: '2025-01-01T00:00:00.000Z',
+      data: {
+        conversations: [{
+          id: 1,
+          timestamp: '2025-01-01T00:00:00.000Z',
+          user_input: 'Legacy TypeScript memory',
+          echo_response: 'Legacy Echo response',
+          emotion: 'neutral',
+          tags: '[]'
+        }],
+        summaries: [{
+          id: 1,
+          date: '2025-01-01',
+          summary: 'Legacy snapshot summary',
+          emotional_trend: 'neutral',
+          behavioral_pattern: 'Legacy behavior',
+          echo_reflection: 'Legacy Echo reflection',
+          created_at: '2025-01-01T00:00:00.000Z'
+        }]
+      }
+    }, null, 2)}\n`, 'utf8');
 
     importDir = await mkdtemp(path.join(os.tmpdir(), 'echo-import-'));
-    const targetDbPath = path.join(importDir, 'echo.sqlite');
-    process.env.ECHO_DB_PATH = targetDbPath;
+    const targetDbPath = path.join(importDir, 'margin.sqlite');
+    configureMemoryStore({ dbPath: targetDbPath });
 
     await ensureMemoryStore();
     await closeMemoryStore();
 
     const dryRun = await importEchoDataSnapshot({
-      filePath: snapshot.file_path,
+      filePath: legacySnapshotPath,
       dryRun: true
     });
     const applied = await importEchoDataSnapshot({
-      filePath: snapshot.file_path,
+      filePath: legacySnapshotPath,
       mode: 'merge'
     });
 
@@ -2251,6 +2287,7 @@ test('backup import restores a JSON snapshot into a fresh Echo database', async 
     assert.equal(dryRun.dry_run, true);
     assert.equal(applied.dry_run, false);
     assert.ok(applied.counts.conversations >= 1);
+    assert.ok((await getSummaries({ limit: 10 })).some((summary) => summary.echo_reflection === 'Legacy Echo reflection'));
     assert.equal(memoryResponse.status, 200);
     assert.ok(memoryBody.data.memories.some((memory) => /TypeScript/i.test(memory.user_input) || /TypeScript/i.test(memory.memory_note)));
 
@@ -2264,23 +2301,27 @@ test('backup import restores a JSON snapshot into a fresh Echo database', async 
       });
     }
     await closeMemoryStore();
-    delete process.env.ECHO_DB_PATH;
+    configureMemoryStore({ dbPath: '' });
     if (importDir) {
       await rm(importDir, { recursive: true, force: true });
     }
     if (snapshotDir) {
       await rm(snapshotDir, { recursive: true, force: true });
     }
-    if (!sourceCleaned) {
-      await source.cleanup();
-    }
   }
 });
 
 async function startTestServer() {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'echo-test-'));
-  const dbPath = path.join(tempDir, 'echo.sqlite');
-  process.env.ECHO_DB_PATH = dbPath;
+  const dbPath = path.join(tempDir, 'margin.sqlite');
+  const config = loadRuntimeConfig({
+    MARGIN_DB_PATH: dbPath,
+    MARGIN_LLM_PROVIDER: 'local'
+  }, {
+    rootDir: tempDir,
+    pathExists: () => false
+  });
+  configureMemoryStore({ dbPath: config.dbPath });
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ECHO_LLM_PROVIDER;
@@ -2305,7 +2346,7 @@ async function startTestServer() {
         });
       });
       await closeMemoryStore();
-      delete process.env.ECHO_DB_PATH;
+      configureMemoryStore({ dbPath: '' });
       delete process.env.SILICONFLOW_API_KEY;
       resetTtsProvider();
       await rm(tempDir, { recursive: true, force: true });

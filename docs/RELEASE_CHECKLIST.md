@@ -1,6 +1,6 @@
-# Echo Release Checklist
+# Margin Release Checklist
 
-This checklist is for the first cleaner public backend-oriented release of Echo.
+This checklist is for the first cleaner public backend-oriented release of Margin.
 
 ## Before Push
 

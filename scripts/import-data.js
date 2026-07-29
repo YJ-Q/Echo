@@ -1,16 +1,23 @@
 import dotenv from 'dotenv';
-import { importEchoDataSnapshot } from '../src/services/backupService.js';
+import { loadRuntimeConfig } from '../src/config/env.js';
+import { importMarginDataSnapshot } from '../src/services/backupService.js';
+import { configureMemoryStore } from '../src/storage/memoryStore.js';
 
 dotenv.config();
 
+const config = loadRuntimeConfig();
+for (const warning of config.warnings) {
+  console.error(warning);
+}
+configureMemoryStore({ dbPath: config.dbPath });
 const options = parseArgs(process.argv.slice(2));
 
 if (!options.file) {
-  console.error('Missing --file=... for Echo import.');
+  console.error('Missing --file=... for Margin import.');
   process.exit(1);
 }
 
-const result = await importEchoDataSnapshot({
+const result = await importMarginDataSnapshot({
   filePath: options.file,
   mode: options.mode,
   dryRun: options.dryRun,

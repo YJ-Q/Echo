@@ -27,8 +27,8 @@ E011 固定表示 Case Study 制作前的核心产品自动化测试基线：
 - [x] 未出现真实对话、记忆、路径、密钥或凭据
 - [x] `check-privacy.mjs` 通过
 
-截图脚本仅使用 `case-study/.tmp/echo-case-study.sqlite`，并通过
-`ECHO_DB_PATH` 显式传入临时库。真实库只做只读哈希复核：
+截图脚本仅使用 `case-study/.tmp/margin-case-study.sqlite`，并通过
+`MARGIN_DB_PATH` 显式传入临时库。真实库只做只读哈希复核：
 SHA-256 为
 `1F565309275899FE9BC366086E8BBB8A148FD368B4E7A6D575C6D0028778A9F1`，
 长度 126,976 字节，UTC 修改时间为

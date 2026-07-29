@@ -10,6 +10,7 @@ import {
 } from '../src/services/learningEngine.js';
 import {
   closeMemoryStore,
+  configureMemoryStore,
   getLearningEvents,
   getLearningSessions,
   updateLearningStep
@@ -135,13 +136,13 @@ test('isLearningRelatedMessage requires more than a bare completion keyword', as
 
 async function withLearningStore(run) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'echo-learning-test-'));
-  process.env.ECHO_DB_PATH = path.join(tempDir, 'echo.sqlite');
+  configureMemoryStore({ dbPath: path.join(tempDir, 'margin.sqlite') });
 
   try {
     await run();
   } finally {
     await closeMemoryStore();
-    delete process.env.ECHO_DB_PATH;
+    configureMemoryStore({ dbPath: '' });
     await rm(tempDir, { recursive: true, force: true });
   }
 }

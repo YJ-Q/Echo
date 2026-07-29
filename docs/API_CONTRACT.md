@@ -1,6 +1,6 @@
-﻿# Echo API Contract
+# Margin API Contract
 
-本文件用于约束 Echo 当前后端接口能力、返回格式、字段含义与状态流转，作为前后端联调与后端后续开发的统一基准。
+本文件用于约束 Margin 当前后端接口能力、返回格式、字段含义与状态流转，作为前后端联调与后端后续开发的统一基准。
 
 ## 1. 通用规则
 
@@ -54,7 +54,7 @@
   "ok": true,
   "data": {
     "status": "ok",
-    "name": "Echo"
+    "name": "Margin"
   }
 }
 ```
@@ -88,7 +88,7 @@
 
 ```json
 {
-  "name": "Echo",
+  "name": "Margin",
   "mode": "backend-only",
   "timestamp": "2026-07-06T00:00:00.000Z",
   "current_state": {
@@ -142,7 +142,7 @@
 
 用途：
 
-- 用户发送消息，获取 Echo 回复，并推动状态变化
+- 用户发送消息，获取 Margin 回复，并推动状态变化
 
 请求体：
 
@@ -751,7 +751,7 @@ Step：
 - `--mode=merge`
   - 默认模式，按主键合并恢复
 - `--mode=replace`
-  - 先清空 Echo 当前表，再恢复快照
+- 先清空 Margin 当前表，再恢复快照
 
 注意：
 

@@ -33,16 +33,16 @@ export async function createApp({ logger } = {}) {
   app.get('/api', (_req, res) => {
     const ttsAvailable = Boolean(process.env.SILICONFLOW_API_KEY);
     sendData(res, {
-      name: 'Echo',
+      name: 'Margin',
       status: 'ui-connected',
-      message: 'Echo API is running with the local desktop-style frontend.',
+      message: 'Margin API is running with the local desktop-style frontend.',
       endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/management', '/achievements', '/tts'],
       capabilities: { tts: ttsAvailable }
     });
   });
 
   app.get('/health', (_req, res) => {
-    sendData(res, { status: 'ok', name: 'Echo' });
+    sendData(res, { status: 'ok', name: 'Margin' });
   });
 
   app.use('/chat', chatRoutes);
@@ -57,7 +57,7 @@ export async function createApp({ logger } = {}) {
 
   app.use((err, req, res, _next) => {
     if (logger) {
-      logger.error(err.message || 'Unhandled Echo error', {
+      logger.error(err.message || 'Unhandled Margin error', {
         request_id: req.requestId,
         code: err.code || 'internal_error',
         status: err.status || 500
@@ -68,7 +68,7 @@ export async function createApp({ logger } = {}) {
     sendError(
       res,
       err.status || 500,
-      err.message || 'Echo became quiet for a moment.',
+      err.message || 'Margin became quiet for a moment.',
       err.code || 'internal_error'
     );
   });

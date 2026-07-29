@@ -53,6 +53,9 @@ cd Echo
 npm install
 ```
 
+The GitHub URL and cloned directory retain `Echo` until the repository itself is
+renamed; `Echo` is currently a legacy external identifier, while the product is Margin.
+
 Copy the environment template:
 
 ```bash
@@ -84,9 +87,9 @@ Core variables:
 ```bash
 PORT=3000
 NODE_ENV=development
-ECHO_LOG_LEVEL=info
-ECHO_LLM_PROVIDER=local
-ECHO_DB_PATH=./data/echo.sqlite
+MARGIN_LOG_LEVEL=info
+MARGIN_LLM_PROVIDER=local
+MARGIN_DB_PATH=./data/margin.sqlite
 ```
 
 Optional provider variables:
@@ -100,7 +103,8 @@ SILICONFLOW_API_KEY=
 
 Notes:
 
-- `ECHO_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
+- `MARGIN_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
+- `ECHO_LOG_LEVEL`, `ECHO_LLM_PROVIDER`, and `ECHO_DB_PATH` are deprecated but remain supported for one compatibility period. `MARGIN_*` takes priority when both are present.
 - if a remote provider fails, Margin falls back to the local reflective engine
 - if `SILICONFLOW_API_KEY` is not set, `/tts` stays unavailable
 
@@ -175,7 +179,7 @@ npm run export:data
 Import a snapshot back into Margin:
 
 ```bash
-npm run import:data -- --file=./data/exports/echo-export.json
+npm run import:data -- --file=./data/exports/margin-export.json
 ```
 
 ## License

@@ -1,4 +1,4 @@
-# Echo Now Page Information Architecture
+# Margin Now Page Information Architecture
 
 Date: 2026-07-07
 
@@ -6,7 +6,7 @@ Date: 2026-07-07
 
 Define what the `Now` page should prioritize, what it should de-emphasize, and how it should adapt to different user states.
 
-The `Now` page is Echo's main doorway.
+The `Now` page is Margin's main doorway.
 
 It should not feel like:
 - a dashboard
@@ -20,14 +20,14 @@ It should feel like:
 
 ## One-Line Definition
 
-The `Now` page is where Echo receives the user's current state, keeps the relationship continuous, and gently surfaces the smallest useful continuation.
+The `Now` page is where Margin receives the user's current state, keeps the relationship continuous, and gently surfaces the smallest useful continuation.
 
 ## First-Screen Questions
 
 Within a few seconds, the page should answer:
 
 1. What state am I in right now
-2. Is Echo still with me
+2. Is Margin still with me
 3. What line is currently alive
 4. If I want to continue, what is the smallest next step
 
@@ -65,7 +65,7 @@ The `Now` page should have five functional zones:
 ## 1. Page Identity
 
 Purpose:
-- tell the user they are in the main living space of Echo
+- tell the user they are in the main living space of Margin
 
 Should include:
 - page title
@@ -105,7 +105,7 @@ Should not include:
 - task-heavy visual language
 
 This area should feel like:
-- Echo sees where the user is
+- Margin sees where the user is
 
 ## 3. Conversation Area
 
@@ -154,7 +154,7 @@ Rules:
 ## 5. Continuity Support Area
 
 Purpose:
-- lightly remind the user that Echo remembers and tracks growth
+- lightly remind the user that Margin remembers and tracks growth
 
 Should include only lightweight supporting signals such as:
 - recent reflection trend
@@ -322,7 +322,7 @@ Alternative interpretation:
 ## Good First-Screen Signals
 
 Good first-screen signals:
-- “Echo sees my state”
+- “Margin sees my state”
 - “there is one live line I can continue”
 - “I can just talk if I want”
 - “I am not being managed”

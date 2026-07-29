@@ -1,6 +1,6 @@
-# Echo Backend Status
+# Margin Backend Status
 
-This file tracks the current backend completion level for the Echo MVP.
+This file tracks the current backend completion level for the Margin MVP.
 
 ## Done
 

@@ -1,6 +1,16 @@
 #!/usr/bin/env node
+import dotenv from 'dotenv';
+import { loadRuntimeConfig } from '../src/config/env.js';
 import { buildManagementOverview, normalizeManagementScope } from '../src/services/managementOverviewEngine.js';
-import { closeMemoryStore, ensureMemoryStore } from '../src/storage/memoryStore.js';
+import { closeMemoryStore, configureMemoryStore, ensureMemoryStore } from '../src/storage/memoryStore.js';
+
+dotenv.config();
+const config = loadRuntimeConfig();
+configureMemoryStore({ dbPath: config.dbPath });
+
+for (const warning of config.warnings) {
+  console.warn(warning);
+}
 
 const args = parseArgs(process.argv.slice(2));
 const scope = normalizeManagementScope(args.scope || 'all');
