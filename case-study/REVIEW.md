@@ -76,3 +76,20 @@ file-protocol 可移植性与无外部依赖由源码和契约测试覆盖；相
   `file://` PDF 导出不可用；Microsoft Edge fallback 生成的产物已通过
   自动化检查与 Poppler 逐页验收。当前证据只能支持实现完整性和场景级验证，
   不能替代真实使用、留存或市场需求证据。
+
+## Recruiter delivery edition — 2026-07-29
+
+- Added bilingual recruiter quick read before the existing ten chapters.
+- Added current-language PDF, full-case, and GitHub actions in the hero.
+- Added both PDF editions and GitHub actions in the footer.
+- Added Chinese resume and interview material without raising any evidence classification.
+- Recruiter content contract: passed.
+- Focused Case Study tests: 35/35 passed.
+- Echo full test suite: 151/151 passed.
+- Privacy scan: passed with zero findings.
+- Desktop browser review: 1440×1000, Chinese and English.
+- Mobile browser review: exact 390×844 CSS viewport, Chinese and English,
+  `documentElement.scrollWidth = 390`, `body.scrollWidth = 390`, and all
+  four hero actions at least 44px high.
+- Both PDF delivery URLs returned HTTP 200 from the local static build.
+- External user validation remains pending.
