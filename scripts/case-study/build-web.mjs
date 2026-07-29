@@ -5,7 +5,8 @@ import {
   parseEvidenceMap,
   parseCaseStudy,
   validateEvidenceRefs,
-  validateSectionParity
+  validateSectionParity,
+  validateRecruiterSummary
 } from "./lib/content-contract.mjs";
 import { renderMarkdown } from "./lib/markdown-renderer.mjs";
 
@@ -78,10 +79,12 @@ export function buildAllContent() {
   const zhText = read("case-study.zh.md");
   const enText = read("case-study.en.md");
   const evidence = parseEvidenceMap(read("evidence-map.md"));
+  const recruiter = JSON.parse(read("recruiter-summary.json"));
   const errors = [
     ...validateSectionParity(zhText, enText),
     ...validateEvidenceRefs(zhText, evidence),
-    ...validateEvidenceRefs(enText, evidence)
+    ...validateEvidenceRefs(enText, evidence),
+    ...validateRecruiterSummary(recruiter, evidence)
   ];
 
   for (const [lang, text] of [["zh", zhText], ["en", enText]]) {
@@ -92,8 +95,15 @@ export function buildAllContent() {
   }
   if (errors.length) throw new Error(errors.join("\n"));
   return {
-    zh: buildLanguageDocument(zhText),
-    en: buildLanguageDocument(enText)
+    resources: recruiter.resources,
+    zh: {
+      ...buildLanguageDocument(zhText),
+      quickRead: recruiter.zh.quickRead
+    },
+    en: {
+      ...buildLanguageDocument(enText),
+      quickRead: recruiter.en.quickRead
+    }
   };
 }
 

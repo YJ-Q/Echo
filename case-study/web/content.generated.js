@@ -1,4 +1,12 @@
 globalThis.caseStudyContent = {
+  "resources": {
+    "fullCaseAnchor": "overview",
+    "pdf": {
+      "zh": "../dist/margin-case-study.zh.pdf",
+      "en": "../dist/margin-case-study.en.pdf"
+    },
+    "github": "https://github.com/YJ-Q/Echo"
+  },
   "zh": {
     "meta": {
       "title": "Margin：为尚未整理好的自己，留一个位置",
@@ -104,7 +112,60 @@ globalThis.caseStudyContent = {
           "H003"
         ]
       }
-    ]
+    ],
+    "quickRead": {
+      "label": "FOR RECRUITERS / 招聘速览",
+      "title": "3 分钟理解 Margin",
+      "summary": "我独立把一个模糊的人类处境，收敛成产品定位、AI 行为原则、选择性记忆机制与可运行 MVP；当前证据证明系统能够工作，但不把技术验证包装成用户价值。",
+      "problem": {
+        "title": "问题不是用户不会提问，而是他此刻还没有整理好自己",
+        "body": "人在疲惫、混乱或被多条生活线同时牵扯时，往往无法先写出一个合格提示词。Margin 尝试降低“先解释清楚自己，才能获得帮助”的门槛。这仍是创作者观察和待验证假设。"
+      },
+      "decisions": [
+        {
+          "title": "先接住，再推进",
+          "body": "产品不把立即生成任务作为默认反应，而是先允许模糊表达，再形成一条用户愿意继续的活线。",
+          "evidenceIds": [
+            "E007",
+            "E008"
+          ]
+        },
+        {
+          "title": "选择性记忆，而不是无限记忆",
+          "body": "记忆只在与当下相关时被召回；临时情绪不能自动变成长期身份，连续性也不能以打扰为代价。",
+          "evidenceIds": [
+            "E006",
+            "E014",
+            "H002"
+          ]
+        },
+        {
+          "title": "低压力行动，而不是任务接管",
+          "body": "系统只抬升一个可拒绝、可完成、可替换的下一步，不用积分、连续打卡或惩罚性提醒制造推进。",
+          "evidenceIds": [
+            "E013",
+            "H003"
+          ]
+        }
+      ],
+      "delivery": {
+        "title": "独立完成从定位到运行的证据链",
+        "body": "我承担产品定位、问题重构、MVP 范围、AI 和记忆机制、信息架构、视觉表达、实现、测试、验收与部署。",
+        "items": [
+          "10 章中英文产品策略案例",
+          "可运行的聊天、状态、行动、学习、记忆与总结闭环",
+          "6 张脱敏产品截图与 4 张策略图",
+          "中英文 PDF 与公开双语网页"
+        ]
+      },
+      "evidence": {
+        "title": "证据边界",
+        "body": "这里区分做出来、按场景能工作，以及对真实用户有价值。",
+        "implemented": "核心产品闭环和主要界面已经实现。",
+        "scenarioValidated": "自动化测试和预设场景已执行，并发现过学习相关性和主题提取误判。",
+        "hypothesis": "尚未经过真实外部用户验证；陪伴感、连续性感受与留存不能宣称成立。"
+      }
+    }
   },
   "en": {
     "meta": {
@@ -211,6 +272,59 @@ globalThis.caseStudyContent = {
           "H003"
         ]
       }
-    ]
+    ],
+    "quickRead": {
+      "label": "FOR RECRUITERS / QUICK READ",
+      "title": "Understand Margin in 3 minutes",
+      "summary": "I independently translated an ambiguous human situation into a product position, AI behavior principles, selective memory, and a runnable MVP. The evidence shows that the system works under defined conditions; it does not present technical validation as user value.",
+      "problem": {
+        "title": "The problem is not poor prompting. The person may not be ready to organize the situation yet.",
+        "body": "When people are tired, uncertain, or pulled across several live concerns, composing a complete prompt becomes part of the burden. Margin explores a lower-threshold way to begin. This remains a founder observation and a hypothesis to test."
+      },
+      "decisions": [
+        {
+          "title": "Receive first, advance second",
+          "body": "The product does not default to generating tasks. It first accepts ambiguous expression, then forms one live thread the person may choose to continue.",
+          "evidenceIds": [
+            "E007",
+            "E008"
+          ]
+        },
+        {
+          "title": "Selective memory, not unlimited memory",
+          "body": "A trace returns only when it is relevant to the present. Temporary emotion must not become permanent identity, and continuity must not become intrusion.",
+          "evidenceIds": [
+            "E006",
+            "E014",
+            "H002"
+          ]
+        },
+        {
+          "title": "Low-pressure action, not task takeover",
+          "body": "The system raises one dismissible, completable, replaceable next step without points, streaks, or punitive reminders.",
+          "evidenceIds": [
+            "E013",
+            "H003"
+          ]
+        }
+      ],
+      "delivery": {
+        "title": "An independently delivered evidence chain",
+        "body": "I owned product positioning, problem reframing, MVP scope, AI and memory behavior, information architecture, visual expression, implementation, testing, acceptance, and deployment.",
+        "items": [
+          "A ten-chapter Chinese and English product strategy case",
+          "A runnable conversation, state, action, learning, memory, and reflection loop",
+          "Six sanitized product screens and four strategy diagrams",
+          "Chinese and English PDFs plus a public bilingual web edition"
+        ]
+      },
+      "evidence": {
+        "title": "Evidence boundary",
+        "body": "The case separates what exists, what works in defined scenarios, and what remains a user-value hypothesis.",
+        "implemented": "The core product loop and primary interfaces are implemented.",
+        "scenarioValidated": "Automated rules and predefined scenarios were executed and exposed relevance and topic-extraction defects.",
+        "hypothesis": "The product is not yet validated with external users; companionship, perceived continuity, and retention are not proven."
+      }
+    }
   }
 };

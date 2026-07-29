@@ -102,6 +102,20 @@ test("generated web content contains both languages and all ten chapters", () =>
   }
 });
 
+test("generated web content contains recruiter resources and bilingual quick reads", () => {
+  const content = buildAllContent();
+
+  assert.equal(content.resources.fullCaseAnchor, "overview");
+  assert.equal(content.resources.pdf.zh, "../dist/margin-case-study.zh.pdf");
+  assert.equal(content.resources.pdf.en, "../dist/margin-case-study.en.pdf");
+  assert.equal(content.resources.github, "https://github.com/YJ-Q/Echo");
+  for (const lang of ["zh", "en"]) {
+    assert.equal(content[lang].quickRead.decisions.length, 3);
+    assert.match(content[lang].quickRead.evidence.hypothesis, /external|外部/i);
+    assert.equal(content[lang].sections.length, 10);
+  }
+});
+
 test("web assets are file-protocol portable and contain no external dependencies", () => {
   const paths = [
     "../case-study/web/index.html",
@@ -123,7 +137,8 @@ test("checked-in generated content exactly matches both Markdown sources", () =>
     "utf8"
   );
   assert.equal(generated.replace(/\r\n/g, "\n"), expected);
-  for (const language of Object.values(buildAllContent())) {
+  const content = buildAllContent();
+  for (const language of [content.zh, content.en]) {
     assert.equal(language.sections.length, 10);
     assert.ok(language.sections.every((section) => /^<h2>/.test(section.html)));
   }
