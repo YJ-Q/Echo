@@ -1,4 +1,4 @@
-# Echo Frontend API Mapping
+# Margin Frontend API Mapping
 
 日期：2026-07-08
 
@@ -92,7 +92,7 @@
 | 页面 / 模块 | 当前前端入口 | 读取 API | fallback | 说明 |
 | --- | --- | --- | --- | --- |
 | 此刻 | `renderNowView()` | `GET /state` | `FALLBACK_STATE` | 当前状态、focus、next action、轻量侧栏 |
-| 此刻对话流 | `renderTimeline()` | `GET /state.recent_memories` | 空 timeline | 从最近记忆构造 user/Echo 时间线 |
+| 此刻对话流 | `renderTimeline()` | `GET /state.recent_memories` | 空 timeline | 从最近记忆构造 user/Margin 时间线 |
 | 此刻最近解锁 | `renderNowContextStrip()` | `GET /achievements/recent` | `MOCK_RECENT_ACHIEVEMENTS` | 只显示最多 1 条 |
 | 此刻待确认整理 | `renderNowContextStrip()` | `GET /management/proposals` | `MOCK_PROPOSALS` | 只提示，不执行 |
 | 学习 | `renderLearnView()` | `GET /learning/active` | 空学习线 | 当前学习线、步骤和当前一步 |

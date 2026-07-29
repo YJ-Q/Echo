@@ -1,12 +1,12 @@
-# Echo Memory Layers
+# Margin Memory Layers
 
 Date: 2026-07-07
 
 ## Goal
 
-Define what Echo should remember, what it should not overremember, and how memory should support companionship and growth without feeling invasive.
+Define what Margin should remember, what it should not overremember, and how memory should support companionship and growth without feeling invasive.
 
-Echo should not treat every message as a permanent memory.
+Margin should not treat every message as a permanent memory.
 
 The memory system should preserve:
 - continuity
@@ -18,7 +18,7 @@ The memory system should preserve:
 
 Not every message deserves the same memory weight.
 
-Echo should use layered memory:
+Margin should use layered memory:
 
 1. short-term conversation context
 2. mid-term growth fragments
@@ -70,7 +70,7 @@ Retention style:
 - promoted only when repeated or meaningful
 - summarized rather than stored verbatim
 
-This is the most important layer for Echo's product identity.
+This is the most important layer for Margin's product identity.
 
 ## Layer 3. Core Memory
 
@@ -99,7 +99,7 @@ Core memory should feel earned, not automatic.
 
 ## What Should Usually Not Be Strongly Remembered
 
-By default, Echo should avoid heavily storing:
+By default, Margin should avoid heavily storing:
 
 - one-off mood blurts
 - casual small talk
@@ -130,7 +130,7 @@ Promote when:
 Promote when:
 - the pattern is stable
 - the evidence repeats across time
-- it meaningfully affects how Echo should respond in the future
+- it meaningfully affects how Margin should respond in the future
 - it helps the product feel personally adaptive
 
 ## Memory By Dialogue Mode
@@ -180,7 +180,7 @@ Often worth capturing:
 
 ## Memory Content Shape
 
-Echo should prefer summarized memory forms over raw quotes.
+Margin should prefer summarized memory forms over raw quotes.
 
 Preferred forms:
 - short memory note
@@ -198,8 +198,8 @@ This helps memory stay:
 The user should be able to feel:
 
 - I can talk freely without everything becoming permanent
-- Echo remembers what matters, not every passing feeling
-- Echo understands patterns, not just snapshots
+- Margin remembers what matters, not every passing feeling
+- Margin understands patterns, not just snapshots
 
 ## Product Implications
 
@@ -218,7 +218,7 @@ It also reduces two major risks:
 
 The memory system is working when:
 
-- Echo feels continuous
-- Echo feels respectful
+- Margin feels continuous
+- Margin feels respectful
 - important growth becomes visible over time
 - users do not feel excessively recorded

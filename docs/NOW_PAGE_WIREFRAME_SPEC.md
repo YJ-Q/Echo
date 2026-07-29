@@ -1,4 +1,4 @@
-# Echo Now Page Wireframe Spec
+# Margin Now Page Wireframe Spec
 
 Date: 2026-07-07
 
@@ -21,7 +21,7 @@ It does not define:
 
 ## Page Role
 
-The `Now` page is the main living surface of Echo.
+The `Now` page is the main living surface of Margin.
 
 It should feel like:
 - the first place to return to
@@ -93,7 +93,7 @@ Core interpretation:
 ## 1. Global Shell
 
 Purpose:
-- frame the page within Echo
+- frame the page within Margin
 
 Should include:
 - left navigation
@@ -190,14 +190,14 @@ Purpose:
 - remain the true center of interaction
 
 Should include:
-- recent user and Echo turns
+- recent user and Margin turns
 - support segmented replies
 - support streaming behavior
 
 Wireframe requirements:
-- clear distinction between user and Echo turns
+- clear distinction between user and Margin turns
 - comfortable vertical rhythm
-- enough space for short multi-part Echo responses
+- enough space for short multi-part Margin responses
 
 Should support:
 - quick interruption by the user
@@ -243,7 +243,7 @@ Should include:
 
 Behavior:
 - user should never feel blocked from typing
-- Echo should not monopolize the floor while responding
+- Margin should not monopolize the floor while responding
 
 Placeholder direction:
 - softer than a standard command prompt
@@ -255,7 +255,7 @@ Good examples:
 ## 8. Continuity Support Rail
 
 Purpose:
-- remind the user that Echo remembers and tracks growth
+- remind the user that Margin remembers and tracks growth
 
 This rail is supportive, not primary.
 
@@ -302,7 +302,7 @@ Should avoid:
 ### Memory Hint Card
 
 Purpose:
-- show that Echo remembers something important
+- show that Margin remembers something important
 
 Should include:
 - one compact memory anchor

@@ -38,6 +38,8 @@ test('package and deployment entry points use Margin defaults', async () => {
   assert.match(envExample, /MARGIN_LLM_PROVIDER=local/u);
   assert.match(compose, /services:\s*\n\s*margin:/u);
   assert.match(compose, /MARGIN_DB_PATH=\/app\/data\/margin\.sqlite/u);
+  assert.match(compose, /MARGIN_LOG_LEVEL=info/u);
+  assert.doesNotMatch(compose, /^\s*-\s*LOG_LEVEL=/mu);
   assert.match(dockerfile, /ENV MARGIN_DB_PATH=\/app\/data\/margin\.sqlite/u);
   assert.match(license, /Copyright \(c\) 2026 Margin contributors/u);
 });
@@ -57,6 +59,8 @@ test('backup and import CLI errors identify Margin and direct users to Margin co
   assert.match(backupService, /Invalid Margin snapshot/u);
   assert.match(backupScript, /Margin database not found\. Start the app once or set MARGIN_DB_PATH\./u);
   assert.match(importScript, /Missing --file=\.\.\. for Margin import\./u);
+  assert.match(backupScript, /for \(const warning of config\.warnings\)/u);
+  assert.match(importScript, /for \(const warning of config\.warnings\)/u);
 });
 
 test('current operational docs use Margin and compatibility examples', async () => {
@@ -68,6 +72,26 @@ test('current operational docs use Margin and compatibility examples', async () 
   assert.match(readme, /ECHO_DB_PATH.*deprecated.*supported/iu);
   assert.match(backupDoc, /margin-export-/u);
   assert.match(backupDoc, /legacy.*echo-export-/iu);
+});
+
+test('current product and design documents use Margin naming', async () => {
+  for (const file of [
+    'docs/RELEASE_CHECKLIST.md',
+    'docs/DEVELOPMENT_EXECUTION_GUIDE.md',
+    'docs/FRONTEND_API_MAPPING.md',
+    'docs/FRONTEND_DEVELOPMENT_BRIEF.md',
+    'docs/FRONTEND_INFORMATION_ARCHITECTURE.md',
+    'docs/DIALOGUE_RHYTHM.md',
+    'docs/MEMORY_LAYERS.md',
+    'docs/NOW_PAGE_INFORMATION_ARCHITECTURE.md',
+    'docs/NOW_PAGE_WIREFRAME_SPEC.md',
+    'docs/CURRENT_UI_DESIGN_SPEC.html',
+    'docs/gemini-design-preview.html'
+  ]) {
+    const source = await readFile(file, 'utf8');
+    assert.doesNotMatch(source, /\bEcho\b/u, file);
+    assert.match(source, /\bMargin\b/u, file);
+  }
 });
 
 test('historical design documents declare their Echo-era status', async () => {

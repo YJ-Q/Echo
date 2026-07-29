@@ -1,10 +1,10 @@
-# Echo Frontend Information Architecture
+# Margin Frontend Information Architecture
 
 日期：2026-07-08
 
 状态：F0 基础版
 
-本文档用于约定 Echo 下一版前端的信息架构。它不要求立刻重写 UI，而是先决定页面增删、模块边界、view model 依赖和迁移顺序，避免在治理与成就能力尚未稳定前反复重做页面。
+本文档用于约定 Margin 下一版前端的信息架构。它不要求立刻重写 UI，而是先决定页面增删、模块边界、view model 依赖和迁移顺序，避免在治理与成就能力尚未稳定前反复重做页面。
 
 ---
 
@@ -140,7 +140,7 @@
 
 - 重复任务提示
 - 过期任务提示
-- 完成 Echo 建议任务后的成就提示
+- 完成 Margin 建议任务后的成就提示
 
 不放：
 

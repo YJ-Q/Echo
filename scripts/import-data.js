@@ -6,6 +6,9 @@ import { configureMemoryStore } from '../src/storage/memoryStore.js';
 dotenv.config();
 
 const config = loadRuntimeConfig();
+for (const warning of config.warnings) {
+  console.error(warning);
+}
 configureMemoryStore({ dbPath: config.dbPath });
 const options = parseArgs(process.argv.slice(2));
 

@@ -1,4 +1,4 @@
-# Echo Frontend Development Brief
+# Margin Frontend Development Brief
 
 日期：2026-07-08
 
@@ -113,7 +113,7 @@
 
 ## 6. UI 设计原则
 
-Echo 是桌面陪伴体，不是通用管理后台。
+Margin 是桌面陪伴体，不是通用管理后台。
 
 界面应该：
 
@@ -163,4 +163,4 @@ Echo 是桌面陪伴体，不是通用管理后台。
 - `整理` 页面可用 mock 展示 overview 和 proposals
 - `成就` 页面可用 mock 展示成就墙、最近解锁和图标 catalog
 - 没有把治理/成就业务规则写进前端
-- 文案和布局符合 Echo 的安静、可扫描风格
+- 文案和布局符合 Margin 的安静、可扫描风格
