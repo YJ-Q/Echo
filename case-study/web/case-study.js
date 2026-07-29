@@ -13,7 +13,13 @@ const LANGUAGE_CONFIG = {
     boundaryLabel: "验证边界",
     evidenceLabel: "证据",
     sectionLabel: "章节",
-    galleryLabel: "产品界面证据"
+    galleryLabel: "产品界面证据",
+    quickReadLabel: "招聘方 3 分钟速览",
+    quickReadAction: "3 分钟速览",
+    fullCaseAction: "查看完整案例",
+    pdfAction: "下载中文 PDF",
+    githubAction: "GitHub 项目",
+    footerLabel: "继续查看"
   },
   en: {
     htmlLang: "en",
@@ -24,7 +30,13 @@ const LANGUAGE_CONFIG = {
     boundaryLabel: "Validation boundary",
     evidenceLabel: "Evidence",
     sectionLabel: "Section",
-    galleryLabel: "Product interface evidence"
+    galleryLabel: "Product interface evidence",
+    quickReadLabel: "Three-minute recruiter overview",
+    quickReadAction: "3-minute overview",
+    fullCaseAction: "Read full case study",
+    pdfAction: "Download English PDF",
+    githubAction: "GitHub project",
+    footerLabel: "Continue exploring"
   }
 };
 
@@ -38,9 +50,19 @@ const DIAGRAMS = {
 const SCREENSHOTS = ["now", "learn", "actions", "memory", "management", "achievements"];
 const contentNode = document.querySelector("#case-study-content");
 const navNode = document.querySelector("#case-study-nav");
+const footerNode = document.querySelector("#case-study-footer");
 const statusNode = document.querySelector("#language-status");
 const headerNode = document.querySelector(".site-header");
 const languageButtons = [...document.querySelectorAll("[data-language]")];
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 function firstHeading(html) {
   const template = document.createElement("template");
@@ -90,22 +112,117 @@ function screenshotGallery(lang) {
   `;
 }
 
-function renderHero(meta, lang) {
+function renderHero(meta, quickRead, resources, lang) {
   const labels = LANGUAGE_CONFIG[lang];
   return `
     <section class="case-hero" aria-labelledby="case-title">
-      <p class="eyebrow">AI PRODUCT CASE STUDY · ${meta.year}</p>
-      <h1 id="case-title">${meta.title}</h1>
-      <p class="case-subtitle">${meta.subtitle}</p>
+      <p class="eyebrow">AI PRODUCT CASE STUDY · ${escapeHtml(meta.year)}</p>
+      <h1 id="case-title">${escapeHtml(meta.title)}</h1>
+      <p class="case-subtitle">${escapeHtml(meta.subtitle)}</p>
       <dl class="fact-strip">
-        <div><dt>${labels.roleLabel}</dt><dd>${meta.role}</dd></div>
-        <div><dt>${labels.stageLabel}</dt><dd>${meta.stage}</dd></div>
+        <div><dt>${labels.roleLabel}</dt><dd>${escapeHtml(meta.role)}</dd></div>
+        <div><dt>${labels.stageLabel}</dt><dd>${escapeHtml(meta.stage)}</dd></div>
         <div><dt>${labels.boundaryLabel}</dt><dd>${labels.boundary}</dd></div>
       </dl>
-      <p class="hero-footnote">${lang === "zh"
-        ? "一份关于定位、取舍、AI 行为与证据边界的独立产品记录"
-        : "An independent product record of positioning, trade-offs, AI behavior, and evidence boundaries"}</p>
+      <nav class="hero-actions" aria-label="${labels.footerLabel}">
+        <a class="case-link case-link--primary" href="#recruiter-summary" data-case-anchor="recruiter-summary">${labels.quickReadAction}</a>
+        <a class="case-link" href="#${resources.fullCaseAnchor}" data-case-anchor="${resources.fullCaseAnchor}">${labels.fullCaseAction}</a>
+        <a class="case-link" href="${resources.pdf[lang]}">${labels.pdfAction}</a>
+        <a class="case-link case-link--text" href="${resources.github}" rel="noreferrer">${labels.githubAction}</a>
+      </nav>
+      <p class="hero-footnote">${escapeHtml(
+        quickRead?.summary
+        || (lang === "zh"
+          ? "一份关于定位、取舍、AI 行为与证据边界的独立产品记录"
+          : "An independent product record of positioning, trade-offs, AI behavior, and evidence boundaries")
+      )}</p>
     </section>
+  `;
+}
+
+function evidencePill(label, text) {
+  return `
+    <div class="boundary-card">
+      <strong>${escapeHtml(label)}</strong>
+      <p>${escapeHtml(text)}</p>
+    </div>
+  `;
+}
+
+function renderRecruiterFallback(lang) {
+  console.error("Missing recruiter quick-read content.", { lang });
+  return `
+    <section class="recruiter-summary recruiter-summary--fallback" id="recruiter-summary">
+      <p>${lang === "zh"
+        ? "招聘速览暂时不可用，请继续阅读下方完整案例。"
+        : "The recruiter overview is temporarily unavailable. Continue with the full case study below."}</p>
+    </section>
+  `;
+}
+
+function renderQuickRead(quickRead, lang) {
+  if (!quickRead) return renderRecruiterFallback(lang);
+  const labels = LANGUAGE_CONFIG[lang];
+  return `
+    <section class="recruiter-summary" id="recruiter-summary" aria-labelledby="quick-read-title">
+      <p class="eyebrow">${escapeHtml(quickRead.label)}</p>
+      <h2 id="quick-read-title">${escapeHtml(quickRead.title)}</h2>
+      <div class="quick-read-grid">
+        <article class="quick-read-problem">
+          <p class="section-index">01 / PROBLEM</p>
+          <h3>${escapeHtml(quickRead.problem.title)}</h3>
+          <p>${escapeHtml(quickRead.problem.body)}</p>
+        </article>
+        <article class="quick-read-decisions">
+          <p class="section-index">02 / DECISIONS</p>
+          <div class="decision-grid">
+            ${quickRead.decisions.map((decision, index) => `
+              <section>
+                <span>${String(index + 1).padStart(2, "0")}</span>
+                <h3>${escapeHtml(decision.title)}</h3>
+                <p>${escapeHtml(decision.body)}</p>
+                <p class="decision-evidence">${decision.evidenceIds
+                  .map((id) => `<span class="evidence-id">${escapeHtml(id)}</span>`)
+                  .join("")}</p>
+              </section>
+            `).join("")}
+          </div>
+        </article>
+        <article class="quick-read-delivery">
+          <p class="section-index">03 / DELIVERY</p>
+          <h3>${escapeHtml(quickRead.delivery.title)}</h3>
+          <p>${escapeHtml(quickRead.delivery.body)}</p>
+          <ul>${quickRead.delivery.items
+            .map((item) => `<li>${escapeHtml(item)}</li>`)
+            .join("")}</ul>
+        </article>
+        <article class="quick-read-evidence">
+          <p class="section-index">04 / EVIDENCE</p>
+          <h3>${escapeHtml(quickRead.evidence.title)}</h3>
+          <p>${escapeHtml(quickRead.evidence.body)}</p>
+          <div class="boundary-grid">
+            ${evidencePill("Implemented", quickRead.evidence.implemented)}
+            ${evidencePill("Scenario-validated", quickRead.evidence.scenarioValidated)}
+            ${evidencePill("Hypothesis", quickRead.evidence.hypothesis)}
+          </div>
+        </article>
+      </div>
+      <p class="quick-read-end">
+        <a class="case-link case-link--text" href="#overview" data-case-anchor="overview">${labels.fullCaseAction}</a>
+      </p>
+    </section>
+  `;
+}
+
+function renderFooter(resources, lang) {
+  const labels = LANGUAGE_CONFIG[lang];
+  return `
+    <p class="eyebrow">${labels.footerLabel}</p>
+    <div class="footer-links">
+      <a class="case-link" href="${resources.pdf.zh}">中文 PDF</a>
+      <a class="case-link" href="${resources.pdf.en}">English PDF</a>
+      <a class="case-link case-link--text" href="${resources.github}" rel="noreferrer">${labels.githubAction}</a>
+    </div>
   `;
 }
 
@@ -180,14 +297,27 @@ function bindNavigation() {
   }
 }
 
+function bindPageAnchors() {
+  for (const link of document.querySelectorAll("[data-case-anchor]")) {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      scrollToSection(link.dataset.caseAnchor);
+    });
+  }
+}
+
 function renderLanguage(lang) {
-  const { meta, sections } = caseStudyContent[lang];
+  const { meta, quickRead, sections } = caseStudyContent[lang];
+  const { resources } = caseStudyContent;
   document.documentElement.lang = LANGUAGE_CONFIG[lang].htmlLang;
   document.documentElement.dataset.activeLanguage = lang;
-  contentNode.innerHTML = renderHero(meta, lang)
+  contentNode.innerHTML = renderHero(meta, quickRead, resources, lang)
+    + renderQuickRead(quickRead, lang)
     + sections.map((section, index) => renderSection(section, index, lang)).join("");
+  footerNode.innerHTML = renderFooter(resources, lang);
   renderNav(sections, lang);
   bindNavigation();
+  bindPageAnchors();
   for (const button of languageButtons) {
     button.setAttribute("aria-pressed", String(button.dataset.language === lang));
   }

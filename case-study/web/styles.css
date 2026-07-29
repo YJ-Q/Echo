@@ -301,6 +301,160 @@ html[data-active-language="en"] .case-subtitle {
   text-align: right;
 }
 
+.hero-actions,
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.case-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 15px;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  background: var(--paper-raised);
+  text-decoration: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.case-link:hover,
+.case-link:focus-visible {
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
+
+.case-link--primary {
+  color: var(--paper-raised);
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+}
+
+.case-link--primary:hover,
+.case-link--primary:focus-visible {
+  color: var(--paper-raised);
+  background: var(--terracotta);
+  opacity: 0.88;
+}
+
+.case-link--text {
+  background: transparent;
+}
+
+.pre-render-link {
+  position: absolute;
+  left: -9999px;
+}
+
+.recruiter-summary {
+  padding: 76px 0;
+  border-top: 1px solid var(--rule);
+  scroll-margin-top: 96px;
+}
+
+.recruiter-summary > h2 {
+  max-width: 780px;
+  margin: 8px 0 30px;
+  font-family: var(--serif);
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.quick-read-grid {
+  display: grid;
+  gap: 44px;
+}
+
+.quick-read-grid article {
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+}
+
+.quick-read-grid h3 {
+  max-width: 780px;
+  margin: 8px 0 14px;
+  font-family: var(--serif);
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1.14;
+}
+
+.quick-read-grid p,
+.quick-read-grid li {
+  max-width: 780px;
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.decision-grid > section,
+.boundary-card {
+  min-width: 0;
+  padding: 20px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+}
+
+.decision-grid > section > span {
+  color: var(--terracotta);
+  font-family: var(--sans);
+  font-size: 12px;
+}
+
+.decision-grid h3 {
+  font-size: 24px;
+}
+
+.decision-grid p {
+  font-size: 15px;
+}
+
+.decision-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.boundary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.boundary-card strong {
+  color: var(--terracotta);
+  font-family: var(--sans);
+  font-size: 12px;
+}
+
+.boundary-card p {
+  margin-bottom: 0;
+  font-size: 14px;
+}
+
+.quick-read-end {
+  margin-top: 28px;
+}
+
+.case-study-footer {
+  margin-left: min(24vw, 310px);
+  padding: 48px clamp(24px, 6vw, 96px) 72px;
+  border-top: 1px solid var(--rule);
+}
+
 .case-section {
   position: relative;
   padding: 112px 0;
@@ -606,6 +760,26 @@ tbody tr:last-child td {
   .hero-footnote {
     align-self: flex-start;
     text-align: left;
+  }
+
+  .hero-actions,
+  .footer-links {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .decision-grid,
+  .boundary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recruiter-summary {
+    padding: 54px 0;
+  }
+
+  .case-study-footer {
+    margin-left: 0;
+    padding: 36px 18px 56px;
   }
 
   .case-section {

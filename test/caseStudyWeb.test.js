@@ -196,3 +196,46 @@ test("case study root provides a static-hosting entry point", () => {
   assert.match(html, /href="web\/index\.html"/i);
   assert.doesNotMatch(html, /https?:\/\//i);
 });
+
+test("web shell exposes recruiter overview and delivery footer hooks", () => {
+  const html = fs.readFileSync(
+    new URL("../case-study/web/index.html", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(html, /id="recruiter-summary"/);
+  assert.match(html, /id="case-study-footer"/);
+  assert.match(html, /href="#recruiter-summary"/);
+  assert.match(html, /href="#overview"/);
+});
+
+test("runtime renders bilingual recruiter decisions and resource links", () => {
+  const source = fs.readFileSync(
+    new URL("../case-study/web/case-study.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /function renderQuickRead\(/);
+  assert.match(source, /quickRead\.decisions\.map/);
+  assert.match(source, /resources\.pdf\[lang\]/);
+  assert.match(source, /resources\.github/);
+  assert.match(source, /rel="noreferrer"/);
+  assert.match(source, /data-case-anchor/);
+  assert.match(source, /function renderRecruiterFallback\(/);
+  assert.match(source, /console\.error\("Missing recruiter quick-read content/);
+  assert.doesNotMatch(source, /scrollIntoView/);
+});
+
+test("recruiter CSS keeps approved visual tokens and mobile single-column decisions", () => {
+  const css = fs.readFileSync(
+    new URL("../case-study/web/styles.css", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(css, /\.hero-actions,\s*\.footer-links\s*\{/);
+  assert.match(css, /\.quick-read-grid\s*\{/);
+  assert.match(css, /\.decision-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /@media\s*\(max-width:\s*860px\)[\s\S]*?\.decision-grid,\s*\.boundary-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(css, /\.case-link\s*\{[^}]*min-height:\s*44px/s);
+  assert.doesNotMatch(css, /linear-gradient|radial-gradient|conic-gradient/i);
+});
