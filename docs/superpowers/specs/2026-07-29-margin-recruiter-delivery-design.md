@@ -115,30 +115,39 @@ Margin Case Study 已经具备双语网页、中文 PDF、英文 PDF、10 章完
 
 ## 6. 3 分钟速览内容模型
 
-速览使用单一结构化内容源，中文和英文共享相同字段：
+速览使用单一结构化内容源。语言无关的资源地址放在根级 `resources`，中文和英文共享相同的 `quickRead` 字段：
 
 ```text
-quickRead
-  label
-  title
-  summary
-  problem
+resources
+  fullCaseAnchor
+  pdf.zh
+  pdf.en
+  github
+zh
+  quickRead
+    label
     title
-    body
-  decisions[3]
-    title
-    body
-    evidenceIds[]
-  delivery
-    title
-    body
-    items[]
-  evidence
-    title
-    body
-    implemented
-    scenarioValidated
-    hypothesis
+    summary
+    problem
+      title
+      body
+    decisions[3]
+      title
+      body
+      evidenceIds[]
+    delivery
+      title
+      body
+      items[]
+    evidence
+      title
+      body
+      implemented
+      scenarioValidated
+      hypothesis
+en
+  quickRead
+    与中文相同字段
 ```
 
 ### 6.1 问题
@@ -290,7 +299,7 @@ case-study/content/job-application.zh.md
 case-study/content/recruiter-summary.json
 ```
 
-包含 `zh` 和 `en` 两个语言对象。构建脚本读取并校验该文件，再把 `quickRead` 写入现有 `content.generated.js`。
+包含根级 `resources` 以及 `zh`、`en` 两个语言对象。构建脚本读取并校验该文件，再把 `resources` 和各语言的 `quickRead` 写入现有 `content.generated.js`。
 
 不在 HTML 和 JavaScript 中手写两份速览文案。
 
