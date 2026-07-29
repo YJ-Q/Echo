@@ -58,7 +58,7 @@ export async function getEchoState(query = '') {
   const currentMemory = buildMemoryViewModel(recentMemories);
 
   return {
-    name: 'Echo',
+    name: 'Margin',
     mode: 'backend-only',
     timestamp: new Date().toISOString(),
     current_state: {

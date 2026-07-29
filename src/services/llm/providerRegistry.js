@@ -3,8 +3,13 @@ import { createLocalProvider } from './providers/localProvider.js';
 import { createOpenAIProvider } from './providers/openaiProvider.js';
 import { createSiliconFlowProvider } from './providers/siliconflowProvider.js';
 
-export function resolveEchoProvider() {
-  const requested = (process.env.ECHO_LLM_PROVIDER || '').trim().toLowerCase();
+let configuredProvider = 'local';
+
+export function configureProviderRegistry({ requestedProvider } = {}) {
+  configuredProvider = String(requestedProvider || 'local').trim().toLowerCase();
+}
+
+export function resolveMarginProvider() {
   const providers = {
     openai: createOpenAIProvider(),
     anthropic: createAnthropicProvider(),
@@ -12,9 +17,7 @@ export function resolveEchoProvider() {
     local: createLocalProvider()
   };
 
-  if (requested && providers[requested]) {
-    return providers[requested] || providers.local;
-  }
-
-  return providers.openai || providers.anthropic || providers.local;
+  return providers[configuredProvider] || providers.local;
 }
+
+export const resolveEchoProvider = resolveMarginProvider;

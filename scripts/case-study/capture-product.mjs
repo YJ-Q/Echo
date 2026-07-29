@@ -2,16 +2,20 @@ import { app, BrowserWindow } from "electron";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import {
+  startCaptureBackend,
+  stopBackend
+} from "./capture-backend.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "../..");
 const outputDir = path.join(root, "case-study/assets/screenshots");
 const tempDir = path.join(root, "case-study/.tmp");
-const tempDb = path.join(tempDir, "echo-case-study.sqlite");
+const tempDb = path.join(tempDir, "margin-case-study.sqlite");
 const serverEntry = path.join(root, "src/server.js");
-const port = 3197;
-const appUrl = `http://127.0.0.1:${port}`;
+const seedEntry = path.join(root, "scripts/case-study/seed-operation-event.mjs");
+let appUrl;
 const views = ["now", "learn", "actions", "memory", "management", "achievements"];
 const viewTitles = {
   now: "此刻",
@@ -120,48 +124,17 @@ async function seedDemoData() {
 }
 
 async function seedOperationEvent() {
-  const memoryStoreUrl = pathToFileURL(
-    path.join(root, "src", "storage", "memoryStore.js")
-  ).href;
-  const source = `
-    import {
-      addLearningEvent,
-      addOperationEvent,
-      getLatestActiveLearningSession
-    } from ${JSON.stringify(memoryStoreUrl)};
-    const learningSession = await getLatestActiveLearningSession();
-    if (learningSession) {
-      const currentStep = learningSession.steps[learningSession.current_step];
-      await addLearningEvent({
-        sessionId: learningSession.id,
-        topic: learningSession.topic,
-        eventType: "step_note_seeded",
-        stepIndex: learningSession.current_step,
-        stepTitle: currentStep?.title,
-        note: "先用一句话说明它解决的核心问题。",
-        userInput: null
-      });
-    }
-    await addOperationEvent({
-      proposalId: null,
-      eventType: "review_snapshot_created",
-      scope: "memory",
-      riskLevel: "read_only",
-      operationSummary: "已记录一次案例研究线索的只读检查，未修改任何记忆。",
-      payload: { source: "case-study-demo", changed: false }
-    });
-  `;
-
   await new Promise((resolve, reject) => {
     const child = spawn(
       process.env.CASE_STUDY_NODE || "node",
-      ["--input-type=module", "-e", source],
+      [seedEntry, tempDb],
       {
         cwd: root,
         windowsHide: true,
         env: {
           ...process.env,
-          ECHO_DB_PATH: tempDb
+          MARGIN_LLM_PROVIDER: "local",
+          MARGIN_DB_PATH: tempDb
         },
         stdio: ["ignore", "ignore", "pipe"]
       }
@@ -322,21 +295,20 @@ async function capture() {
   await fs.rm(`${tempDb}-shm`, { force: true });
   await fs.rm(`${tempDb}-wal`, { force: true });
 
-  const backend = spawn(process.env.CASE_STUDY_NODE || "node", [serverEntry], {
+  const started = await startCaptureBackend({
+    command: process.env.CASE_STUDY_NODE || "node",
+    args: [serverEntry],
     cwd: root,
-    windowsHide: true,
     env: {
       ...process.env,
-      PORT: String(port),
       NODE_ENV: "test",
-      ECHO_LLM_PROVIDER: "local",
-      ECHO_DB_PATH: tempDb
-    },
-    stdio: ["ignore", "pipe", "pipe"]
+      MARGIN_LOG_LEVEL: "info",
+      MARGIN_LLM_PROVIDER: "local",
+      MARGIN_DB_PATH: tempDb
+    }
   });
-
-  backend.stdout.on("data", (chunk) => process.stdout.write(chunk));
-  backend.stderr.on("data", (chunk) => process.stderr.write(chunk));
+  const { backend } = started;
+  appUrl = started.appUrl;
 
   try {
     await waitForServer();
@@ -399,8 +371,7 @@ async function capture() {
     }
     window.destroy();
   } finally {
-    backend.kill();
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await stopBackend(backend);
   }
 }
 

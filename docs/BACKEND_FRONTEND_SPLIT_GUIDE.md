@@ -1,8 +1,8 @@
-# Echo Backend / Frontend Split Guide
+# Margin Backend / Frontend Split Guide
 
 日期：2026-07-08
 
-本文档用于约定 Echo 接下来如何分成前端与后端并行开发。
+本文档用于约定 Margin 接下来如何分成前端与后端并行开发。
 
 ---
 

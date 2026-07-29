@@ -32,7 +32,7 @@ async function waitForServer(url, attempts = 60, delayMs = 500) {
     await wait(delayMs);
   }
 
-  throw new Error("Echo backend did not become ready in time.");
+  throw new Error("Margin backend did not become ready in time.");
 }
 
 function startBackend() {
@@ -50,7 +50,7 @@ function startBackend() {
     backendProcess = null;
 
     if (!shuttingDown) {
-      console.error(`Echo backend exited unexpectedly (code: ${code}, signal: ${signal}).`);
+      console.error(`Margin backend exited unexpectedly (code: ${code}, signal: ${signal}).`);
     }
   });
 }

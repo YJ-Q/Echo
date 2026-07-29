@@ -10,6 +10,11 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..', '..');
 
 let dbPromise;
+let configuredDbPath = '';
+
+export function configureMemoryStore({ dbPath } = {}) {
+  configuredDbPath = dbPath ? path.resolve(dbPath) : '';
+}
 
 export async function ensureMemoryStore() {
   await getDb();
@@ -1616,9 +1621,8 @@ function getDecayFactor(timestamp, priorityBucket = 'ambient') {
 }
 
 function getStorePaths() {
-  const dbPath = process.env.ECHO_DB_PATH
-    ? path.resolve(process.env.ECHO_DB_PATH)
-    : path.join(rootDir, 'data', 'echo.sqlite');
+  const dbPath = configuredDbPath
+    || path.join(rootDir, 'data', 'margin.sqlite');
   const dataDir = path.dirname(dbPath);
 
   return {

@@ -1,13 +1,17 @@
 import dotenv from 'dotenv';
+import { loadRuntimeConfig } from '../src/config/env.js';
 import { createBackupBundle, databaseExists } from '../src/services/backupService.js';
+import { configureMemoryStore } from '../src/storage/memoryStore.js';
 
 dotenv.config();
 
+const config = loadRuntimeConfig();
+configureMemoryStore({ dbPath: config.dbPath });
 const options = parseArgs(process.argv.slice(2));
 const exists = await databaseExists();
 
 if (!exists) {
-  console.error('Echo database not found. Start the app once or set ECHO_DB_PATH to an existing database.');
+  console.error('Margin database not found. Start the app once or set MARGIN_DB_PATH.');
   process.exit(1);
 }
 

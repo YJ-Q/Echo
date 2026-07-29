@@ -1,6 +1,6 @@
 # Contributing
 
-Echo is still an early MVP. The project is being built in small phases:
+Margin is still an early MVP. The project is being built in small phases:
 
 1. Backend foundation
 2. Memory and personality continuity
@@ -17,7 +17,7 @@ npm run dev
 
 ## Principles
 
-- Keep Echo memory-driven, not just chat-driven.
+- Keep Margin memory-driven, not just chat-driven.
 - Preserve the calm, reflective second-self tone.
-- Avoid turning Echo into a generic productivity assistant.
+- Avoid turning Margin into a generic productivity assistant.
 - Prefer small, inspectable modules over broad abstractions.

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { generateDailySummary } from '../src/services/reflectionEngine.js';
 import { prepareLearningSession, assessLearningProgress } from '../src/services/learningEngine.js';
-import { addMemory, closeMemoryStore } from '../src/storage/memoryStore.js';
+import { addMemory, closeMemoryStore, configureMemoryStore } from '../src/storage/memoryStore.js';
 
 test('generateDailySummary keeps the empty-day fallback stable and idempotent', async () => {
   await withReflectionStore(async () => {
@@ -208,13 +208,13 @@ test('generateDailySummary keeps a stuck day specific and avoids narrating it as
 
 async function withReflectionStore(run) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'echo-reflection-test-'));
-  process.env.ECHO_DB_PATH = path.join(tempDir, 'echo.sqlite');
+  configureMemoryStore({ dbPath: path.join(tempDir, 'margin.sqlite') });
 
   try {
     await run();
   } finally {
     await closeMemoryStore();
-    delete process.env.ECHO_DB_PATH;
+    configureMemoryStore({ dbPath: '' });
     await rm(tempDir, { recursive: true, force: true });
   }
 }

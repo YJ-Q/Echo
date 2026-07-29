@@ -59,6 +59,10 @@ test("case study capture force-hides the launch overlay", () => {
 test("case study capture seeds synthetic data and waits for stable routes", () => {
   const scriptPath = new URL("../scripts/case-study/capture-product.mjs", import.meta.url);
   const source = fs.readFileSync(scriptPath, "utf8");
+  const seedSource = fs.readFileSync(
+    new URL("../scripts/case-study/seed-operation-event.mjs", import.meta.url),
+    "utf8"
+  );
 
   assert.match(source, /async function seedDemoData\(/);
   assert.match(source, /await seedDemoData\(\)/);
@@ -69,14 +73,38 @@ test("case study capture seeds synthetic data and waits for stable routes", () =
   assert.match(source, /actionCount >= 2/);
   assert.doesNotMatch(source, /requestJson\("\/management\/proposals"/);
   assert.match(source, /async function seedOperationEvent\(/);
-  assert.match(source, /addOperationEvent/);
-  assert.match(source, /addLearningEvent/);
-  assert.match(source, /先用一句话说明它解决的核心问题/);
+  assert.match(seedSource, /addOperationEvent/);
+  assert.match(seedSource, /addLearningEvent/);
+  assert.match(source, /MARGIN_LLM_PROVIDER:\s*"local"/);
+  assert.match(source, /MARGIN_DB_PATH:\s*tempDb/);
+  assert.match(seedSource, /先用一句话说明它解决的核心问题/);
   assert.match(source, /dataset\.activeView/);
   assert.match(source, /aria-pressed/);
   assert.match(source, /window\.scrollTo\(0, 0\)/);
   assert.match(source, /mainWindow\.scrollTop = 0/);
   assert.match(source, /requestAnimationFrame/);
+});
+
+test("case study capture delegates owned backend startup with explicit info logging", () => {
+  const scriptPath = new URL("../scripts/case-study/capture-product.mjs", import.meta.url);
+  const source = fs.readFileSync(scriptPath, "utf8");
+
+  assert.doesNotMatch(source, /const port\s*=\s*3197/u);
+  assert.match(source, /startCaptureBackend/u);
+  assert.match(source, /MARGIN_LOG_LEVEL:\s*"info"/u);
+  assert.match(source, /await stopBackend/u);
+});
+
+test("case study capture and review use current Margin temporary database names", () => {
+  const scriptPath = new URL("../scripts/case-study/capture-product.mjs", import.meta.url);
+  const reviewPath = new URL("../case-study/REVIEW.md", import.meta.url);
+  const source = fs.readFileSync(scriptPath, "utf8");
+  const review = fs.readFileSync(reviewPath, "utf8");
+
+  assert.match(source, /margin-case-study\.sqlite/u);
+  assert.doesNotMatch(source, /echo-case-study\.sqlite/u);
+  assert.match(review, /case-study\/\.tmp\/margin-case-study\.sqlite/u);
+  assert.match(review, /MARGIN_DB_PATH/u);
 });
 
 test("case study capture rejects loading and object-string artifacts", () => {

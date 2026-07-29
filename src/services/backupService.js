@@ -22,7 +22,7 @@ export async function exportEchoDataSnapshot({ outDir } = {}) {
     ? path.resolve(outDir)
     : path.join(path.dirname(storePaths.dbPath), 'exports');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filePath = path.join(targetDir, `echo-export-${timestamp}.json`);
+  const filePath = path.join(targetDir, `margin-export-${timestamp}.json`);
 
   await mkdir(targetDir, { recursive: true });
 
@@ -59,13 +59,15 @@ export async function exportEchoDataSnapshot({ outDir } = {}) {
   }
 }
 
+export const exportMarginDataSnapshot = exportEchoDataSnapshot;
+
 export async function createSqliteBackup({ outDir } = {}) {
   const storePaths = getMemoryStorePaths();
   const targetDir = outDir
     ? path.resolve(outDir)
     : path.join(path.dirname(storePaths.dbPath), 'backups');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filePath = path.join(targetDir, `echo-backup-${timestamp}.sqlite`);
+  const filePath = path.join(targetDir, `margin-backup-${timestamp}.sqlite`);
 
   await mkdir(targetDir, { recursive: true });
 
@@ -94,7 +96,7 @@ export async function createBackupBundle({ outDir, includeJson = true, includeSq
   const results = [];
 
   if (includeJson) {
-    results.push(await exportEchoDataSnapshot({ outDir }));
+    results.push(await exportMarginDataSnapshot({ outDir }));
   }
 
   if (includeSqlite) {
@@ -204,6 +206,8 @@ export async function importEchoDataSnapshot({
   }
 }
 
+export const importMarginDataSnapshot = importEchoDataSnapshot;
+
 export async function databaseExists() {
   const storePaths = getMemoryStorePaths();
 
@@ -222,7 +226,7 @@ async function readSnapshot(filePath) {
   const parsed = JSON.parse(raw);
 
   if (!parsed || typeof parsed !== 'object' || !parsed.data) {
-    throw new Error('Invalid Echo snapshot: missing data block');
+    throw new Error('Invalid Margin snapshot: missing data block');
   }
 
   for (const table of TABLES) {
@@ -231,7 +235,7 @@ async function readSnapshot(filePath) {
     }
 
     if (!Array.isArray(parsed.data[table])) {
-      throw new Error(`Invalid Echo snapshot: ${table} is missing or not an array`);
+      throw new Error(`Invalid Margin snapshot: ${table} is missing or not an array`);
     }
   }
 

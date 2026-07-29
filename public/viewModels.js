@@ -334,7 +334,7 @@ async function fetchViewModel(fetchJson, url, fallback, state) {
     return await fetchJson(url, { headers: { Accept: "application/json" } });
   } catch (error) {
     state.fallbackCount += 1;
-    console.info(`[Echo] Using mock view model for ${url}`);
+    console.info(`[Margin] Using mock view model for ${url}`);
     return structuredClone(fallback);
   }
 }

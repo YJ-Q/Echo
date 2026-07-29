@@ -1,4 +1,4 @@
-# Echo API Contracts
+# Margin API Contracts
 
 日期：2026-07-08
 
