@@ -149,3 +149,32 @@ test("recruiter contract rejects unknown evidence and missing questions", () => 
     /Forbidden portfolio claim/
   );
 });
+
+test("recruiter decisions require a non-empty evidence id array", () => {
+  const evidence = parseEvidenceMap(fs.readFileSync(evidencePath, "utf8"));
+  const summary = JSON.parse(fs.readFileSync(recruiterPath, "utf8"));
+
+  for (const evidenceIds of [undefined, [], "E007"]) {
+    const invalid = structuredClone(summary);
+    invalid.zh.quickRead.decisions[0].evidenceIds = evidenceIds;
+    assert.match(
+      validateRecruiterSummary(invalid, evidence).join("\n"),
+      /Recruiter decision evidence must be a non-empty array: zh/
+    );
+  }
+});
+
+test("portfolio contracts reject team, quote, metric, and commercial-result claims", () => {
+  const source = fs.readFileSync(jobApplicationPath, "utf8");
+  for (const claim of [
+    "我们团队共同完成了产品。",
+    "“它真的改变了我。”——用户",
+    "用户转化率达到 42%。",
+    "产品商业收入达到 10 万元。"
+  ]) {
+    assert.match(
+      validateJobApplication(`${source}\n${claim}`).join("\n"),
+      /Forbidden portfolio claim/
+    );
+  }
+});

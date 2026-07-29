@@ -61,7 +61,11 @@ const REQUIRED_JOB_SECTIONS = [
 const FORBIDDEN_PORTFOLIO_CLAIMS = [
   /用户(?:留存率|满意度)\s*(?:为|达到|提升)/i,
   /(?:retention|satisfaction)\s+(?:reached|increased|improved)/i,
-  /“[^”]{5,}”\s*——\s*(?:用户|受访者)/i
+  /(?:我们团队|带领团队|our team|led (?:a|the) team)/i,
+  /[“"][^”"\n]{4,}[”"]\s*(?:——|—|--?)\s*(?:用户|受访者|user|participant)/i,
+  /(?:用户)?(?:留存率|满意度|转化率|付费率)\s*(?:为|达到|提升|增长)?\s*\d+(?:\.\d+)?%?/i,
+  /(?:retention|satisfaction|conversion|paid conversion)\s*(?:rate)?\s*(?:was|reached|increased|improved)?\s*\d+(?:\.\d+)?%?/i,
+  /(?:商业收入|营收|GMV|revenue|ARR|MRR)\s*(?:为|达到|增长|was|reached|increased)?\s*[\d一二三四五六七八九十百千万]+/i
 ];
 
 function isNonEmptyString(value) {
@@ -110,9 +114,14 @@ export function validateRecruiterSummary(summary, evidenceRows) {
           || !isNonEmptyString(decision.body)) {
           errors.push(`Invalid recruiter decision copy: ${lang}`);
         }
-        for (const id of decision.evidenceIds || []) {
-          if (!knownEvidence.has(id)) {
-            errors.push(`Unknown recruiter evidence id: ${id}`);
+        if (!Array.isArray(decision.evidenceIds)
+          || decision.evidenceIds.length === 0) {
+          errors.push(`Recruiter decision evidence must be a non-empty array: ${lang}`);
+        } else {
+          for (const id of decision.evidenceIds) {
+            if (!isNonEmptyString(id) || !knownEvidence.has(id)) {
+              errors.push(`Unknown recruiter evidence id: ${id}`);
+            }
           }
         }
       }

@@ -239,3 +239,30 @@ test("recruiter CSS keeps approved visual tokens and mobile single-column decisi
   assert.match(css, /\.case-link\s*\{[^}]*min-height:\s*44px/s);
   assert.doesNotMatch(css, /linear-gradient|radial-gradient|conic-gradient/i);
 });
+
+test("language switching preserves scroll position before the first chapter", () => {
+  const source = fs.readFileSync(
+    new URL("../case-study/web/case-study.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /firstTop\s*>\s*threshold/);
+  assert.match(source, /scrollY:\s*window\.scrollY/);
+  assert.match(source, /window\.scrollTo\(\{\s*top:\s*anchor\.scrollY/s);
+});
+
+test("PDF actions download and pre-render links stay out of keyboard order", () => {
+  const html = fs.readFileSync(
+    new URL("../case-study/web/index.html", import.meta.url),
+    "utf8"
+  );
+  const source = fs.readFileSync(
+    new URL("../case-study/web/case-study.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(html, /class="case-link case-link--text pre-render-link"[^>]*tabindex="-1"/);
+  assert.match(source, /href="\$\{resources\.pdf\[lang\]\}"\s+download/);
+  assert.match(source, /href="\$\{resources\.pdf\.zh\}"\s+download/);
+  assert.match(source, /href="\$\{resources\.pdf\.en\}"\s+download/);
+});

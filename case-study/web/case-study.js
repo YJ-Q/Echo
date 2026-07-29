@@ -127,7 +127,7 @@ function renderHero(meta, quickRead, resources, lang) {
       <nav class="hero-actions" aria-label="${labels.footerLabel}">
         <a class="case-link case-link--primary" href="#recruiter-summary" data-case-anchor="recruiter-summary">${labels.quickReadAction}</a>
         <a class="case-link" href="#${resources.fullCaseAnchor}" data-case-anchor="${resources.fullCaseAnchor}">${labels.fullCaseAction}</a>
-        <a class="case-link" href="${resources.pdf[lang]}">${labels.pdfAction}</a>
+        <a class="case-link" href="${resources.pdf[lang]}" download>${labels.pdfAction}</a>
         <a class="case-link case-link--text" href="${resources.github}" rel="noreferrer">${labels.githubAction}</a>
       </nav>
       <p class="hero-footnote">${escapeHtml(
@@ -219,8 +219,8 @@ function renderFooter(resources, lang) {
   return `
     <p class="eyebrow">${labels.footerLabel}</p>
     <div class="footer-links">
-      <a class="case-link" href="${resources.pdf.zh}">中文 PDF</a>
-      <a class="case-link" href="${resources.pdf.en}">English PDF</a>
+      <a class="case-link" href="${resources.pdf.zh}" download>中文 PDF</a>
+      <a class="case-link" href="${resources.pdf.en}" download>English PDF</a>
       <a class="case-link case-link--text" href="${resources.github}" rel="noreferrer">${labels.githubAction}</a>
     </div>
   `;
@@ -269,6 +269,10 @@ function currentSectionAnchor() {
   const sections = [...document.querySelectorAll("[data-section]")];
   if (!sections.length) return null;
   const threshold = headerOffset() + 24;
+  const firstTop = sections[0].getBoundingClientRect().top;
+  if (firstTop > threshold) {
+    return { id: null, scrollY: window.scrollY };
+  }
   const current = sections.reduce((selected, section) => {
     const top = section.getBoundingClientRect().top;
     return top <= threshold ? section : selected;
@@ -334,10 +338,16 @@ function setLanguage(lang, { announce = true, preservePosition = true } = {}) {
   }
   if (announce) statusNode.textContent = LANGUAGE_CONFIG[safeLang].status;
   if (anchor) {
-    requestAnimationFrame(() => scrollToSection(anchor.id, {
-      updateHash: Boolean(location.hash),
-      viewportTop: anchor.viewportTop
-    }));
+    requestAnimationFrame(() => {
+      if (anchor.id) {
+        scrollToSection(anchor.id, {
+          updateHash: Boolean(location.hash),
+          viewportTop: anchor.viewportTop
+        });
+      } else {
+        window.scrollTo({ top: anchor.scrollY, behavior: "auto" });
+      }
+    });
   }
 }
 
