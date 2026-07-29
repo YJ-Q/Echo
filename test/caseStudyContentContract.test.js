@@ -5,12 +5,22 @@ import {
   parseEvidenceMap,
   parseCaseStudy,
   validateEvidenceRefs,
-  validateSectionParity
+  validateSectionParity,
+  validateRecruiterSummary,
+  validateJobApplication
 } from "../scripts/case-study/lib/content-contract.mjs";
 
 const evidencePath = new URL("../case-study/content/evidence-map.md", import.meta.url);
 const zhPath = new URL("../case-study/content/case-study.zh.md", import.meta.url);
 const enPath = new URL("../case-study/content/case-study.en.md", import.meta.url);
+const recruiterPath = new URL(
+  "../case-study/content/recruiter-summary.json",
+  import.meta.url
+);
+const jobApplicationPath = new URL(
+  "../case-study/content/job-application.zh.md",
+  import.meta.url
+);
 
 test("evidence map exposes traceable classified rows", () => {
   const rows = parseEvidenceMap(fs.readFileSync(evidencePath, "utf8"));
@@ -96,4 +106,46 @@ test("English edition contains no untranslated Chinese body paragraphs", () => {
   const en = fs.readFileSync(enPath, "utf8");
   const withoutApprovedTitle = en.replace("Margin：为尚未整理好的自己，留一个位置", "");
   assert.doesNotMatch(withoutApprovedTitle, /[\u3400-\u9fff]{8,}/);
+});
+
+test("recruiter summary keeps bilingual structure, resources, and known evidence", () => {
+  const evidence = parseEvidenceMap(fs.readFileSync(evidencePath, "utf8"));
+  const summary = JSON.parse(fs.readFileSync(recruiterPath, "utf8"));
+
+  assert.deepEqual(validateRecruiterSummary(summary, evidence), []);
+  assert.equal(summary.zh.quickRead.decisions.length, 3);
+  assert.equal(summary.en.quickRead.decisions.length, 3);
+  assert.equal(summary.resources.fullCaseAnchor, "overview");
+  assert.equal(summary.resources.pdf.zh, "../dist/margin-case-study.zh.pdf");
+  assert.equal(summary.resources.pdf.en, "../dist/margin-case-study.en.pdf");
+  assert.equal(summary.resources.github, "https://github.com/YJ-Q/Echo");
+});
+
+test("Chinese job application kit contains every required interview section", () => {
+  const markdown = fs.readFileSync(jobApplicationPath, "utf8");
+  assert.deepEqual(validateJobApplication(markdown), []);
+  assert.match(markdown, /尚未经过真实外部用户验证/);
+  assert.doesNotMatch(markdown, /我们团队|带领团队|用户留存率|用户满意度/);
+});
+
+test("recruiter contract rejects unknown evidence and missing questions", () => {
+  const evidence = parseEvidenceMap(fs.readFileSync(evidencePath, "utf8"));
+  const summary = JSON.parse(fs.readFileSync(recruiterPath, "utf8"));
+  const invalidSummary = structuredClone(summary);
+  invalidSummary.zh.quickRead.decisions[0].evidenceIds = ["E999"];
+
+  assert.deepEqual(
+    validateRecruiterSummary(invalidSummary, evidence),
+    ["Unknown recruiter evidence id: E999"]
+  );
+  assert.match(
+    validateJobApplication("# 简历项目描述\n\n内容").join("\n"),
+    /Missing job application section/
+  );
+  assert.match(
+    validateJobApplication(
+      `${fs.readFileSync(jobApplicationPath, "utf8")}\n用户满意度达到 95%。`
+    ).join("\n"),
+    /Forbidden portfolio claim/
+  );
 });
