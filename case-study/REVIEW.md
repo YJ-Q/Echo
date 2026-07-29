@@ -85,11 +85,24 @@ file-protocol 可移植性与无外部依赖由源码和契约测试覆盖；相
 - Added Chinese resume and interview material without raising any evidence classification.
 - Recruiter content contract: passed.
 - Focused Case Study tests: 35/35 passed.
-- Echo full test suite: 151/151 passed.
+- Echo full test suite: 155/155 passed.
 - Privacy scan: passed with zero findings.
 - Desktop browser review: 1440×1000, Chinese and English.
 - Mobile browser review: exact 390×844 CSS viewport, Chinese and English,
   `documentElement.scrollWidth = 390`, `body.scrollWidth = 390`, and all
   four hero actions at least 44px high.
 - Both PDF delivery URLs returned HTTP 200 from the local static build.
+- Independent pre-merge review: all three Important findings and both Minor
+  findings resolved; remaining Critical and Important findings: 0.
+- Production deployment: succeeded on Coze project `7667474883789455386`,
+  deployment `7667877656310038555`, commit
+  `dd092ae762acf114e6eee154ecff393e527b91c3`.
+- Production URL: `https://x2gfjjy7nj.coze.site`.
+- Public verification: root page, web entry, runtime script, generated content,
+  representative product screenshot, and both PDF editions returned HTTP 200
+  with the expected content types.
+- Both public PDF editions begin with the `%PDF` signature. The production
+  runtime also retains language-switch scroll restoration, PDF download
+  semantics, the main-content focus target, and both hidden pre-render links
+  outside the keyboard and accessibility trees.
 - External user validation remains pending.
