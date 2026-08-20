@@ -90,7 +90,7 @@ test('snapshot excludes cross-project, stale, unconfirmed, superseded, deleted, 
     ('memory-other', ?, NULL, 'other resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL)`,
   project.id, task.id, project.id, project.id, project.id, project.id, project.id, other.id);
 
-  const snapshot = await fixture.store.getContinuitySnapshot({ projectId: project.id, query: 'resume review', asOf, memoryTopK: 5, recentDialogue: [] });
+  const snapshot = await fixture.store.getContinuitySnapshot({ projectId: project.id, query: 'resume review', asOf, memoryTopK: 11, recentDialogue: [] });
 
   assert.equal(snapshot.project.id, project.id);
   assert.equal(snapshot.activeTask.id, task.id);

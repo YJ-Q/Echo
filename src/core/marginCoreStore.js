@@ -90,8 +90,8 @@ export async function openMarginCoreStore({
       if (!projectId || typeof query !== 'string' || !asOf) {
         throw new CoreContractError('invalid_request', 'projectId, query, and asOf are required');
       }
-      if (!Number.isInteger(memoryTopK) || memoryTopK < 1 || memoryTopK > 10) {
-        throw new CoreContractError('invalid_request', 'memoryTopK must be between 1 and 10');
+      if (!Number.isInteger(memoryTopK) || memoryTopK < 1) {
+        throw new CoreContractError('invalid_request', 'memoryTopK must be a positive integer');
       }
       if (!Array.isArray(recentDialogue)) {
         throw new CoreContractError('invalid_request', 'recentDialogue must be an array');
