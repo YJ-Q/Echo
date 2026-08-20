@@ -2,12 +2,25 @@ import { decidePermission } from '../permissions.js';
 import { CoreContractError, digestInput, fail, ok } from '../contracts.js';
 
 const OPERATIONS = new Set(['update_project', 'create_task', 'update_task', 'record_blocker', 'complete_task', 'replace_decision', 'revoke_decision']);
+const PATCH_FIELDS = Object.freeze({
+  update_project: new Set(['goal', 'phase', 'status']),
+  update_task: new Set(['title', 'currentStep', 'blocker', 'completionCondition', 'status']),
+  create_task: new Set(['title', 'currentStep', 'blocker', 'completionCondition', 'status'])
+});
+
+function assertClosedPatch(operation, patch) {
+  const keys = Object.keys(patch || {});
+  if (keys.length === 0 || keys.some((key) => !PATCH_FIELDS[operation].has(key))) {
+    throw new CoreContractError('invalid_request', 'Unsupported or empty state fields');
+  }
+}
 
 export function createStateTool({ store }) {
   function repositoryContext(input, context) {
     return {
       requestId: input.requestId, actorType: context.actorType, sourceSessionId: input.sourceSessionId,
       sourceEventId: input.sourceEventId, inputDigest: digestInput(input), permissionDecision: 'allowed'
+      , auditId: store.idFactory('audit')
     };
   }
 
@@ -35,6 +48,14 @@ export function createStateTool({ store }) {
           ? await tx.get('SELECT * FROM margin_decisions WHERE id=?', input.previousDecisionId)
           : await tx.get("SELECT * FROM margin_decisions WHERE project_id=? AND decision_key=? AND status='confirmed'", input.projectId, input.decisionKey);
         if (current && current.project_id !== input.projectId) throw new CoreContractError('cross_project_reference', 'Cross-project decision');
+        if (current && (current.decision_key !== input.decisionKey || current.status !== 'confirmed')) {
+          throw new CoreContractError('invalid_request', 'Decision replacement target does not match');
+        }
+        if (current && current.version !== input.expectedVersion) {
+          const error = new CoreContractError('version_conflict', 'Decision version conflict');
+          error.details = { expected: input.expectedVersion, actual: current.version };
+          throw error;
+        }
         const id = store.idFactory('decision');
         if (current) await tx.run("UPDATE margin_decisions SET status='superseded', version=version+1, updated_at=? WHERE id=?", now, current.id);
         await tx.run(`INSERT INTO margin_decisions VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?, NULL, 1, ?, ?, ?, ?)`,
@@ -75,20 +96,32 @@ export function createStateTool({ store }) {
     }
     try {
       const repoContext = repositoryContext(input, context);
-      if (input.operation === 'update_project') return ok(await store.updateProject(input.projectId, input.changes || {}, input.expectedVersion, repoContext));
-      if (input.operation === 'create_task') return ok(await store.createTask({ ...input.task, projectId: input.projectId }, repoContext));
+      if (input.operation === 'update_project') {
+        assertClosedPatch(input.operation, input.changes);
+        return ok(await store.updateProject(input.projectId, input.changes, input.expectedVersion, repoContext), repoContext.auditId);
+      }
+      if (input.operation === 'create_task') {
+        assertClosedPatch(input.operation, input.task);
+        return ok(await store.createTask({ ...input.task, projectId: input.projectId }, repoContext), repoContext.auditId);
+      }
       if (['update_task', 'record_blocker', 'complete_task'].includes(input.operation)) {
         const task = await store.getTask(input.taskId);
         if (!task) throw new CoreContractError('task_not_found', 'Task not found');
         if (task.project_id !== input.projectId) throw new CoreContractError('cross_project_reference', 'Cross-project task');
         const changes = input.operation === 'record_blocker' ? { blocker: input.blocker, status: 'blocked' }
           : input.operation === 'complete_task' ? { status: 'completed', blocker: null } : (input.changes || {});
-        return ok(await store.updateTask(input.taskId, changes, input.expectedVersion, repoContext));
+        if (input.operation === 'update_task') assertClosedPatch(input.operation, changes);
+        return ok(await store.updateTask(input.taskId, changes, input.expectedVersion, repoContext), repoContext.auditId);
       }
       return await decisionOperation(input, context);
     } catch (error) {
       const code = error instanceof CoreContractError ? error.code : 'storage_failure';
-      return fail(code, { retryable: code === 'storage_failure', details: error.details });
+      try {
+        const auditId = await directAudit(input, context, 'allowed', code);
+        return fail(code, { retryable: code === 'storage_failure', details: error.details, auditId });
+      } catch {
+        return fail('storage_failure', { retryable: true });
+      }
     }
   }
 

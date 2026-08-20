@@ -24,8 +24,17 @@ test('creation distinguishes internal actions from confirmation-gated risks', as
   const risky = await actionUpdate(req(project.id, 'create', { title: 'send', riskLevel: 'external_write' }), host);
   assert.equal(risky.data.status, 'pending_confirmation');
   assert.equal(risky.data.confirmation_required, 1);
-  const confirmed = await actionUpdate(req(project.id, 'create', { title: 'send approved', riskLevel: 'external_write', confirmationRef: 'confirm-1' }), host);
+  const confirmedInput = req(project.id, 'create', { title: 'send approved', riskLevel: 'external_write', confirmationRef: 'confirm-1' });
+  const forged = await actionUpdate(confirmedInput, host);
+  assert.equal(forged.data.status, 'pending_confirmation');
+  const confirmed = await actionUpdate(confirmedInput, { ...host, confirmations: [{ ref: 'confirm-1', projectId: project.id, requestId: confirmedInput.requestId, riskLevel: 'external_write' }] });
   assert.equal(confirmed.data.status, 'pending');
+  const replayInput = req(project.id, 'create', { title: 'replay', riskLevel: 'external_write', confirmationRef: 'confirm-1' });
+  const replay = await actionUpdate(replayInput, { ...host, confirmations: [{ ref: 'confirm-1', projectId: project.id, requestId: replayInput.requestId, riskLevel: 'external_write' }] });
+  assert.equal(replay.data.status, 'pending_confirmation');
+  const wrongRiskInput = req(project.id, 'create', { title: 'wrong risk', riskLevel: 'high_risk', confirmationRef: 'confirm-2' });
+  const wrongRisk = await actionUpdate(wrongRiskInput, { ...host, confirmations: [{ ref: 'confirm-2', projectId: project.id, requestId: wrongRiskInput.requestId, riskLevel: 'external_write' }] });
+  assert.equal(wrongRisk.data.status, 'pending_confirmation');
 });
 
 test('allowed transitions are versioned and cancellation is retained', async (t) => {
@@ -43,6 +52,8 @@ test('permission, stale version, invalid transition, and cross-project task are 
   assert.equal((await actionUpdate(req(project.id, 'create', { title: 'x', riskLevel: 'internal_write' }), { actorType: 'agent', permissions: {} })).error.code, 'permission_denied');
   const created = await actionUpdate(req(project.id, 'create', { title: 'x', riskLevel: 'internal_write' }), host);
   assert.equal((await actionUpdate(req(project.id, 'complete', { actionId: created.data.id, expectedVersion: 9 }), host)).error.code, 'version_conflict');
+  const failedAudit = await fixture.store.db.get("SELECT result_code FROM margin_audit_log WHERE operation='action_update' AND result_code='version_conflict'");
+  assert.equal(failedAudit.result_code, 'version_conflict');
   const completed = await actionUpdate(req(project.id, 'complete', { actionId: created.data.id, expectedVersion: 1 }), host);
   assert.equal(completed.data.status, 'completed');
   assert.equal((await actionUpdate(req(project.id, 'complete', { actionId: created.data.id, expectedVersion: 2 }), host)).error.code, 'invalid_request');

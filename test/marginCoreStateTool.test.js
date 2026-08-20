@@ -23,6 +23,7 @@ test('closed operations update blockers and completion with versions', async (t)
   const { project, task, tool } = await setup(t);
   const blocked = await tool(request(project.id, 'record_blocker', { taskId: task.id, expectedVersion: 1, blocker: 'waiting review' }), host);
   assert.equal(blocked.data.status, 'blocked');
+  assert.match(blocked.auditId, /^audit-/u);
   assert.equal(blocked.data.version, 2);
   const completed = await tool(request(project.id, 'complete_task', { taskId: task.id, expectedVersion: 2 }), host);
   assert.equal(completed.data.status, 'completed');
@@ -34,6 +35,7 @@ test('permission, allowlist, stale version, and cross-project guards are stable'
   assert.equal((await tool(request(project.id, 'drop_table'), host)).error.code, 'invalid_request');
   assert.equal((await tool(request(project.id, 'update_project', { expectedVersion: 1, changes: { phase: 'x' } }), { actorType: 'agent', permissions: {} })).error.code, 'permission_denied');
   assert.equal((await tool(request(project.id, 'update_task', { taskId: task.id, expectedVersion: 9, changes: { title: 'x' } }), host)).error.code, 'version_conflict');
+  assert.equal((await tool(request(project.id, 'update_project', { expectedVersion: 1, changes: { sql: 'DROP TABLE x' } }), host)).error.code, 'invalid_request');
   const other = await fixture.store.createProject({ scenario: 'career_project', goal: 'other', phase: 'p' }, seedContext);
   assert.equal((await tool(request(other.id, 'update_task', { taskId: task.id, expectedVersion: 1, changes: { title: 'x' } }), host)).error.code, 'cross_project_reference');
 });
@@ -41,7 +43,11 @@ test('permission, allowlist, stale version, and cross-project guards are stable'
 test('decision replacement and revocation preserve history', async (t) => {
   const { fixture, project, tool } = await setup(t);
   const first = await tool(request(project.id, 'replace_decision', { decisionKey: 'format', content: 'PDF' }), host);
-  const second = await tool(request(project.id, 'replace_decision', { decisionKey: 'format', content: 'DOCX', previousDecisionId: first.data.id }), host);
+  const mismatch = await tool(request(project.id, 'replace_decision', { decisionKey: 'channel', content: 'email', previousDecisionId: first.data.id, expectedVersion: 1 }), host);
+  assert.equal(mismatch.error.code, 'invalid_request');
+  const stale = await tool(request(project.id, 'replace_decision', { decisionKey: 'format', content: 'DOCX', previousDecisionId: first.data.id, expectedVersion: 9 }), host);
+  assert.equal(stale.error.code, 'version_conflict');
+  const second = await tool(request(project.id, 'replace_decision', { decisionKey: 'format', content: 'DOCX', previousDecisionId: first.data.id, expectedVersion: 1 }), host);
   assert.equal(second.data.status, 'confirmed');
   assert.equal((await fixture.store.db.get('SELECT status FROM margin_decisions WHERE id=?', first.data.id)).status, 'superseded');
   const revoked = await tool(request(project.id, 'revoke_decision', { decisionId: second.data.id, expectedVersion: 1 }), host);

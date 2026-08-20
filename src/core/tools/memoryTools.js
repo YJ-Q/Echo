@@ -1,5 +1,7 @@
 import { decidePermission } from '../permissions.js';
-import { digestInput, fail, ok, requireFields } from '../contracts.js';
+import { CoreContractError, digestInput, fail, ok, requireFields } from '../contracts.js';
+
+const MEMORY_TYPES = new Set(['fact', 'preference', 'constraint', 'context', 'sensitive']);
 
 function tokens(value) {
   return new Set(String(value).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
@@ -87,18 +89,23 @@ export function createMemoryTools({ store }) {
     try {
       requireFields(input, ['requestId', 'projectId', 'content', 'memoryType', 'validFrom', 'sourceSessionId', 'sourceEventId']);
       const project = await store.db.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.projectId);
-      if (!project) return fail('project_not_found');
+      if (!project) return fail('project_not_found', { auditId: await audit(input, context, 'allowed', 'project_not_found') });
       if (input.taskId) {
         const task = await store.db.get('SELECT project_id FROM margin_tasks WHERE id=? AND deleted_at IS NULL', input.taskId);
-        if (!task || task.project_id !== input.projectId) return fail('cross_project_reference');
+        if (!task || task.project_id !== input.projectId) return fail('cross_project_reference', { auditId: await audit(input, context, 'allowed', 'cross_project_reference') });
       }
-      const duplicate = await store.db.get(`SELECT * FROM margin_memories WHERE project_id=? AND content=? AND memory_type=? AND confirmation_status='proposed' AND deleted_at IS NULL`, input.projectId, input.content, input.memoryType);
-      if (duplicate) {
-        const auditId = await audit(input, context, 'allowed', 'duplicate', duplicate.id);
-        return ok({ memory: duplicate, duplicate: true, confirmationRequired: true }, auditId);
+      if (!MEMORY_TYPES.has(input.memoryType) || typeof input.confidence !== 'number' || input.confidence < 0 || input.confidence > 1) {
+        throw new CoreContractError('invalid_request', 'Invalid memory proposal fields');
       }
       const confirmationRequired = input.memoryType === 'sensitive' || input.memoryType === 'preference';
       return await store.transaction(async (tx) => {
+        const duplicate = await tx.get(`SELECT * FROM margin_memories WHERE project_id=? AND content=? AND memory_type=? AND confirmation_status='proposed' AND deleted_at IS NULL`, input.projectId, input.content, input.memoryType);
+        if (duplicate) {
+          const auditId = store.idFactory('audit');
+          await tx.run(`INSERT INTO margin_audit_log VALUES (?, 'memory_propose', ?, ?, ?, 'memory', ?, 'allowed', 'duplicate', ?, '{}', ?)`,
+            auditId, input.requestId, context.actorType, input.projectId, duplicate.id, digestInput(input), store.clock());
+          return ok({ memory: duplicate, duplicate: true, confirmationRequired }, auditId);
+        }
         const now = store.clock();
         const id = store.idFactory('memory');
         await tx.run(`INSERT INTO margin_memories
@@ -114,8 +121,14 @@ export function createMemoryTools({ store }) {
         const memory = await tx.get('SELECT * FROM margin_memories WHERE id=?', id);
         return ok({ memory, duplicate: false, confirmationRequired }, auditId);
       });
-    } catch {
-      return fail('invalid_request');
+    } catch (error) {
+      const code = error instanceof CoreContractError ? error.code : 'storage_failure';
+      try {
+        const auditId = await audit(input, context, 'allowed', code);
+        return fail(code, { retryable: code === 'storage_failure', auditId });
+      } catch {
+        return fail('storage_failure', { retryable: true });
+      }
     }
   }
 

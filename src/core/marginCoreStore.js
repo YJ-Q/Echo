@@ -66,6 +66,7 @@ export async function openMarginCoreStore({
   async function writeEvidence(tx, { entityType, entityId, projectId, eventType, entityVersion, operation }, context) {
     if (beforeEvidenceWrite) await beforeEvidenceWrite({ entityType, entityId, eventType });
     const now = clock();
+    const auditId = context.auditId || idFactory('audit');
     await tx.run(
       `INSERT INTO margin_events
        (id, entity_type, entity_id, project_id, event_type, entity_version, payload, source_session_id, source_event_id, created_at)
@@ -77,9 +78,10 @@ export async function openMarginCoreStore({
       `INSERT INTO margin_audit_log
        (id, operation, request_id, actor_type, project_id, entity_type, entity_id, permission_decision, result_code, input_digest, metadata, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'allowed', ?, '{}', ?)`,
-      idFactory('audit'), operation, context.requestId, context.actorType, projectId, entityType, entityId,
+      auditId, operation, context.requestId, context.actorType, projectId, entityType, entityId,
       context.permissionDecision, context.inputDigest, now
     );
+    return auditId;
   }
 
   store.createProject = (input, context) => store.transaction(async (tx) => {

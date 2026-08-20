@@ -24,6 +24,7 @@ test('proposal is governed and sensitive content requests confirmation', async (
   assert.equal(result.data.confirmationRequired, true);
   const rejected = await tools.memoryPropose({ ...base, requestId: 'r2', projectId: project.id, content: 'hello', memoryType: 'context', confidence: 0.5, validFrom: '2026-08-20T00:00:00.000Z' }, context);
   assert.equal(rejected.error.code, 'invalid_request');
+  assert.match(rejected.auditId, /^audit-/u);
 });
 
 test('search is isolated, deterministic, bounded, and does not mutate memories', async (t) => {
