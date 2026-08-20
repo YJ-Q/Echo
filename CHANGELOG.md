@@ -11,6 +11,7 @@ All notable changes to Margin will be documented in this file.
 - isolated Pi SDK spike for Session create/restore/fork, compaction, and one audit-only custom tool
 - isolated inline registration for environment-authenticated OpenAI Responses-compatible providers, including the YAPI Stage 0 endpoint
 - Pi version/license, integration decision, current-state audit, and contribution-boundary documents
+- Stage 1 protocol `1.0.0`, ten synthetic continuity fixtures, SHA-256 manifest binding, and a repository validation CLI
 
 ### Security
 
@@ -29,6 +30,7 @@ All notable changes to Margin will be documented in this file.
 
 - real Pi SDK execution with `yapi/gpt-5.6-terra`: tool call, new Session, restore, fork parent relationship, and manual compaction
 - Stage 0 verification gate: `212/212` automated tests passed on 2026-08-20
+- Stage 1 fixture structure and manifest integrity are reproducibly validated; no model-performance or user-outcome result is implied
 
 ## [0.1.0-backend-mvp] - 2026-07-06
 
