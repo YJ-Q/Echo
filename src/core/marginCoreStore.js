@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { randomUUID } from 'node:crypto';
 import { MARGIN_CORE_MIGRATIONS } from './migrations/001-margin-core.js';
+import { CoreContractError } from './contracts.js';
 
 export async function openMarginCoreStore({
   dbPath,
@@ -57,8 +58,92 @@ export async function openMarginCoreStore({
     },
     async getSchemaEvidence() {
       return db.all('SELECT version, name, checksum, applied_at FROM margin_schema_migrations ORDER BY version');
-    }
+    },
+    getProject: (id) => db.get('SELECT * FROM margin_projects WHERE id = ?', id),
+    getTask: (id) => db.get('SELECT * FROM margin_tasks WHERE id = ?', id)
   };
+
+  async function writeEvidence(tx, { entityType, entityId, projectId, eventType, entityVersion, operation }, context) {
+    if (beforeEvidenceWrite) await beforeEvidenceWrite({ entityType, entityId, eventType });
+    const now = clock();
+    await tx.run(
+      `INSERT INTO margin_events
+       (id, entity_type, entity_id, project_id, event_type, entity_version, payload, source_session_id, source_event_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, '{}', ?, ?, ?)`,
+      idFactory('event'), entityType, entityId, projectId, eventType, entityVersion,
+      context.sourceSessionId, context.sourceEventId, now
+    );
+    await tx.run(
+      `INSERT INTO margin_audit_log
+       (id, operation, request_id, actor_type, project_id, entity_type, entity_id, permission_decision, result_code, input_digest, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'allowed', ?, '{}', ?)`,
+      idFactory('audit'), operation, context.requestId, context.actorType, projectId, entityType, entityId,
+      context.permissionDecision, context.inputDigest, now
+    );
+  }
+
+  store.createProject = (input, context) => store.transaction(async (tx) => {
+    const now = clock();
+    const id = idFactory('project');
+    await tx.run(
+      `INSERT INTO margin_projects
+       (id, scenario, goal, phase, status, version, source_session_id, source_event_id, created_at, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, NULL)`,
+      id, input.scenario, input.goal, input.phase, input.status || 'active',
+      context.sourceSessionId, context.sourceEventId, now, now
+    );
+    await writeEvidence(tx, { entityType: 'project', entityId: id, projectId: id, eventType: 'created', entityVersion: 1, operation: 'create_project' }, context);
+    return tx.get('SELECT * FROM margin_projects WHERE id = ?', id);
+  });
+
+  store.createTask = (input, context) => store.transaction(async (tx) => {
+    const project = await tx.get('SELECT id FROM margin_projects WHERE id = ? AND deleted_at IS NULL', input.projectId);
+    if (!project) throw new CoreContractError('project_not_found', 'Project not found');
+    const now = clock();
+    const id = idFactory('task');
+    await tx.run(
+      `INSERT INTO margin_tasks
+       (id, project_id, title, current_step, blocker, completion_condition, status, version, source_session_id, source_event_id, created_at, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, NULL)`,
+      id, input.projectId, input.title, input.currentStep, input.blocker || null, input.completionCondition,
+      input.status || 'pending', context.sourceSessionId, context.sourceEventId, now, now
+    );
+    await writeEvidence(tx, { entityType: 'task', entityId: id, projectId: input.projectId, eventType: 'created', entityVersion: 1, operation: 'create_task' }, context);
+    return tx.get('SELECT * FROM margin_tasks WHERE id = ?', id);
+  });
+
+  store.updateProject = (id, changes, expectedVersion, context) => store.transaction(async (tx) => {
+    const current = await tx.get('SELECT * FROM margin_projects WHERE id = ? AND deleted_at IS NULL', id);
+    if (!current) throw new CoreContractError('project_not_found', 'Project not found');
+    if (current.version !== expectedVersion) {
+      const error = new CoreContractError('version_conflict', 'Project version conflict');
+      error.details = { expected: expectedVersion, actual: current.version };
+      throw error;
+    }
+    const next = { goal: changes.goal ?? current.goal, phase: changes.phase ?? current.phase, status: changes.status ?? current.status };
+    await tx.run('UPDATE margin_projects SET goal=?, phase=?, status=?, version=version+1, updated_at=?, source_session_id=?, source_event_id=? WHERE id=?',
+      next.goal, next.phase, next.status, clock(), context.sourceSessionId, context.sourceEventId, id);
+    await writeEvidence(tx, { entityType: 'project', entityId: id, projectId: id, eventType: 'updated', entityVersion: current.version + 1, operation: 'update_project' }, context);
+    return tx.get('SELECT * FROM margin_projects WHERE id = ?', id);
+  });
+
+  store.updateTask = (id, changes, expectedVersion, context) => store.transaction(async (tx) => {
+    const current = await tx.get('SELECT * FROM margin_tasks WHERE id = ? AND deleted_at IS NULL', id);
+    if (!current) throw new CoreContractError('task_not_found', 'Task not found');
+    if (changes.projectId && changes.projectId !== current.project_id) throw new CoreContractError('cross_project_reference', 'Task belongs to another project');
+    if (current.version !== expectedVersion) throw new CoreContractError('version_conflict', 'Task version conflict');
+    const next = {
+      title: changes.title ?? current.title, currentStep: changes.currentStep ?? current.current_step,
+      blocker: changes.blocker === undefined ? current.blocker : changes.blocker,
+      completionCondition: changes.completionCondition ?? current.completion_condition,
+      status: changes.status ?? current.status
+    };
+    await tx.run('UPDATE margin_tasks SET title=?, current_step=?, blocker=?, completion_condition=?, status=?, version=version+1, updated_at=?, source_session_id=?, source_event_id=? WHERE id=?',
+      next.title, next.currentStep, next.blocker, next.completionCondition, next.status, clock(), context.sourceSessionId, context.sourceEventId, id);
+    const eventType = next.status === 'completed' ? 'completed' : 'updated';
+    await writeEvidence(tx, { entityType: 'task', entityId: id, projectId: current.project_id, eventType, entityVersion: current.version + 1, operation: 'update_task' }, context);
+    return tx.get('SELECT * FROM margin_tasks WHERE id = ?', id);
+  });
 
   try {
     await store.migrate();
