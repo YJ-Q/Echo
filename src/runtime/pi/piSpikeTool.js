@@ -20,3 +20,25 @@ export const marginSpikeEchoTool = defineTool({
 export async function marginSpikeEchoExtension(pi) {
   pi.registerTool(marginSpikeEchoTool);
 }
+
+export function createMarginSpikeExtension({ providerId, baseUrl, api, apiKey, modelId }) {
+  return async (pi) => {
+    pi.registerProvider(providerId, {
+      name: providerId.toUpperCase(),
+      baseUrl,
+      apiKey,
+      api,
+      models: [{
+        id: modelId,
+        name: modelId,
+        api,
+        reasoning: true,
+        input: ['text'],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 16_384
+      }]
+    });
+    pi.registerTool(marginSpikeEchoTool);
+  };
+}

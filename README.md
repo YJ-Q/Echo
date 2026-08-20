@@ -59,6 +59,8 @@ npm run spike:pi
 npm run verify:pi-stage-0
 ```
 
+For the YAPI-compatible endpoint, the spike recognizes `yapi` with `https://yapi.click/v1`, the OpenAI Responses wire API, and `YAPI_API_KEY`. Generic custom endpoints can instead set `MARGIN_PI_BASE_URL`, `MARGIN_PI_API`, and `MARGIN_PI_API_KEY_ENV`. Only the environment-variable name is configured; the credential value remains process-local.
+
 The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. User/project extensions, skills, prompt templates, themes, and context files are also disabled, and the spike uses an isolated agent directory under ignored local data. Authentication must be supplied through the environment for the selected provider; credentials are not read from the user's normal Pi directory or stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
 
 See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.

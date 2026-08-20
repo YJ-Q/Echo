@@ -9,6 +9,7 @@ All notable changes to Margin will be documented in this file.
 - pinned Pi SDK `@earendil-works/pi-coding-agent@0.84.2` and Node 22.23.1 development runtime contract
 - SHA256-verified Node runtime bootstrap and reproducible Pi installation audit
 - isolated Pi SDK spike for Session create/restore/fork, compaction, and one audit-only custom tool
+- isolated inline registration for environment-authenticated OpenAI Responses-compatible providers, including the YAPI Stage 0 endpoint
 - Pi version/license, integration decision, current-state audit, and contribution-boundary documents
 
 ### Security

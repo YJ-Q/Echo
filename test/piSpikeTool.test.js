@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MARGIN_SPIKE_TOOL_NAME,
+  createMarginSpikeExtension,
   marginSpikeEchoExtension,
   marginSpikeEchoTool
 } from '../src/runtime/pi/piSpikeTool.js';
@@ -18,6 +19,27 @@ test('spike exposes exactly one audit-only echo tool', async () => {
     details: { echoed: true },
     isError: false
   });
+});
+
+test('custom provider is registered inline without writing credentials to disk', async () => {
+  const providers = [];
+  const tools = [];
+  const extension = createMarginSpikeExtension({
+    providerId: 'yapi',
+    baseUrl: 'https://yapi.click/v1',
+    api: 'openai-responses',
+    apiKey: 'runtime-secret',
+    modelId: 'gpt-5.6-terra'
+  });
+  await extension({
+    registerProvider: (id, config) => providers.push([id, config]),
+    registerTool: (tool) => tools.push(tool)
+  });
+  assert.equal(providers[0][0], 'yapi');
+  assert.equal(providers[0][1].apiKey, 'runtime-secret');
+  assert.equal(providers[0][1].models[0].id, 'gpt-5.6-terra');
+  assert.equal(providers[0][1].models[0].api, 'openai-responses');
+  assert.deepEqual(tools, [marginSpikeEchoTool]);
 });
 
 test('spike registers the tool through one inline extension factory', async () => {

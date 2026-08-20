@@ -9,7 +9,7 @@ import {
   createAgentSessionServices
 } from '@earendil-works/pi-coding-agent';
 import { PI_BASELINE, assertSupportedNodeVersion } from '../src/runtime/pi/piBaseline.js';
-import { MARGIN_SPIKE_TOOL_NAME, marginSpikeEchoExtension } from '../src/runtime/pi/piSpikeTool.js';
+import { MARGIN_SPIKE_TOOL_NAME, createMarginSpikeExtension, marginSpikeEchoExtension } from '../src/runtime/pi/piSpikeTool.js';
 
 export function buildSpikeToolPolicy() {
   return {
@@ -117,7 +117,7 @@ async function writeJsonAtomically(filePath, value) {
   await rename(temporaryPath, filePath);
 }
 
-export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId, prompt }) {
+export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId, prompt, customProvider }) {
   assertSupportedNodeVersion();
   const paths = buildSpikePaths({ repositoryRoot, dataDir });
   await mkdir(paths.sessionDir, { recursive: true });
@@ -136,10 +136,13 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
 
   try {
     const createRuntime = async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
+      const extensionFactory = customProvider
+        ? createMarginSpikeExtension({ providerId: provider, modelId, ...customProvider })
+        : marginSpikeEchoExtension;
       const services = await createAgentSessionServices({
         cwd,
         agentDir,
-        resourceLoaderOptions: buildIsolatedResourceOptions()
+        resourceLoaderOptions: buildIsolatedResourceOptions(extensionFactory)
       });
       const model = services.modelRuntime.getModel(provider, modelId);
       if (!model) {
@@ -231,12 +234,21 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
 
 async function main() {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const provider = process.env.MARGIN_PI_PROVIDER;
+  const apiKeyEnvironmentName = process.env.MARGIN_PI_API_KEY_ENV ?? (provider === 'yapi' ? 'YAPI_API_KEY' : undefined);
+  const baseUrl = process.env.MARGIN_PI_BASE_URL ?? (provider === 'yapi' ? 'https://yapi.click/v1' : undefined);
+  const api = process.env.MARGIN_PI_API ?? (provider === 'yapi' ? 'openai-responses' : undefined);
   const result = await runPiSdkSpike({
     repositoryRoot,
     dataDir: path.join(repositoryRoot, 'data', 'pi-spike'),
-    provider: process.env.MARGIN_PI_PROVIDER,
+    provider,
     modelId: process.env.MARGIN_PI_MODEL,
-    prompt: process.env.MARGIN_PI_SPIKE_PROMPT
+    prompt: process.env.MARGIN_PI_SPIKE_PROMPT,
+    customProvider: baseUrl && api && apiKeyEnvironmentName ? {
+      baseUrl,
+      api,
+      apiKey: process.env[apiKeyEnvironmentName]
+    } : undefined
   });
   process.stdout.write(`${JSON.stringify(result.report, null, 2)}\n`);
   process.exitCode = result.exitCode;
