@@ -1,0 +1,72 @@
+{
+  "taskId": "cp-decision-override-002",
+  "protocolVersion": "1.0.0",
+  "scenario": "career_project",
+  "synthetic": true,
+  "projectId": "synthetic-project-demo",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "demo_scope_changed",
+    "messages": [
+      "The demo scope changed from three flows to one continuity flow."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "cp2-current",
+      "value": "Version 4 limits the demo to the cross-Session continuity flow.",
+      "sourceId": "session-cp2:event-11",
+      "version": 4
+    }
+  ],
+  "distractors": [
+    {
+      "id": "cp2-stale",
+      "kind": "stale",
+      "value": "Version 2 includes three unrelated feature flows.",
+      "sourceId": "session-cp2:event-6",
+      "version": 2
+    }
+  ],
+  "newSessionRequest": "Update the demo decision record and next step.",
+  "oracle": {
+    "requiredFactIds": [
+      "cp2-current"
+    ],
+    "forbiddenFactIds": [
+      "cp2-stale"
+    ],
+    "artifact": {
+      "type": "decision_record_update",
+      "checks": [
+        "records the one-flow scope",
+        "marks version 4 as current",
+        "sets a continuity-demo next step"
+      ]
+    },
+    "allowedTools": [
+      "memory_search",
+      "state_update"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "stale_state_override",
+    "incorrect_recovery"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}
+

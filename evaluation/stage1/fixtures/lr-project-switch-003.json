@@ -1,0 +1,72 @@
+{
+  "taskId": "lr-project-switch-003",
+  "protocolVersion": "1.0.0",
+  "scenario": "learning_research",
+  "synthetic": true,
+  "projectId": "synthetic-research-rna",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "outline_section_two",
+    "messages": [
+      "Paused an RNA delivery review after agreeing on the safety section structure."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "lr3-outline",
+      "value": "Section two covers delivery safety before manufacturing scale.",
+      "sourceId": "session-lr3:event-6",
+      "version": 3
+    }
+  ],
+  "distractors": [
+    {
+      "id": "lr3-other",
+      "kind": "cross_project",
+      "value": "The battery review puts manufacturing scale first.",
+      "sourceId": "session-lr1:event-7",
+      "version": 2
+    }
+  ],
+  "newSessionRequest": "Continue the RNA review outline with the agreed second section.",
+  "oracle": {
+    "requiredFactIds": [
+      "lr3-outline"
+    ],
+    "forbiddenFactIds": [
+      "lr3-other"
+    ],
+    "artifact": {
+      "type": "research_outline_update",
+      "checks": [
+        "places delivery safety second",
+        "does not import the battery ordering",
+        "cites lr3-outline"
+      ]
+    },
+    "allowedTools": [
+      "memory_search",
+      "state_update"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "cross_project_contamination",
+    "recap_without_progress"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}
+
