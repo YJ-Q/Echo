@@ -47,3 +47,16 @@ test('empty and denied search never invent memory', async (t) => {
   const denied = await tools.memorySearch({ ...base, projectId: project.id, query: 'x', topK: 5, asOf: '2026-08-20T00:00:00.000Z' }, { actorType: 'agent', permissions: {} });
   assert.equal(denied.error.code, 'permission_denied');
 });
+
+test('search separates invalid input from storage failure', async (t) => {
+  const { fixture, project, tools } = await setup(t);
+  const invalid = await tools.memorySearch({ ...base, projectId: project.id, query: 'x', topK: 0, asOf: '2026-08-20T00:00:00.000Z' }, context);
+  assert.equal(invalid.error.code, 'invalid_request');
+  assert.equal(invalid.error.retryable, false);
+  const originalAll = fixture.store.db.all.bind(fixture.store.db);
+  fixture.store.db.all = async () => { throw new Error('injected read failure'); };
+  const failed = await tools.memorySearch({ ...base, projectId: project.id, query: 'x', topK: 1, asOf: '2026-08-20T00:00:00.000Z' }, context);
+  fixture.store.db.all = originalAll;
+  assert.equal(failed.error.code, 'storage_failure');
+  assert.equal(failed.error.retryable, true);
+});

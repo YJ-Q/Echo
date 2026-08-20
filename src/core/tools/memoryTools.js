@@ -39,7 +39,7 @@ export function createMemoryTools({ store }) {
     try {
       requireFields(input, ['requestId', 'projectId', 'query', 'asOf']);
       const topK = Number(input.topK ?? 5);
-      if (!Number.isInteger(topK) || topK < 1 || topK > 10) throw new Error('topK');
+      if (!Number.isInteger(topK) || topK < 1 || topK > 10) throw new CoreContractError('invalid_request', 'topK must be between 1 and 10');
       const params = [input.projectId, input.asOf, input.asOf];
       let taskClause = '';
       if (input.taskId) { taskClause = 'AND task_id = ?'; params.push(input.taskId); }
@@ -70,8 +70,13 @@ export function createMemoryTools({ store }) {
       const auditId = await audit(input, context, 'allowed', items.length ? 'allowed' : 'no_relevant_memory');
       return ok(items.length ? { items } : { items: [], reason: 'no_relevant_memory' }, auditId);
     } catch (error) {
-      const auditId = await audit(input, context, 'allowed', 'invalid_request');
-      return fail('invalid_request', { auditId });
+      const code = error instanceof CoreContractError ? error.code : 'storage_failure';
+      try {
+        const auditId = await audit(input, context, 'allowed', code);
+        return fail(code, { retryable: code === 'storage_failure', auditId });
+      } catch {
+        return fail('storage_failure', { retryable: true });
+      }
     }
   }
 

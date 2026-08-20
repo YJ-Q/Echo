@@ -50,6 +50,11 @@ test('decision replacement and revocation preserve history', async (t) => {
   const second = await tool(request(project.id, 'replace_decision', { decisionKey: 'format', content: 'DOCX', previousDecisionId: first.data.id, expectedVersion: 1 }), host);
   assert.equal(second.data.status, 'confirmed');
   assert.equal((await fixture.store.db.get('SELECT status FROM margin_decisions WHERE id=?', first.data.id)).status, 'superseded');
+  const replacementEvents = await fixture.store.db.all("SELECT entity_id, event_type, entity_version FROM margin_events WHERE entity_type='decision' ORDER BY rowid");
+  assert.deepEqual(replacementEvents.slice(-2), [
+    { entity_id: first.data.id, event_type: 'superseded', entity_version: 2 },
+    { entity_id: second.data.id, event_type: 'created', entity_version: 1 }
+  ]);
   const revoked = await tool(request(project.id, 'revoke_decision', { decisionId: second.data.id, expectedVersion: 1 }), host);
   assert.equal(revoked.data.status, 'revoked');
 });

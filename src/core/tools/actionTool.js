@@ -2,6 +2,7 @@ import { digestInput, fail, ok } from '../contracts.js';
 
 const OPERATIONS = new Set(['create', 'activate', 'complete', 'cancel']);
 const RISKY = new Set(['external_write', 'high_risk']);
+const RISKS = new Set(['read_only', 'internal_write', 'external_write', 'high_risk']);
 const TRANSITIONS = Object.freeze({
   proposed: { cancel: 'cancelled' },
   pending_confirmation: { activate: 'pending', cancel: 'cancelled' },
@@ -39,6 +40,15 @@ export function createActionTool({ store }) {
   async function actionUpdate(input = {}, context = {}) {
     if (!OPERATIONS.has(input.operation)) return fail('invalid_request', { auditId: await audit(input, context, 'denied', 'invalid_request') });
     if (context.permissions?.actionWrite !== true) return fail('permission_denied', { auditId: await audit(input, context, 'denied', 'permission_denied') });
+    const required = ['requestId', 'projectId', 'sourceSessionId', 'sourceEventId'];
+    const baseInvalid = required.some((field) => typeof input[field] !== 'string' || input[field].trim() === '');
+    const createInvalid = input.operation === 'create' &&
+      (typeof input.title !== 'string' || input.title.trim() === '' || !RISKS.has(input.riskLevel || 'internal_write'));
+    const updateInvalid = input.operation !== 'create' &&
+      (typeof input.actionId !== 'string' || input.actionId.trim() === '' || !Number.isInteger(input.expectedVersion));
+    if (baseInvalid || createInvalid || updateInvalid) {
+      return fail('invalid_request', { auditId: await audit(input, context, 'allowed', 'invalid_request') });
+    }
     try {
       const project = await store.db.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.projectId);
       if (!project) return fail('project_not_found', { auditId: await audit(input, context, 'allowed', 'project_not_found') });

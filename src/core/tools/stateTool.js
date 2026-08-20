@@ -37,6 +37,7 @@ export function createStateTool({ store }) {
       const now = store.clock();
       let entity;
       let eventType;
+      let replacedDecision;
       if (input.operation === 'replace_decision') {
         const project = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.projectId);
         if (!project) throw new CoreContractError('project_not_found', 'Project not found');
@@ -56,6 +57,7 @@ export function createStateTool({ store }) {
           error.details = { expected: input.expectedVersion, actual: current.version };
           throw error;
         }
+        replacedDecision = current;
         const id = store.idFactory('decision');
         if (current) await tx.run("UPDATE margin_decisions SET status='superseded', version=version+1, updated_at=? WHERE id=?", now, current.id);
         await tx.run(`INSERT INTO margin_decisions VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?, NULL, 1, ?, ?, ?, ?)`,
@@ -73,8 +75,14 @@ export function createStateTool({ store }) {
         entity = await tx.get('SELECT * FROM margin_decisions WHERE id=?', current.id);
         eventType = 'revoked';
       }
+      if (input.operation === 'replace_decision' && replacedDecision) {
+        await tx.run(`INSERT INTO margin_events VALUES (?, 'decision', ?, ?, 'superseded', ?, '{}', ?, ?, ?)`,
+          store.idFactory('event'), replacedDecision.id, input.projectId, replacedDecision.version + 1,
+          input.sourceSessionId, input.sourceEventId, now);
+      }
       await tx.run(`INSERT INTO margin_events VALUES (?, 'decision', ?, ?, ?, ?, '{}', ?, ?, ?)`,
-        store.idFactory('event'), entity.id, input.projectId, eventType, entity.version,
+        store.idFactory('event'), entity.id, input.projectId,
+        input.operation === 'replace_decision' ? 'created' : eventType, entity.version,
         input.sourceSessionId, input.sourceEventId, now);
       if (store.beforeEvidenceWrite) await store.beforeEvidenceWrite({ entityType: 'decision', entityId: entity.id });
       const auditId = store.idFactory('audit');

@@ -60,3 +60,12 @@ test('permission, stale version, invalid transition, and cross-project task are 
   const other = await fixture.store.createProject({ scenario: 'career_project', goal: 'other', phase: 'p' }, seed);
   assert.equal((await actionUpdate(req(other.id, 'create', { taskId: task.id, title: 'bad', riskLevel: 'internal_write' }), host)).error.code, 'cross_project_reference');
 });
+
+test('malformed action creation is an audited non-retryable request error', async (t) => {
+  const { fixture, project, actionUpdate } = await setup(t);
+  const malformed = await actionUpdate(req(project.id, 'create', { title: '', riskLevel: 'root_shell' }), host);
+  assert.equal(malformed.error.code, 'invalid_request');
+  assert.equal(malformed.error.retryable, false);
+  assert.match(malformed.auditId, /^audit-/u);
+  assert.equal((await fixture.store.db.get('SELECT result_code FROM margin_audit_log WHERE id=?', malformed.auditId)).result_code, 'invalid_request');
+});
