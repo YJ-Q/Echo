@@ -2,6 +2,7 @@ import { openMarginCoreStore } from './marginCoreStore.js';
 import { createMemoryTools } from './tools/memoryTools.js';
 import { createStateTool } from './tools/stateTool.js';
 import { createActionTool } from './tools/actionTool.js';
+import { planContinuityContext } from '../continuity/contextPlanner.js';
 
 export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite } = {}) {
   if (!enabled) return { enabled: false };
@@ -9,6 +10,10 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
   const memory = createMemoryTools({ store });
   const state = createStateTool({ store });
   const action = createActionTool({ store });
+  const planContext = async (input, options) => planContinuityContext(
+    await store.getContinuitySnapshot(input),
+    options
+  );
   return {
     enabled: true,
     store,
@@ -18,6 +23,7 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
       state_update: state.stateUpdate,
       action_update: action.actionUpdate
     },
+    planContext,
     close: () => store.close()
   };
 }

@@ -14,6 +14,7 @@ All notable changes to Margin will be documented in this file.
 - Stage 1 protocol `1.0.0`, ten synthetic continuity fixtures, SHA-256 manifest binding, and a repository validation CLI
 - default-off Margin Core with additive versioned project, task, decision, memory, event, action, audit, and migration storage
 - governed `memory_search`, `memory_propose`, `state_update`, and `action_update` handlers with explicit permissions and confirmation gates
+- isolated Stage 3 continuity planner facade, four-tool Pi adapter, deterministic cross-session harness, and optional credential-gated live smoke command
 
 ### Security
 
@@ -27,6 +28,7 @@ All notable changes to Margin will be documented in this file.
 - the production chat path has not been migrated to Pi
 - production use still requires an explicit credential-management and provider-configuration design; the isolated YAPI-backed Stage 0 spike has passed
 - the internal Pi adapter, production chat integration, legacy-data migration, comparative evaluation, and real-user research remain future stages
+- Stage 3 does not activate production chat, migrate legacy data, run the 50-task evaluation, compare A/B/C baselines, measure recall, or conduct user research
 
 ### Verified
 
