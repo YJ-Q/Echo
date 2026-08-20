@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { STAGE1_PROTOCOL_VERSION, summarizeStage1Fixtures, validateStage1Fixture } from '../src/evaluation/stage1Fixture.js';
@@ -20,29 +20,55 @@ function confinedFile(root, relativePath) {
 }
 
 export async function validateFrozenStage1Set(root) {
+  const invalidResult = { ok: false, errorCode: 'stage1_fixture_validation_failed' };
+  const manifestText = await readFile(path.join(root, 'manifest.json'), 'utf8');
+  let manifest;
   try {
-    const manifest = JSON.parse(await readFile(path.join(root, 'manifest.json'), 'utf8'));
-    if (manifest.protocolVersion !== STAGE1_PROTOCOL_VERSION || !Array.isArray(manifest.tasks) || manifest.tasks.length === 0) {
-      return { ok: false, errorCode: 'stage1_fixture_validation_failed' };
-    }
+    manifest = JSON.parse(manifestText);
+  } catch {
+    return invalidResult;
+  }
+  if (manifest.protocolVersion !== STAGE1_PROTOCOL_VERSION || manifest.frozenAt !== '2026-08-20' ||
+      !Array.isArray(manifest.tasks) || manifest.tasks.length !== 10) return invalidResult;
+
+  const fixtureDirectory = path.join(root, 'fixtures');
+  const actualFiles = (await readdir(fixtureDirectory)).filter((name) => name.endsWith('.json')).sort();
+  const manifestFiles = manifest.tasks.map((entry) => entry.file?.replace(/^fixtures\//u, '')).sort();
+  if (JSON.stringify(actualFiles) !== JSON.stringify(manifestFiles)) return invalidResult;
+
+  try {
     const fixtures = [];
     const ids = new Set();
     for (const entry of manifest.tasks) {
       const filePath = confinedFile(root, entry.file);
       if (!filePath || !entry.file.startsWith('fixtures/') || typeof entry.sha256 !== 'string') {
-        return { ok: false, errorCode: 'stage1_fixture_validation_failed' };
+        return invalidResult;
       }
       const bytes = await readFile(filePath);
       const hash = createHash('sha256').update(bytes).digest('hex');
-      if (hash !== entry.sha256) return { ok: false, errorCode: 'stage1_fixture_validation_failed' };
+      if (hash !== entry.sha256) return invalidResult;
+      if (/sk-[A-Za-z0-9_-]{20,}|Bearer\s+[A-Za-z0-9._-]{20,}|api[_-]?key\s*[:=]/iu.test(bytes.toString('utf8'))) {
+        return invalidResult;
+      }
       const fixture = validateStage1Fixture(JSON.parse(bytes.toString('utf8')));
       if (fixture.taskId !== entry.taskId || ids.has(fixture.taskId)) {
-        return { ok: false, errorCode: 'stage1_fixture_validation_failed' };
+        return invalidResult;
       }
       ids.add(fixture.taskId);
       fixtures.push(fixture);
     }
     const summary = summarizeStage1Fixtures(fixtures);
+    if (summary.byScenario.career_project !== 5 || summary.byScenario.learning_research !== 5 ||
+        (summary.byRisk.stale_state_override ?? 0) < 2 ||
+        (summary.byRisk.cross_project_contamination ?? 0) < 2 ||
+        (summary.byRisk.unsupported_memory_claim ?? 0) < 1 ||
+        (summary.byRisk.unauthorized_tool_attempt ?? 0) < 1 ||
+        (summary.byRisk.intrusive_recall ?? 0) < 1) return invalidResult;
+    for (const scenario of ['career_project', 'learning_research']) {
+      const artifactTypes = new Set(fixtures.filter((fixture) => fixture.scenario === scenario)
+        .map((fixture) => fixture.oracle.artifact.type));
+      if (artifactTypes.size < 3) return invalidResult;
+    }
     return {
       ok: true,
       protocolVersion: summary.protocolVersion,
@@ -50,8 +76,9 @@ export async function validateFrozenStage1Set(root) {
       byScenario: summary.byScenario,
       manifestBound: true
     };
-  } catch {
-    return { ok: false, errorCode: 'stage1_fixture_validation_failed' };
+  } catch (error) {
+    if (error instanceof SyntaxError || error?.code === 'invalid_stage1_fixture') return invalidResult;
+    throw error;
   }
 }
 
