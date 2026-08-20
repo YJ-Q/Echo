@@ -11,6 +11,7 @@
     "audit:pi": "node scripts/audit-pi-baseline.js",
     "spike:pi": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-pi-sdk-spike.js",
     "verify:pi-stage-0": "powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-pi-stage-0.ps1",
+    "validate:stage1": "node scripts/validate-stage1-fixtures.js",
     "desktop": "electron .",
     "backup": "node scripts/backup-data.js",
     "export:data": "node scripts/backup-data.js --format=json",
