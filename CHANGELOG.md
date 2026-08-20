@@ -22,8 +22,13 @@ All notable changes to Margin will be documented in this file.
 ### Not Yet Complete
 
 - the production chat path has not been migrated to Pi
-- a real model-backed spike still requires configured Pi authentication
+- production use still requires an explicit credential-management and provider-configuration design; the isolated YAPI-backed Stage 0 spike has passed
 - structured Margin State/Memory and the four production tools remain future stages
+
+### Verified
+
+- real Pi SDK execution with `yapi/gpt-5.6-terra`: tool call, new Session, restore, fork parent relationship, and manual compaction
+- Stage 0 verification gate: `212/212` automated tests passed on 2026-08-20
 
 ## [0.1.0-backend-mvp] - 2026-07-06
 

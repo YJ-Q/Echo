@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   SessionManager,
+  SettingsManager,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
   createAgentSessionServices
@@ -80,15 +81,21 @@ export function createSpikeEvidenceCollector(nonce) {
   };
 }
 
-export function classifySpikeFailure(error) {
+export function classifySpikeFailure(error, stage) {
   const message = String(error?.message ?? error);
   if (error?.code === 'PI_MODEL_UNAVAILABLE' || /api key|auth|credential|login|token|model selected/i.test(message)) {
     return {
       exitCode: 3,
-      report: { ok: false, blockedBy: 'pi_credentials_required', errorCode: error?.code === 'PI_MODEL_UNAVAILABLE' ? 'pi_model_unavailable' : 'pi_auth_unavailable' }
+      report: { ok: false, blockedBy: 'pi_credentials_required', errorCode: error?.code === 'PI_MODEL_UNAVAILABLE' ? 'pi_model_unavailable' : 'pi_auth_unavailable', ...(stage ? { stage } : {}) }
     };
   }
-  return { exitCode: 4, report: { ok: false, blockedBy: 'pi_spike_failed', errorCode: 'pi_runtime_failure' } };
+  if (/nothing to compact|already compacted/i.test(message)) {
+    return { exitCode: 4, report: { ok: false, blockedBy: 'pi_spike_failed', errorCode: 'pi_compaction_input_too_small', ...(stage ? { stage } : {}) } };
+  }
+  if (/summarization failed/i.test(message)) {
+    return { exitCode: 4, report: { ok: false, blockedBy: 'pi_spike_failed', errorCode: 'pi_compaction_provider_failure', ...(stage ? { stage } : {}) } };
+  }
+  return { exitCode: 4, report: { ok: false, blockedBy: 'pi_spike_failed', errorCode: 'pi_runtime_failure', ...(stage ? { stage } : {}) } };
 }
 
 export function validateSpikeReport(report, { provider, modelId, now = new Date(), maxAgeMinutes = 15 }) {
@@ -133,6 +140,7 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
   const inMemorySession = SessionManager.inMemory(repositoryRoot);
   const inMemorySessionCreated = Boolean(inMemorySession.getSessionId()) && inMemorySession.getSessionFile() === undefined;
   let runtime;
+  let stage = 'runtime_create';
 
   try {
     const createRuntime = async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
@@ -142,6 +150,9 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
       const services = await createAgentSessionServices({
         cwd,
         agentDir,
+        settingsManager: SettingsManager.inMemory({
+          compaction: { enabled: true, reserveTokens: 2_000, keepRecentTokens: 20 }
+        }),
         resourceLoaderOptions: buildIsolatedResourceOptions(extensionFactory)
       });
       const model = services.modelRuntime.getModel(provider, modelId);
@@ -171,29 +182,38 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
     const initialSessionFile = runtime.session.sessionFile;
     const evidence = createSpikeEvidenceCollector(nonce);
     const unsubscribe = runtime.session.subscribe(evidence.observe);
+    stage = 'initial_prompt';
     await runtime.session.prompt(
       prompt ?? `Call ${MARGIN_SPIKE_TOOL_NAME} exactly once with message "${nonce}", then reply with the echoed value.`
     );
     unsubscribe();
 
-    await runtime.newSession();
-    const freshSessionId = runtime.session.sessionId;
-    await runtime.switchSession(initialSessionFile);
-    const restoredSessionId = runtime.session.sessionId;
+    stage = 'continuity_prompt';
+    await runtime.session.prompt(`Remember the prior audit nonce ${nonce} for compaction, and reply only with "acknowledged". Do not call any tool.`);
+
     const forkEntry = runtime.session.getUserMessagesForForking()[0];
     if (!forkEntry) throw new Error('Pi spike could not find a user entry to fork.');
-    await runtime.fork(forkEntry.entryId, { position: 'at' });
-    const forkedSessionId = runtime.session.sessionId;
-    const forkParentMatched = runtime.session.sessionManager.getHeader()?.parentSession === initialSessionFile;
 
     let compactionStarted = false;
     let compactionEnded = false;
     const unsubscribeCompaction = runtime.session.subscribe((event) => {
       if (event.type === 'compaction_start') compactionStarted = true;
-      if (event.type === 'compaction_end') compactionEnded = true;
+      if (event.type === 'compaction_end' && !event.errorMessage) compactionEnded = true;
     });
+    stage = 'compact_session';
     await runtime.session.compact('Preserve the audit nonce and the fact that the echo tool was called.');
     unsubscribeCompaction();
+
+    stage = 'new_session';
+    await runtime.newSession();
+    const freshSessionId = runtime.session.sessionId;
+    stage = 'restore_session';
+    await runtime.switchSession(initialSessionFile);
+    const restoredSessionId = runtime.session.sessionId;
+    stage = 'fork_session';
+    await runtime.fork(forkEntry.entryId, { position: 'at' });
+    const forkedSessionId = runtime.session.sessionId;
+    const forkParentMatched = runtime.session.sessionManager.getHeader()?.parentSession === initialSessionFile;
 
     const activeTools = runtime.session.getActiveToolNames();
     const toolEvidence = evidence.snapshot();
@@ -226,7 +246,7 @@ export async function runPiSdkSpike({ repositoryRoot, dataDir, provider, modelId
     await writeJsonAtomically(paths.reportPath, report);
     return { exitCode: report.ok ? 0 : 1, report };
   } catch (error) {
-    return classifySpikeFailure(error);
+    return classifySpikeFailure(error, stage);
   } finally {
     if (runtime) await runtime.dispose();
   }

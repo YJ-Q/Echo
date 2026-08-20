@@ -47,7 +47,7 @@ Still worth improving before a polished open-source `1.0`:
 
 ## Pi Stage 0 Development Verification
 
-Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries.
+Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries. The Stage 0 live spike passed on 2026-08-20 with the `yapi` provider and `gpt-5.6-terra`; this is technical feasibility evidence only, not a production or user-value claim.
 
 On Windows PowerShell:
 
