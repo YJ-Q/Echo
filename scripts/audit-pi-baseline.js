@@ -1,8 +1,12 @@
 import { access, readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import { PI_BASELINE } from '../src/runtime/pi/piBaseline.js';
 import { buildPiAudit } from '../src/runtime/pi/piAudit.js';
+
+const execFileAsync = promisify(execFile);
 
 async function readJsonOrNull(filePath) {
   try {
@@ -23,6 +27,18 @@ async function pathExists(filePath) {
   }
 }
 
+async function readNodeVersion(runtimePath) {
+  try {
+    const { stdout } = await execFileAsync(runtimePath, ['--version'], {
+      windowsHide: true,
+      timeout: 10_000
+    });
+    return stdout.trim().replace(/^v/, '');
+  } catch {
+    return null;
+  }
+}
+
 export async function collectPiAudit(rootDir) {
   const projectPackage = await readJsonOrNull(path.join(rootDir, 'package.json'));
   const installedPackage = await readJsonOrNull(
@@ -34,12 +50,14 @@ export async function collectPiAudit(rootDir) {
     `node-v${PI_BASELINE.runtimeNode}-win-x64`,
     'node.exe'
   );
+  const runtimeExists = await pathExists(runtimePath);
   return buildPiAudit({
     nodeVersion: process.versions.node,
     dependencyVersion: projectPackage?.dependencies?.[PI_BASELINE.packageName] ?? null,
     installedVersion: installedPackage?.version ?? null,
     installedLicense: installedPackage?.license ?? null,
-    runtimeExists: await pathExists(runtimePath)
+    runtimeExists,
+    runtimeVersion: runtimeExists ? await readNodeVersion(runtimePath) : null
   });
 }
 

@@ -25,6 +25,9 @@ test('Stage 0 verifier checks runtime, audit, tests, and real spike evidence in 
   assert.doesNotMatch(source, /MARGIN_PI_MODEL\s*=/);
   assert.doesNotMatch(source, /npm\.cmd/);
   assert.doesNotMatch(source, /--test test\s/);
+  assert.match(source, /MARGIN_PI_PROVIDER/);
+  assert.match(source, /MARGIN_PI_MODEL/);
+  assert.match(source, /15/);
 });
 
 test('Stage 0 verifier is valid PowerShell syntax', () => {

@@ -14,6 +14,8 @@ All notable changes to Margin will be documented in this file.
 ### Security
 
 - the Stage 0 spike disables Pi built-in file, command, edit, and write tools
+- user/project Pi extensions and resource discovery are disabled; the audit tool is registered through one explicit inline extension factory
+- verification rejects stale evidence, configuration drift, incorrect runtime binaries, and tool evidence without a matching per-run nonce
 - spike evidence is written only to ignored local data and excludes credentials and full conversation text
 
 ### Not Yet Complete

@@ -33,7 +33,7 @@ test('package and deployment entry points use Margin defaults', async () => {
   const license = await readFile('LICENSE', 'utf8');
 
   assert.equal(packageJson.name, 'margin');
-  assert.equal(packageJson.scripts.test, 'node --test test');
+  assert.equal(packageJson.scripts.test, 'node --test "test/*.test.js"');
   assert.match(envExample, /MARGIN_DB_PATH=\.\/data\/margin\.sqlite/u);
   assert.match(envExample, /MARGIN_LLM_PROVIDER=local/u);
   assert.match(compose, /services:\s*\n\s*margin:/u);

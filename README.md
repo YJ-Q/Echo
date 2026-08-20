@@ -59,7 +59,7 @@ npm run spike:pi
 npm run verify:pi-stage-0
 ```
 
-The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. Model credentials are not stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
+The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. User/project extensions, skills, prompt templates, themes, and context files are also disabled, and the spike uses an isolated agent directory under ignored local data. Authentication must be supplied through the environment for the selected provider; credentials are not read from the user's normal Pi directory or stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
 
 See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.
 
@@ -178,7 +178,7 @@ The current backend test suite covers:
 - calibration behavior
 - backup export and import restore flow
 
-Current backend test status: `19/19` passing.
+Test counts are reported by each run rather than kept as a static product-value claim.
 
 ## Backup And Export
 

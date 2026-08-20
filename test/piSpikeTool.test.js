@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MARGIN_SPIKE_TOOL_NAME, marginSpikeEchoTool } from '../src/runtime/pi/piSpikeTool.js';
+import {
+  MARGIN_SPIKE_TOOL_NAME,
+  marginSpikeEchoExtension,
+  marginSpikeEchoTool
+} from '../src/runtime/pi/piSpikeTool.js';
 
 test('spike exposes exactly one audit-only echo tool', async () => {
   assert.equal(MARGIN_SPIKE_TOOL_NAME, 'margin_spike_echo');
@@ -14,4 +18,10 @@ test('spike exposes exactly one audit-only echo tool', async () => {
     details: { echoed: true },
     isError: false
   });
+});
+
+test('spike registers the tool through one inline extension factory', async () => {
+  const registered = [];
+  await marginSpikeEchoExtension({ registerTool: (tool) => registered.push(tool) });
+  assert.deepEqual(registered, [marginSpikeEchoTool]);
 });

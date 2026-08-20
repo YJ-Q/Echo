@@ -22,6 +22,8 @@ export function buildPiAudit(input) {
   }
   if (!input.runtimeExists) {
     failures.push({ code: 'bundled_runtime_missing', actual: false });
+  } else if (input.runtimeVersion !== PI_BASELINE.runtimeNode) {
+    failures.push({ code: 'bundled_runtime_wrong_version', actual: input.runtimeVersion });
   }
   return {
     baseline: PI_BASELINE,

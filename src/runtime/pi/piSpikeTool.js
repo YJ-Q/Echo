@@ -16,3 +16,7 @@ export const marginSpikeEchoTool = defineTool({
     isError: false
   })
 });
+
+export async function marginSpikeEchoExtension(pi) {
+  pi.registerTool(marginSpikeEchoTool);
+}

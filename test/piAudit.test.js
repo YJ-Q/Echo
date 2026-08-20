@@ -8,7 +8,8 @@ test('audit passes only when dependency, installation, license, and Node match',
     dependencyVersion: '0.84.2',
     installedVersion: '0.84.2',
     installedLicense: 'MIT',
-    runtimeExists: true
+    runtimeExists: true,
+    runtimeVersion: '22.23.1'
   });
   assert.equal(report.ok, true);
   assert.deepEqual(report.failures, []);
@@ -20,7 +21,8 @@ test('audit reports every mismatch without hiding additional failures', () => {
     dependencyVersion: '^0.84.2',
     installedVersion: null,
     installedLicense: null,
-    runtimeExists: false
+    runtimeExists: false,
+    runtimeVersion: null
   });
   assert.equal(report.ok, false);
   assert.deepEqual(report.failures.map((item) => item.code), [
@@ -38,8 +40,22 @@ test('audit treats malformed Node versions as unsupported evidence', () => {
     dependencyVersion: '0.84.2',
     installedVersion: '0.84.2',
     installedLicense: 'MIT',
-    runtimeExists: true
+    runtimeExists: true,
+    runtimeVersion: '22.23.1'
   });
   assert.equal(report.ok, false);
   assert.equal(report.failures[0].code, 'unsupported_node');
+});
+
+test('audit rejects a binary at the pinned path when its actual version differs', () => {
+  const report = buildPiAudit({
+    nodeVersion: '22.23.1',
+    dependencyVersion: '0.84.2',
+    installedVersion: '0.84.2',
+    installedLicense: 'MIT',
+    runtimeExists: true,
+    runtimeVersion: '22.22.0'
+  });
+  assert.equal(report.ok, false);
+  assert.deepEqual(report.failures.map((item) => item.code), ['bundled_runtime_wrong_version']);
 });
