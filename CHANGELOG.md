@@ -12,6 +12,8 @@ All notable changes to Margin will be documented in this file.
 - isolated inline registration for environment-authenticated OpenAI Responses-compatible providers, including the YAPI Stage 0 endpoint
 - Pi version/license, integration decision, current-state audit, and contribution-boundary documents
 - Stage 1 protocol `1.0.0`, ten synthetic continuity fixtures, SHA-256 manifest binding, and a repository validation CLI
+- default-off Margin Core with additive versioned project, task, decision, memory, event, action, audit, and migration storage
+- governed `memory_search`, `memory_propose`, `state_update`, and `action_update` handlers with explicit permissions and confirmation gates
 
 ### Security
 
@@ -24,7 +26,7 @@ All notable changes to Margin will be documented in this file.
 
 - the production chat path has not been migrated to Pi
 - production use still requires an explicit credential-management and provider-configuration design; the isolated YAPI-backed Stage 0 spike has passed
-- structured Margin State/Memory and the four production tools remain future stages
+- the internal Pi adapter, production chat integration, legacy-data migration, comparative evaluation, and real-user research remain future stages
 
 ### Verified
 

@@ -33,6 +33,7 @@ export function loadRuntimeConfig(
   ).value.toLowerCase();
   const dbPath = resolveDatabasePath({ env, rootDir, pathExists, warnings });
   const errors = [];
+  const marginCoreEnabled = parseBoolean(env.MARGIN_CORE_ENABLED, 'MARGIN_CORE_ENABLED', false, errors);
 
   if (!SUPPORTED_PROVIDERS.includes(llmProvider)) {
     errors.push(`Unsupported ${providerSetting.source === 'default' ? 'MARGIN_LLM_PROVIDER' : providerSetting.source}: ${llmProvider}`);
@@ -68,8 +69,18 @@ export function loadRuntimeConfig(
     llmProvider,
     logLevel,
     dbPath,
+    marginCoreEnabled,
     warnings
   };
+}
+
+function parseBoolean(value, name, fallback, errors) {
+  if (value === undefined || String(value).trim() === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  errors.push(`${name} must be true or false`);
+  return fallback;
 }
 
 function resolveCompatValue(env, marginKey, echoKey, fallback, warnings) {
