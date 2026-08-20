@@ -4,6 +4,31 @@ import { randomUUID } from 'node:crypto';
 import { MARGIN_CORE_MIGRATIONS } from './migrations/001-margin-core.js';
 import { CoreContractError } from './contracts.js';
 
+function tokens(value) {
+  return new Set(String(value).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
+}
+
+function overlap(query, content) {
+  const queryTokens = tokens(query);
+  const contentTokens = tokens(content);
+  if (queryTokens.size === 0) return 0;
+  let matches = 0;
+  for (const token of queryTokens) if (contentTokens.has(token)) matches += 1;
+  return matches / queryTokens.size;
+}
+
+function rankMemories(rows, { query, asOf, topK }) {
+  return rows.map((row) => {
+    const lexicalOverlap = overlap(query, row.content);
+    const ageDays = Math.max(0, (new Date(asOf) - new Date(row.updated_at)) / 86400000);
+    const recencyBucket = ageDays <= 7 ? 1 : ageDays <= 30 ? 0.5 : 0;
+    return { row, lexicalOverlap, score: lexicalOverlap * 0.6 + row.confidence * 0.3 + recencyBucket * 0.1 };
+  }).filter((entry) => entry.lexicalOverlap > 0)
+    .sort((a, b) => b.score - a.score || b.row.updated_at.localeCompare(a.row.updated_at) || a.row.id.localeCompare(b.row.id))
+    .slice(0, topK)
+    .map(({ row, score }) => ({ ...row, score: Number(score.toFixed(6)) }));
+}
+
 export async function openMarginCoreStore({
   dbPath,
   clock = () => new Date().toISOString(),
@@ -60,7 +85,52 @@ export async function openMarginCoreStore({
       return db.all('SELECT version, name, checksum, applied_at FROM margin_schema_migrations ORDER BY version');
     },
     getProject: (id) => db.get('SELECT * FROM margin_projects WHERE id = ?', id),
-    getTask: (id) => db.get('SELECT * FROM margin_tasks WHERE id = ?', id)
+    getTask: (id) => db.get('SELECT * FROM margin_tasks WHERE id = ?', id),
+    async getContinuitySnapshot({ projectId, query, asOf, memoryTopK = 5, recentDialogue = [] } = {}) {
+      if (!projectId || typeof query !== 'string' || !asOf) {
+        throw new CoreContractError('invalid_request', 'projectId, query, and asOf are required');
+      }
+      if (!Number.isInteger(memoryTopK) || memoryTopK < 1 || memoryTopK > 10) {
+        throw new CoreContractError('invalid_request', 'memoryTopK must be between 1 and 10');
+      }
+      if (!Array.isArray(recentDialogue)) {
+        throw new CoreContractError('invalid_request', 'recentDialogue must be an array');
+      }
+
+      const project = await db.get(
+        "SELECT * FROM margin_projects WHERE id = ? AND status = 'active' AND deleted_at IS NULL",
+        projectId
+      );
+      if (!project) throw new CoreContractError('project_not_found', 'Project not found');
+
+      const [activeTask, decisions, memoryRows] = await Promise.all([
+        db.get(
+          "SELECT * FROM margin_tasks WHERE project_id = ? AND status = 'active' AND deleted_at IS NULL ORDER BY updated_at DESC, id ASC LIMIT 1",
+          projectId
+        ),
+        db.all(
+          `SELECT * FROM margin_decisions
+           WHERE project_id = ? AND status = 'confirmed' AND superseded_by IS NULL AND effective_at <= ?
+             AND (expires_at IS NULL OR expires_at > ?)
+           ORDER BY updated_at DESC, id ASC`,
+          projectId, asOf, asOf
+        ),
+        db.all(
+          `SELECT * FROM margin_memories
+           WHERE project_id = ? AND confirmation_status = 'confirmed' AND deleted_at IS NULL
+             AND superseded_by IS NULL AND valid_from <= ? AND (expires_at IS NULL OR expires_at > ?)`,
+          projectId, asOf, asOf
+        )
+      ]);
+
+      return {
+        project,
+        activeTask,
+        decisions,
+        memories: rankMemories(memoryRows, { query, asOf, topK: memoryTopK }),
+        recentDialogue: recentDialogue.map((turn) => ({ ...turn }))
+      };
+    }
   };
 
   async function writeEvidence(tx, { entityType, entityId, projectId, eventType, entityVersion, operation }, context) {
