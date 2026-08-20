@@ -2,6 +2,26 @@
 
 All notable changes to Margin will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- pinned Pi SDK `@earendil-works/pi-coding-agent@0.84.2` and Node 22.23.1 development runtime contract
+- SHA256-verified Node runtime bootstrap and reproducible Pi installation audit
+- isolated Pi SDK spike for Session create/restore/fork, compaction, and one audit-only custom tool
+- Pi version/license, integration decision, current-state audit, and contribution-boundary documents
+
+### Security
+
+- the Stage 0 spike disables Pi built-in file, command, edit, and write tools
+- spike evidence is written only to ignored local data and excludes credentials and full conversation text
+
+### Not Yet Complete
+
+- the production chat path has not been migrated to Pi
+- a real model-backed spike still requires configured Pi authentication
+- structured Margin State/Memory and the four production tools remain future stages
+
 ## [0.1.0-backend-mvp] - 2026-07-06
 
 This release marks the first stabilized backend-oriented MVP for Margin.

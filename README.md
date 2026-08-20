@@ -45,6 +45,24 @@ Still worth improving before a polished open-source `1.0`:
 - richer provider configuration
 - frontend rebuild on top of the stabilized backend
 
+## Pi Stage 0 Development Verification
+
+Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries.
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-pi-runtime.ps1
+$env:MARGIN_PI_PROVIDER='<configured-provider>'
+$env:MARGIN_PI_MODEL='<configured-model-id>'
+npm run spike:pi
+npm run verify:pi-stage-0
+```
+
+The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. Model credentials are not stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
+
+See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.
+
 ## Quick Start
 
 ```bash
