@@ -15,3 +15,5 @@ huashu-design/
 design-references/
 .worktrees/
 .superpowers/sdd/
+.runtime/
+data/pi-spike/
