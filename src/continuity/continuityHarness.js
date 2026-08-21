@@ -15,14 +15,15 @@ function assertRequired(value, code) {
 }
 
 function summarizeToolResult(toolName, result) {
+  const entity = result?.data?.memory ?? result?.data;
   const auditId = result?.auditId;
   const code = result?.ok ? 'allowed' : result?.error?.code || 'tool_failed';
   return {
     toolName,
     auditId,
     code,
-    entityId: result?.data?.id ?? null,
-    entityVersion: result?.data?.version ?? null
+    entityId: entity?.id ?? null,
+    entityVersion: entity?.version ?? null
   };
 }
 
@@ -49,10 +50,12 @@ export async function runContinuityHarness({
   projectSeed,
   continuationQuery,
   clock,
-  idFactory
+  idFactory,
+  getTrustedMemoryConfirmation
 } = {}) {
   assertRequired(store?.createProject, 'invalid_store');
   assertRequired(store?.getContinuitySnapshot, 'invalid_store');
+  assertRequired(store?.confirmMemory, 'invalid_store');
   assertRequired(tools?.state_update, 'invalid_tools');
   assertRequired(sessionFactory, 'invalid_session_factory');
   assertRequired(typeof continuationQuery === 'string', 'invalid_continuation_query');
@@ -87,6 +90,51 @@ export async function runContinuityHarness({
     toolResults.push(taskTrace);
     if (!taskResult?.ok) throw new ContinuityHarnessError(taskTrace.code);
 
+    let memory;
+    const confirmationAuditIds = [];
+    if (projectSeed.memory) {
+      assertRequired(tools?.memory_propose, 'invalid_tools');
+      assertRequired(getTrustedMemoryConfirmation, 'invalid_memory_confirmation');
+      const memoryResult = await sessionA.invokeTool('memory_propose', {
+        requestId: idFactory('request'),
+        projectId: project.id,
+        taskId: taskResult.data.id,
+        ...projectSeed.memory
+      });
+      const memoryTrace = summarizeToolResult('memory_propose', memoryResult);
+      toolResults.push(memoryTrace);
+      if (!memoryResult?.ok) throw new ContinuityHarnessError(memoryTrace.code);
+      memory = memoryResult.data.memory;
+      const trustedConfirmation = await getTrustedMemoryConfirmation({ memory, project, sessionAId: sessionA.id });
+      const confirmation = await store.confirmMemory({
+        memoryId: memory.id,
+        expectedVersion: memory.version
+      }, {
+        requestId: idFactory('host_confirmation_request'),
+        actorType: 'system',
+        sourceSessionId: trustedConfirmation?.sourceSessionId ?? 'trusted-host',
+        sourceEventId: trustedConfirmation?.sourceEventId ?? idFactory('host_confirmation_event'),
+        trustedConfirmation
+      });
+      memory = confirmation.memory;
+      confirmationAuditIds.push(confirmation.auditId);
+    }
+
+    let decision;
+    if (projectSeed.decision) {
+      const decisionResult = await sessionA.invokeTool('state_update', {
+        requestId: idFactory('request'),
+        projectId: project.id,
+        taskId: taskResult.data.id,
+        operation: 'replace_decision',
+        ...projectSeed.decision
+      });
+      const decisionTrace = summarizeToolResult('state_update', decisionResult);
+      toolResults.push(decisionTrace);
+      if (!decisionResult?.ok) throw new ContinuityHarnessError(decisionTrace.code);
+      decision = decisionResult.data;
+    }
+
     await closeSession(sessionA);
     sessionAClosed = true;
 
@@ -112,6 +160,11 @@ export async function runContinuityHarness({
       projectVersion: project.version,
       taskId: taskResult.data.id,
       taskVersion: taskResult.data.version,
+      memoryId: memory?.id ?? null,
+      memoryVersion: memory?.version ?? null,
+      decisionId: decision?.id ?? null,
+      decisionVersion: decision?.version ?? null,
+      confirmationAuditIds,
       contextDigest: context.digest,
       toolResults
     };
@@ -122,6 +175,8 @@ export async function runContinuityHarness({
       sessionBId: sessionB.id,
       projectId: project.id,
       taskId: taskResult.data.id,
+      memoryId: memory?.id ?? null,
+      decisionId: decision?.id ?? null,
       context,
       trace
     };

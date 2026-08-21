@@ -49,7 +49,7 @@ test('snapshot and plan select bounded source-addressable continuity context det
     query: 'continue resume review',
     asOf,
     memoryTopK: 1,
-    recentDialogue: [{ id: 'turn-1', content: 'Continue the review.', sourceSessionId: 'session-a' }]
+    recentDialogue: [{ id: 'turn-1', projectId: project.id, content: 'Continue the review.', sourceSessionId: 'session-a' }]
   });
   const plan = planContinuityContext(snapshot, { maxItems: 6 });
 
@@ -123,7 +123,7 @@ test('snapshot rejects a missing project and planner reports bounded exclusions 
   );
   const snapshot = await fixture.store.getContinuitySnapshot({
     projectId: project.id, query: 'resume', asOf, memoryTopK: 1,
-    recentDialogue: [{ id: 'turn-2', content: 'Resume.', sourceSessionId: 's' }]
+    recentDialogue: [{ id: 'turn-2', projectId: project.id, content: 'Resume.', sourceSessionId: 's' }]
   });
   const plan = planContinuityContext(snapshot, { maxItems: 1 });
   assert.equal(plan.selected.length, 1);
@@ -132,4 +132,19 @@ test('snapshot rejects a missing project and planner reports bounded exclusions 
     { entityId: 'turn-2', sourceType: 'pi_recent_dialogue', reason: 'item_budget_exceeded' }
   ]);
   assert.throws(() => planContinuityContext(snapshot, { maxItems: 0 }), (error) => error instanceof ContinuityPlanError && error.code === 'invalid_context_budget');
+});
+
+test('snapshot rejects recent dialogue without the requested project scope before planning', async (t) => {
+  const { fixture, project } = await setup(t);
+  const other = await fixture.store.createProject({ scenario: 'career_project', goal: 'other', phase: 'other' }, context);
+
+  for (const dialogue of [
+    { id: 'unscoped', content: 'Do not mix this turn.' },
+    { id: 'other-project', projectId: other.id, content: 'Do not mix this turn.' }
+  ]) {
+    await assert.rejects(
+      fixture.store.getContinuitySnapshot({ projectId: project.id, query: 'resume', asOf, memoryTopK: 1, recentDialogue: [dialogue] }),
+      (error) => error instanceof CoreContractError && ['invalid_request', 'cross_project_reference'].includes(error.code)
+    );
+  }
 });

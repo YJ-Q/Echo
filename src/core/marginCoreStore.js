@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { randomUUID } from 'node:crypto';
 import { MARGIN_CORE_MIGRATIONS } from './migrations/001-margin-core.js';
-import { CoreContractError } from './contracts.js';
+import { CoreContractError, digestInput } from './contracts.js';
 
 function tokens(value) {
   return new Set(String(value).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
@@ -95,6 +95,14 @@ export async function openMarginCoreStore({
       }
       if (!Array.isArray(recentDialogue)) {
         throw new CoreContractError('invalid_request', 'recentDialogue must be an array');
+      }
+      for (const dialogue of recentDialogue) {
+        if (!dialogue || typeof dialogue !== 'object' || !dialogue.projectId) {
+          throw new CoreContractError('invalid_request', 'recentDialogue entries require projectId');
+        }
+        if (dialogue.projectId !== projectId) {
+          throw new CoreContractError('cross_project_reference', 'Dialogue belongs to another project');
+        }
       }
 
       const project = await db.get(
@@ -217,6 +225,47 @@ export async function openMarginCoreStore({
     return tx.get('SELECT * FROM margin_tasks WHERE id = ?', id);
   });
 
+  store.confirmMemory = ({ memoryId, expectedVersion } = {}, context = {}) => store.transaction(async (tx) => {
+    const evidence = context.trustedConfirmation;
+    if (!memoryId || !Number.isInteger(expectedVersion) || !evidence ||
+      evidence.action !== 'confirm_memory' || evidence.memoryId !== memoryId ||
+      evidence.actorType !== 'user' || typeof evidence.ref !== 'string' || evidence.ref.length === 0 ||
+      !['user', 'system'].includes(context.actorType) || !context.requestId || !context.sourceSessionId || !context.sourceEventId) {
+      throw new CoreContractError('invalid_confirmation', 'Trusted memory confirmation is required');
+    }
+    const current = await tx.get('SELECT * FROM margin_memories WHERE id = ? AND deleted_at IS NULL', memoryId);
+    if (!current) throw new CoreContractError('memory_not_found', 'Memory not found');
+    if (evidence.projectId !== current.project_id) {
+      throw new CoreContractError('cross_project_reference', 'Confirmation belongs to another project');
+    }
+    if (current.version !== expectedVersion) {
+      throw new CoreContractError('version_conflict', 'Memory version conflict');
+    }
+    if (current.confirmation_status !== 'proposed') {
+      throw new CoreContractError('invalid_memory_status', 'Only proposed memories can be confirmed');
+    }
+
+    const now = clock();
+    await tx.run(
+      `UPDATE margin_memories
+       SET confirmation_status='confirmed', version=version+1, source_session_id=?, source_event_id=?, updated_at=?
+       WHERE id=?`,
+      context.sourceSessionId, context.sourceEventId, now, memoryId
+    );
+    const memory = await tx.get('SELECT * FROM margin_memories WHERE id = ?', memoryId);
+    await tx.run(
+      `INSERT INTO margin_events VALUES (?, 'memory', ?, ?, 'updated', ?, '{}', ?, ?, ?)`,
+      idFactory('event'), memoryId, current.project_id, memory.version, context.sourceSessionId, context.sourceEventId, now
+    );
+    if (beforeEvidenceWrite) await beforeEvidenceWrite({ entityType: 'memory', entityId: memoryId, eventType: 'updated' });
+    const auditId = idFactory('audit');
+    await tx.run(
+      `INSERT INTO margin_audit_log VALUES (?, 'memory_confirm', ?, ?, ?, 'memory', ?, 'allowed', 'allowed', ?, '{}', ?)`,
+      auditId, context.requestId, context.actorType, current.project_id, memoryId, digestConfirmation({ memoryId, expectedVersion, evidence }), now
+    );
+    return { memory, auditId };
+  });
+
   try {
     await store.migrate();
     return store;
@@ -224,4 +273,18 @@ export async function openMarginCoreStore({
     await db.close();
     throw error;
   }
+}
+
+function digestConfirmation({ memoryId, expectedVersion, evidence }) {
+  return digestInput({
+    memoryId,
+    expectedVersion,
+    confirmation: {
+      ref: evidence.ref,
+      action: evidence.action,
+      memoryId: evidence.memoryId,
+      projectId: evidence.projectId,
+      actorType: evidence.actorType
+    }
+  });
 }

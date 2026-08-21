@@ -27,6 +27,46 @@ test('proposal is governed and sensitive content requests confirmation', async (
   assert.match(rejected.auditId, /^audit-/u);
 });
 
+test('a host-only trusted confirmation atomically promotes a proposed memory for later recall', async (t) => {
+  const { fixture, project, tools } = await setup(t);
+  const proposed = await tools.memoryPropose({
+    ...base, projectId: project.id, content: 'sqlite research uses a migration checklist', memoryType: 'context',
+    confidence: 0.8, validFrom: '2026-08-20T00:00:00.000Z', durableIntent: true
+  }, context);
+  const memory = proposed.data.memory;
+  const beforeEvents = await fixture.store.db.get('SELECT COUNT(*) AS count FROM margin_events');
+  const beforeAudits = await fixture.store.db.get('SELECT COUNT(*) AS count FROM margin_audit_log');
+
+  const confirmed = await fixture.store.confirmMemory({
+    memoryId: memory.id,
+    expectedVersion: memory.version
+  }, {
+    requestId: 'host-confirm-1',
+    actorType: 'user',
+    sourceSessionId: 'trusted-host',
+    sourceEventId: 'trusted-event-1',
+    trustedConfirmation: {
+      ref: 'trusted-confirmation-1', action: 'confirm_memory', memoryId: memory.id, projectId: project.id, actorType: 'user'
+    }
+  });
+
+  assert.equal(confirmed.memory.confirmation_status, 'confirmed');
+  assert.equal(confirmed.memory.version, 2);
+  assert.match(confirmed.auditId, /^audit-/u);
+  assert.equal((await fixture.store.db.get('SELECT COUNT(*) AS count FROM margin_events')).count, beforeEvents.count + 1);
+  assert.equal((await fixture.store.db.get('SELECT COUNT(*) AS count FROM margin_audit_log')).count, beforeAudits.count + 1);
+  const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: 'migration checklist', topK: 1, asOf: '2026-08-20T00:00:00.000Z' }, context);
+  assert.deepEqual(recalled.data.items.map((item) => item.id), [memory.id]);
+
+  await assert.rejects(
+    fixture.store.confirmMemory({ memoryId: memory.id, expectedVersion: 2 }, {
+      requestId: 'forged', actorType: 'agent', sourceSessionId: 'model', sourceEventId: 'model-event',
+      trustedConfirmation: { ref: 'model-text', action: 'confirm_memory', memoryId: memory.id, projectId: project.id, actorType: 'agent' }
+    }),
+    (error) => error.code === 'invalid_confirmation'
+  );
+});
+
 test('search is isolated, deterministic, bounded, and does not mutate memories', async (t) => {
   const { fixture, project, tools } = await setup(t);
   await fixture.store.db.run(`INSERT INTO margin_memories VALUES

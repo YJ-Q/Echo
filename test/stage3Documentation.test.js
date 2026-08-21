@@ -69,4 +69,8 @@ test('Stage 3 remains default-off, Pi-independent, and within its documented bou
     'production chat activation', 'legacy migration', '50-task evaluation', 'A/B/C comparison', 'recall metrics', 'user research'
   ]) assert.match(report, new RegExp(exclusion, 'iu'));
   assert.doesNotMatch(report, /\b\d+(?:\.\d+)?%\b/u);
+  assert.doesNotMatch(
+    await readFile(path.join(repositoryRoot, 'CHANGELOG.md'), 'utf8'),
+    /the internal Pi adapter, production chat integration, legacy-data migration/u
+  );
 });

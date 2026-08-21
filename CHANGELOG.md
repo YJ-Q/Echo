@@ -27,7 +27,7 @@ All notable changes to Margin will be documented in this file.
 
 - the production chat path has not been migrated to Pi
 - production use still requires an explicit credential-management and provider-configuration design; the isolated YAPI-backed Stage 0 spike has passed
-- the internal Pi adapter, production chat integration, legacy-data migration, comparative evaluation, and real-user research remain future stages
+- production chat integration, legacy-data migration, comparative evaluation, and real-user research remain future stages
 - Stage 3 does not activate production chat, migrate legacy data, run the 50-task evaluation, compare A/B/C baselines, measure recall, or conduct user research
 
 ### Verified

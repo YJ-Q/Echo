@@ -17,7 +17,7 @@ function projectSeed() {
   };
 }
 
-function createFakeSessionFactory({ tools, permissions = { stateWrite: true }, receiveContext } = {}) {
+function createFakeSessionFactory({ tools, permissions = { stateWrite: true, memoryPropose: true }, receiveContext } = {}) {
   const sessions = [];
   let next = 0;
   const sessionFactory = () => {
@@ -56,7 +56,8 @@ async function setup(t) {
     fixture,
     tools: {
       state_update: createStateTool({ store: fixture.store }).stateUpdate,
-      memory_search: createMemoryTools({ store: fixture.store }).memorySearch
+      memory_search: createMemoryTools({ store: fixture.store }).memorySearch,
+      memory_propose: createMemoryTools({ store: fixture.store }).memoryPropose
     },
     clock: () => asOf,
     idFactory: (prefix) => `${prefix}-${++nextId}`
@@ -90,6 +91,34 @@ test('hands deterministic Session A state to a distinct Session B without recall
   assert.equal(JSON.stringify(result.trace).includes('finish the resume review'), false);
   assert.equal(JSON.stringify(result.trace).includes('continue the review'), false);
   assert.equal(fake.sessions.every((session) => session.closed), true);
+});
+
+test('hands a host-confirmed Session A memory and confirmed decision to Session B', async (t) => {
+  const { fixture, tools, clock, idFactory } = await setup(t);
+  const fake = createFakeSessionFactory({ tools });
+  const seed = {
+    ...projectSeed(),
+    memory: { content: 'Resume only the latest draft', memoryType: 'context', confidence: 0.9, validFrom: asOf, durableIntent: true },
+    decision: { decisionKey: 'resume_scope', content: 'Use the latest draft', effectiveAt: asOf }
+  };
+
+  const result = await runContinuityHarness({
+    store: fixture.store, tools, sessionFactory: fake.sessionFactory, projectSeed: seed,
+    continuationQuery: 'resume latest draft', clock, idFactory,
+    getTrustedMemoryConfirmation: async ({ memory, project }) => ({
+      ref: 'trusted-confirmation-session-a', action: 'confirm_memory', memoryId: memory.id, projectId: project.id, actorType: 'user',
+      sourceSessionId: 'trusted-host-session', sourceEventId: 'trusted-host-event'
+    })
+  });
+
+  assert.deepEqual(result.context.selected.map((item) => item.sourceType), [
+    'margin_project', 'margin_task', 'margin_decision', 'margin_memory'
+  ]);
+  assert.equal(result.context.selected[2].content, 'Use the latest draft');
+  assert.equal(result.context.selected[3].content, 'Resume only the latest draft');
+  assert.equal(result.trace.confirmationAuditIds.length, 1);
+  assert.equal((await fixture.store.db.get("SELECT confirmation_status FROM margin_memories WHERE id=?", result.memoryId)).confirmation_status, 'confirmed');
+  assert.equal((await fixture.store.db.get("SELECT source_session_id FROM margin_memories WHERE id=?", result.memoryId)).source_session_id, 'trusted-host-session');
 });
 
 test('reports a stable denied tool code and closes Session A', async (t) => {

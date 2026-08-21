@@ -24,6 +24,7 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
       action_update: action.actionUpdate
     },
     planContext,
+    confirmMemory: (input, trustedContext) => store.confirmMemory(input, trustedContext),
     close: () => store.close()
   };
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, realpath as fsRealpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   SessionManager,
@@ -85,12 +85,40 @@ export function buildContinuityPaths({ repositoryRoot, dataDir }) {
     throw new Error('Pi continuity data directory must stay inside the repository.');
   }
   return {
+    repositoryRoot: root,
     dataDir: resolvedDataDir,
     sessionDir: path.join(resolvedDataDir, 'sessions'),
     agentDir: path.join(resolvedDataDir, 'agent'),
     dbPath: path.join(resolvedDataDir, 'margin-core.sqlite'),
     reportPath: path.join(resolvedDataDir, 'report.json')
   };
+}
+
+async function resolveNearestExistingPath(target, realpath) {
+  let current = path.resolve(target);
+  const missingSegments = [];
+  while (true) {
+    try {
+      return path.resolve(await realpath(current), ...missingSegments);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      const parent = path.dirname(current);
+      if (parent === current) throw error;
+      missingSegments.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
+export async function assertContinuityPathsContained(paths, { realpath = fsRealpath } = {}) {
+  const realRoot = await resolveNearestExistingPath(paths.repositoryRoot, realpath);
+  for (const target of [paths.dataDir, paths.sessionDir, paths.agentDir, paths.dbPath, paths.reportPath]) {
+    const resolvedTarget = await resolveNearestExistingPath(target, realpath);
+    const relative = path.relative(realRoot, resolvedTarget);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error('Pi continuity resolved path must stay inside the repository.');
+    }
+  }
 }
 
 export function classifyContinuitySmokeFailure(error) {
@@ -143,9 +171,9 @@ function createReport({ runId, createdAt, provider, modelId, execution, errorCod
   const contextDelivered = Boolean(
     execution?.contextDigest && execution.contextDigest === execution?.deliveredContextDigest
   );
-  const auditIds = Array.isArray(execution?.auditIds)
-    ? execution.auditIds.filter((value) => typeof value === 'string' && value.length > 0)
-    : [];
+  const auditIds = [execution?.auditIds, execution?.confirmationAuditIds]
+    .flatMap((values) => Array.isArray(values) ? values : [])
+    .filter((value) => typeof value === 'string' && value.length > 0);
   const resultCodes = errorCode
     ? [errorCode]
     : Array.isArray(execution?.resultCodes)
@@ -350,6 +378,7 @@ async function executeLiveContinuity({ repositoryRoot, paths, provider, modelId,
       contextDigest: harness.context.digest,
       deliveredContextDigest: sessionB?.providerDigestMatched ? sessionB.deliveredContextDigest : null,
       auditIds: harness.trace.toolResults.map((entry) => entry.auditId),
+      confirmationAuditIds: harness.trace.confirmationAuditIds,
       resultCodes: harness.trace.toolResults.map((entry) => entry.code)
     };
   } finally {
@@ -370,8 +399,10 @@ export async function runPiContinuitySmoke({
 } = {}) {
   assertSupportedNodeVersion();
   const paths = buildContinuityPaths({ repositoryRoot, dataDir });
+  await assertContinuityPathsContained(paths);
   await mkdir(paths.sessionDir, { recursive: true });
   await mkdir(paths.agentDir, { recursive: true });
+  await assertContinuityPathsContained(paths);
   await rm(paths.reportPath, { force: true });
 
   const runId = idFactory('pi_continuity_run');
@@ -380,11 +411,13 @@ export async function runPiContinuitySmoke({
     const report = createReport({
       runId, createdAt, provider, modelId, errorCode: 'pi_credentials_required'
     });
+    await assertContinuityPathsContained(paths);
     await writeJsonAtomically(paths.reportPath, report);
     return { exitCode: 3, report };
   }
 
   try {
+    await assertContinuityPathsContained(paths);
     const execution = await executeContinuity({
       repositoryRoot,
       paths,
@@ -393,6 +426,7 @@ export async function runPiContinuitySmoke({
       customProvider
     });
     const report = createReport({ runId, createdAt, provider, modelId, execution });
+    await assertContinuityPathsContained(paths);
     await writeJsonAtomically(paths.reportPath, report);
     return { exitCode: report.ok ? 0 : 4, report };
   } catch (error) {
@@ -404,6 +438,7 @@ export async function runPiContinuitySmoke({
       modelId,
       errorCode: failure.errorCode
     });
+    await assertContinuityPathsContained(paths);
     await writeJsonAtomically(paths.reportPath, report);
     return { exitCode: failure.exitCode, report };
   }

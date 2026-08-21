@@ -9,6 +9,7 @@ import {
   buildContinuityPaths,
   buildContinuityResourceOptions,
   buildContinuityToolPolicy,
+  assertContinuityPathsContained,
   classifyContinuitySmokeFailure,
   runPiContinuitySmoke
 } from '../src/runtime/pi/piContinuitySmoke.js';
@@ -31,6 +32,18 @@ test('isolates Pi discovery and enables exactly the four Margin tools', () => {
     extensionFactories: [{ name: 'margin-stage-3-continuity', hidden: false, factory: extensionFactory }]
   });
   assert.deepEqual(CONTINUITY_TOOL_NAMES, buildContinuityToolPolicy().tools);
+});
+
+test('rejects a resolved junction or symlink escape before smoke filesystem writes', async () => {
+  const paths = buildContinuityPaths({ repositoryRoot, dataDir: path.join(repositoryRoot, 'data', 'pi-continuity-escape') });
+  await assert.rejects(
+    assertContinuityPathsContained(paths, {
+      realpath: async (target) => target === paths.dataDir
+        ? path.join(path.parse(repositoryRoot).root, 'outside')
+        : target
+    }),
+    /resolved path must stay inside the repository/u
+  );
 });
 
 test('rejects repository-root and out-of-repository evidence paths', () => {
@@ -71,6 +84,7 @@ test('writes a sanitized continuity report for distinct sessions and delivered p
         deliveredContextDigest: 'digest-1',
         resourcesIsolated: true,
         auditIds: ['audit-1'],
+        confirmationAuditIds: ['audit-confirm-1'],
         resultCodes: ['allowed'],
         providerResponse: fullPrompt,
         rawProviderError: secret
@@ -85,6 +99,7 @@ test('writes a sanitized continuity report for distinct sessions and delivered p
   assert.equal(result.report.ok, true);
   assert.notEqual(result.report.observed.sessionAId, result.report.observed.sessionBId);
   assert.equal(result.report.trace.contextDigest, 'digest-1');
+  assert.deepEqual(result.report.trace.auditIds, ['audit-1', 'audit-confirm-1']);
   assert.deepEqual(result.report.checks, {
     toolsRegistered: true,
     sessionBoundary: true,
