@@ -68,6 +68,9 @@ test('Stage 3 remains default-off, Pi-independent, and within its documented bou
   for (const exclusion of [
     'production chat activation', 'legacy migration', '50-task evaluation', 'A/B/C comparison', 'recall metrics', 'user research'
   ]) assert.match(report, new RegExp(exclusion, 'iu'));
+  assert.match(report, /Live smoke was run with `yapi\/gpt-5\.6-terra`/u);
+  assert.match(report, /toolsRegistered.*sessionBoundary.*contextDelivered.*provenancePresent.*safetyPolicy/su);
+  assert.doesNotMatch(report, /Live smoke was not run/u);
   assert.doesNotMatch(report, /\b\d+(?:\.\d+)?%\b/u);
   assert.doesNotMatch(
     await readFile(path.join(repositoryRoot, 'CHANGELOG.md'), 'utf8'),

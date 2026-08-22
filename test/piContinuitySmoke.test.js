@@ -13,6 +13,11 @@ import {
   classifyContinuitySmokeFailure,
   runPiContinuitySmoke
 } from '../src/runtime/pi/piContinuitySmoke.js';
+import * as continuitySmoke from '../src/runtime/pi/piContinuitySmoke.js';
+
+test('live continuity seed uses a schema-supported Margin scenario', () => {
+  assert.equal(continuitySmoke.CONTINUITY_PROJECT_SEED?.scenario, 'learning_research');
+});
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

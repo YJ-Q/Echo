@@ -20,8 +20,8 @@ export const CONTINUITY_TOOL_NAMES = Object.freeze([
 ]);
 
 const DEFAULT_CLOCK = () => new Date().toISOString();
-const DEFAULT_PROJECT_SEED = Object.freeze({
-  scenario: 'pi_continuity_smoke',
+export const CONTINUITY_PROJECT_SEED = Object.freeze({
+  scenario: 'learning_research',
   goal: 'verify isolated cross-session continuity',
   phase: 'continuity',
   task: {
@@ -360,7 +360,7 @@ async function executeLiveContinuity({ repositoryRoot, paths, provider, modelId,
       store: core.store,
       tools: core.tools,
       sessionFactory,
-      projectSeed: DEFAULT_PROJECT_SEED,
+      projectSeed: CONTINUITY_PROJECT_SEED,
       continuationQuery: 'continue the isolated continuity verification',
       clock: DEFAULT_CLOCK,
       idFactory: (prefix) => `${prefix}-${randomUUID()}`
