@@ -197,6 +197,27 @@ test('reports a content-free request shape when a tool call is rejected', async 
   assert.doesNotMatch(JSON.stringify(results[0]), /must-not-leak/);
 });
 
+test('removes TypeBox-populated undefined optionals before Core validation', async () => {
+  let observed;
+  const registered = await registerAdapter({
+    tools: {
+      ...Object.fromEntries(toolNames.map((name) => [name, async () => ({ ok: true, data: {} })])),
+      state_update: async (input) => { observed = input; return { ok: true, data: {}, auditId: 'audit-clean' }; }
+    },
+    getInvocationContext: async () => ({ actorType: 'agent', projectId: 'project-1', permissions: { stateWrite: true }, sourceSessionId: 'session-1' })
+  });
+
+  await registered.find((tool) => tool.name === 'state_update').execute('call-clean', {
+    requestId: 'request-1', projectId: 'project-1', operation: 'update_task', taskId: 'task-1', expectedVersion: 1,
+    blocker: undefined, decisionId: undefined,
+    changes: { currentStep: '投递并记录', goal: undefined, phase: undefined, status: undefined, title: undefined, blocker: undefined, completionCondition: undefined }
+  });
+
+  assert.deepEqual(observed.changes, { currentStep: '投递并记录' });
+  assert.equal('blocker' in observed, false);
+  assert.equal('decisionId' in observed, false);
+});
+
 test('converts stable Core successes and errors to Pi results', () => {
   const success = toPiToolResult({ ok: true, data: { id: 'memory-1' }, auditId: 'audit-success' });
   const failure = toPiToolResult({ ok: false, error: { code: 'permission_denied', retryable: false }, auditId: 'audit-failure' });

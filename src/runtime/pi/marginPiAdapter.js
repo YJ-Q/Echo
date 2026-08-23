@@ -61,6 +61,14 @@ function contentFreeRequestShape(params = {}) {
   };
 }
 
+function pruneUndefined(value) {
+  if (Array.isArray(value)) return value.map(pruneUndefined);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([, entry]) => entry !== undefined)
+    .map(([key, entry]) => [key, pruneUndefined(entry)]));
+}
+
 export function toPiToolResult(result) {
   const payload = result.ok
     ? { ok: true, data: result.data, auditId: result.auditId }
@@ -84,14 +92,15 @@ export function toPiToolResult(result) {
 function createExecutor({ toolName, handler, getInvocationContext, onToolResult, schedule }) {
   return (toolCallId, params) => schedule(async () => {
     try {
+      const cleanParams = pruneUndefined(params);
       const trusted = await getInvocationContext({ toolName, toolCallId });
-      if (trusted?.projectId && params.projectId !== trusted.projectId) {
+      if (trusted?.projectId && cleanParams.projectId !== trusted.projectId) {
         const denied = errorResult('cross_project_reference');
         onToolResult?.({ toolName, code: 'cross_project_reference', auditId: undefined });
         return denied;
       }
       const input = {
-        ...params,
+        ...cleanParams,
         sourceSessionId: trusted?.sourceSessionId,
         sourceEventId: trusted?.sourceEventId ?? toolCallId
       };
@@ -107,7 +116,7 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult,
         toolName, code: result.details.code, auditId: result.details.auditId,
         ...(entity?.id ? { entityId: entity.id, entityVersion: entity.version } : {}),
         ...(coreResult?.data?.confirmationRequired === true ? { confirmationRequired: true } : {}),
-        ...(result.details.code !== 'allowed' ? { requestShape: contentFreeRequestShape(params) } : {})
+        ...(result.details.code !== 'allowed' ? { requestShape: contentFreeRequestShape(cleanParams) } : {})
       });
       return result;
     } catch {
