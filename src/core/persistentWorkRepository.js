@@ -2,23 +2,74 @@ import { CoreContractError, digestInput } from './contracts.js';
 import { transitionWorkstream } from '../domain/workstream.js';
 
 const json = (value) => JSON.stringify(value ?? []);
+const jsonObject = (value) => JSON.stringify(value ?? {});
+
+function versionConflict(actual) {
+  const error = new CoreContractError('version_conflict', 'Version conflict');
+  error.details = { actual };
+  return error;
+}
+
+function pageInput(input = {}) {
+  const limit = input.limit ?? 50;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new CoreContractError('invalid_request', 'limit must be an integer from 1 to 100');
+  if (input.cursor === undefined || input.cursor === null) return { limit, cursor: null };
+  try {
+    const cursor = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
+    if (!cursor || typeof cursor.updatedAt !== 'string' || typeof cursor.id !== 'string') throw new Error('invalid');
+    return { limit, cursor };
+  } catch { throw new CoreContractError('invalid_request', 'Invalid cursor'); }
+}
+
+function nextPage(rows, limit) {
+  const items = rows.slice(0, limit);
+  const last = items.at(-1);
+  return {
+    items,
+    nextCursor: rows.length > limit && last ? Buffer.from(JSON.stringify({ updatedAt: last.updated_at, id: last.id })).toString('base64url') : null
+  };
+}
+
+function listWhere({ workstreamId, runId, statuses, cursor }, aliases = {}) {
+  const clauses = [];
+  const values = [];
+  if (workstreamId) { clauses.push(`${aliases.workstream ?? 'workstream_id'}=?`); values.push(workstreamId); }
+  if (runId) { clauses.push(`${aliases.run ?? 'run_id'}=?`); values.push(runId); }
+  if (statuses !== undefined) {
+    if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > 20 || statuses.some((status) => typeof status !== 'string')) throw new CoreContractError('invalid_request', 'statuses must be a bounded string list');
+    clauses.push(`${aliases.status ?? 'status'} IN (${statuses.map(() => '?').join(',')})`);
+    values.push(...statuses);
+  }
+  if (cursor) {
+    clauses.push('(updated_at < ? OR (updated_at = ? AND id < ?))');
+    values.push(cursor.updatedAt, cursor.updatedAt, cursor.id);
+  }
+  return { clause: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', values };
+}
 
 export function createPersistentWorkRepository(store) {
-  const evidence = async (tx, { operation, requestId, actor, workstreamId, entityType, entityId, version, eventType, input }) => {
+  const evidence = async (tx, { operation, requestId, actor, workstreamId, entityType, entityId, version, eventType, input, status }) => {
+    if (store.beforeEvidenceWrite) await store.beforeEvidenceWrite({ entityType, entityId, eventType });
     const auditId = store.idFactory('audit');
     const now = store.clock();
+    const payload = JSON.stringify({
+      command: operation,
+      status: status ?? null,
+      correlationId: actor.correlationId ?? null,
+      surfaceKind: actor.surfaceKind ?? null
+    });
     await tx.run(
       `INSERT INTO margin_events
        (id,entity_type,entity_id,project_id,event_type,entity_version,payload,source_session_id,source_event_id,created_at)
        VALUES (?,?,?,?,?,?,?, ?,?,?)`,
-      store.idFactory('event'), entityType, entityId, workstreamId, eventType, version, '{}', actor.sourceSessionId, actor.sourceEventId, now
+      store.idFactory('event'), entityType, entityId, workstreamId, eventType, version, payload, actor.sourceSessionId, actor.sourceEventId, now
     );
     await tx.run(
       `INSERT INTO margin_audit_log
        (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
        VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,?,?)`,
       auditId, operation, requestId, actor.actorType, workstreamId, entityType, entityId, digestInput(input),
-      JSON.stringify({ actorSubjectId: actor.subjectId ?? null }), now
+      JSON.stringify({ actorSubjectId: actor.subjectId ?? null, correlationId: actor.correlationId ?? null, surfaceKind: actor.surfaceKind ?? null }), now
     );
     return auditId;
   };
@@ -67,10 +118,25 @@ export function createPersistentWorkRepository(store) {
         const openRun = await tx.get("SELECT id FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') LIMIT 1", current.id);
         if (openRun) throw new CoreContractError('open_run_conflict','Stop or complete the open Run before changing Workstream status');
       }
+      const next = {
+        goal: input.changes.goal ?? current.goal,
+        phase: input.changes.phase ?? current.phase,
+        priority: input.changes.priority ?? current.priority,
+        currentState: input.changes.currentState === undefined ? current.current_state : input.changes.currentState,
+        currentPlan: input.changes.currentPlan === undefined ? current.current_plan : json(input.changes.currentPlan),
+        nextAction: input.changes.nextAction === undefined ? current.next_action : input.changes.nextAction,
+        autonomyLevel: input.changes.autonomyLevel ?? current.autonomy_level,
+        workspacePath: input.changes.workspacePath === undefined ? current.workspace_path : input.changes.workspacePath
+      };
       const now=store.clock(); const nextVersion=current.version+1;
-      await tx.run('UPDATE margin_projects SET goal=?,phase=?,status=?,workstream_status=?,version=?,source_session_id=?,source_event_id=?,updated_at=? WHERE id=?',
-        input.changes.goal ?? current.goal,input.changes.phase ?? current.phase,legacyStatus,workstreamStatus,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,current.id);
-      const auditId=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input});
+      await tx.run(
+        `UPDATE margin_projects
+         SET goal=?,phase=?,status=?,workstream_status=?,priority=?,current_state=?,current_plan=?,next_action=?,autonomy_level=?,workspace_path=?,
+             version=?,source_session_id=?,source_event_id=?,updated_at=? WHERE id=?`,
+        next.goal,next.phase,legacyStatus,workstreamStatus,next.priority,next.currentState,next.currentPlan,next.nextAction,next.autonomyLevel,next.workspacePath,
+        nextVersion,actor.sourceSessionId,actor.sourceEventId,now,current.id
+      );
+      const auditId=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input,status:workstreamStatus});
       return {data:mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?',current.id)),auditId};
     }),
     createWorkstream: (input, actor) => store.transaction(async (tx) => {
@@ -81,15 +147,15 @@ export function createPersistentWorkRepository(store) {
       await tx.run(
         `INSERT INTO margin_projects
          (id,scenario,goal,phase,status,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,
-          title,workstream_status,current_plan,next_action,blockers,dependencies,workspace_path,autonomy_level,artifact_refs,last_checkpoint_id)
-         VALUES (?,?,?,'v1','active',1,?,?,?, ?,NULL,?,'running','[]',NULL,'[]','[]',?,?,'[]',NULL)`,
+          title,workstream_status,priority,current_state,current_plan,next_action,blockers,dependencies,workspace_path,autonomy_level,artifact_refs,last_checkpoint_id)
+         VALUES (?,?,?,'v1','active',1,?,?,?, ?,NULL,?,'running',?,?,'[]',NULL,'[]','[]',?,?,'[]',NULL)`,
         id, input.scenario, input.goal, actor.sourceSessionId, actor.sourceEventId, now, now,
-        input.title, input.workspacePath ?? null, input.autonomyLevel ?? 0
+        input.title, input.priority ?? 0, input.currentState ?? null, input.workspacePath ?? null, input.autonomyLevel ?? 0
       );
       if (input.currentPlan?.length || input.nextAction) {
         await tx.run('UPDATE margin_projects SET current_plan=?,next_action=? WHERE id=?', json(input.currentPlan), input.nextAction ?? null, id);
       }
-      const auditId = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input });
+      const auditId = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input, status: 'running' });
       return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), auditId };
     }),
     createRun: (input, actor) => store.transaction(async (tx) => {
@@ -135,7 +201,7 @@ export function createPersistentWorkRepository(store) {
       await tx.run(`UPDATE margin_runs SET status=?,runtime_session_id=?,checkpoint_id=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,started_at=?,ended_at=? WHERE id=?`,
         input.status,input.runtimeSessionId ?? current.runtime_session_id,checkpointId,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,startedAt,endedAt,current.id);
       const eventType=input.status==='completed'?'completed':input.status==='failed'?'failed':'updated';
-      const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:input.requestInput ?? input});
+      const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:input.requestInput ?? input,status:input.status});
       return {data:await tx.get('SELECT * FROM margin_runs WHERE id=?',current.id),auditId};
     }),
     createArtifact: (input, actor) => store.transaction(async (tx) => {
@@ -144,8 +210,13 @@ export function createPersistentWorkRepository(store) {
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId) : null;
       if (input.runId && (!run || run.workstream_id !== input.workstreamId)) throw new CoreContractError('cross_workstream_reference', 'Run belongs to another Workstream');
       const id = store.idFactory('artifact'); const now = store.clock();
-      await tx.run(`INSERT INTO margin_artifacts VALUES (?,?,?,?,?,?,?,?,1,?,?,?, ?,NULL)`,
-        id,input.workstreamId,input.runId ?? null,input.type,input.title,input.uri,input.contentHash,actor.actorType,actor.sourceSessionId,actor.sourceEventId,now,now);
+      await tx.run(
+        `INSERT INTO margin_artifacts
+         (id,workstream_id,run_id,type,title,uri,content_hash,created_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,metadata,preview_metadata)
+         VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,NULL,?,?)`,
+        id,input.workstreamId,input.runId ?? null,input.type,input.title,input.uri,input.contentHash,actor.actorType,actor.sourceSessionId,actor.sourceEventId,now,now,
+        jsonObject(input.metadata),jsonObject(input.previewMetadata)
+      );
       const auditId = await evidence(tx,{operation:'artifact_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'artifact',entityId:id,version:1,eventType:'created',input});
       return {data:await tx.get('SELECT * FROM margin_artifacts WHERE id=?',id),auditId};
     }),
@@ -161,7 +232,78 @@ export function createPersistentWorkRepository(store) {
       const auditId=await evidence(tx,{operation:'checkpoint_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'checkpoint',entityId:id,version:1,eventType:'created',input});
       return {data:await tx.get('SELECT * FROM margin_checkpoints WHERE id=?',id),auditId};
     }),
-    latestCheckpoint: (runId) => store.db.get('SELECT * FROM margin_checkpoints WHERE run_id=? ORDER BY created_at DESC,id DESC LIMIT 1',runId)
+    latestCheckpoint: (runId) => store.db.get('SELECT * FROM margin_checkpoints WHERE run_id=? ORDER BY created_at DESC,id DESC LIMIT 1',runId),
+    latestCheckpointFor: ({ workstreamId, runId } = {}) => {
+      if (!workstreamId) throw new CoreContractError('invalid_request', 'workstreamId is required');
+      return runId
+        ? store.db.get('SELECT * FROM margin_checkpoints WHERE workstream_id=? AND run_id=? ORDER BY created_at DESC,id DESC LIMIT 1', workstreamId, runId)
+        : store.db.get('SELECT * FROM margin_checkpoints WHERE workstream_id=? ORDER BY created_at DESC,id DESC LIMIT 1', workstreamId);
+    },
+    listRuns: async (input = {}) => {
+      const page = pageInput(input); const where = listWhere({ ...input, cursor: page.cursor });
+      return nextPage(await store.db.all(`SELECT * FROM margin_runs ${where.clause} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1), page.limit);
+    },
+    listArtifacts: async (input = {}) => {
+      const page = pageInput(input); const where = listWhere({ ...input, cursor: page.cursor });
+      return nextPage(await store.db.all(`SELECT * FROM margin_artifacts ${where.clause} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1), page.limit);
+    },
+    listDecisions: async (input = {}) => {
+      const page = pageInput(input); const where = listWhere({ ...input, cursor: page.cursor }, { workstream: 'project_id' });
+      return nextPage(await store.db.all(`SELECT * FROM margin_decisions ${where.clause} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1), page.limit);
+    },
+    listNeedsOwner: async (input = {}) => {
+      const page = pageInput(input); const where = listWhere({ ...input, cursor: page.cursor });
+      return nextPage(await store.db.all(`SELECT * FROM margin_needs_owner ${where.clause} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1), page.limit);
+    },
+    getNeedsOwner: (id) => store.db.get('SELECT * FROM margin_needs_owner WHERE id=?', id),
+    createNeedsOwner: (input, actor) => store.transaction(async (tx) => {
+      const prior = await replay(tx, 'needs_owner_create', input.requestId, 'margin_needs_owner', input, actor);
+      if (prior) return prior;
+      const workstream = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
+      if (!workstream) throw new CoreContractError('workstream_not_found', 'Workstream not found');
+      if (input.runId) {
+        const run = await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId);
+        if (!run || run.workstream_id !== input.workstreamId) throw new CoreContractError('cross_workstream_reference', 'Run belongs to another Workstream');
+      }
+      if (!['decision', 'approval', 'input', 'conflict'].includes(input.type) || !input.reason?.trim() || !Array.isArray(input.options)) throw new CoreContractError('invalid_request', 'Valid NeedsOwner input is required');
+      const id = store.idFactory('needs-owner'); const now = store.clock();
+      await tx.run(
+        `INSERT INTO margin_needs_owner
+         (id,workstream_id,run_id,type,reason,options,consequence_summary,context_summary,status,resolution,version,source_session_id,source_event_id,created_at,updated_at,resolved_at)
+         VALUES (?,?,?,?,?,?,?,?,'open',NULL,1,?,?,?, ?,NULL)`,
+        id,input.workstreamId,input.runId ?? null,input.type,input.reason,json(input.options),input.consequenceSummary ?? null,input.contextSummary ?? null,
+        actor.sourceSessionId,actor.sourceEventId,now,now
+      );
+      const auditId = await evidence(tx, { operation: 'needs_owner_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'needs_owner', entityId: id, version: 1, eventType: 'created', input, status: 'open' });
+      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', id), auditId };
+    }),
+    resolveNeedsOwner: (input, actor) => store.transaction(async (tx) => {
+      const prior = await replay(tx, 'needs_owner_resolve', input.requestId, 'margin_needs_owner', input, actor);
+      if (prior) return prior;
+      const current = await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', input.needsOwnerId);
+      if (!current) throw new CoreContractError('not_found', 'NeedsOwner not found');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+      if (current.status !== 'open') throw new CoreContractError('invalid_transition', 'NeedsOwner is not open');
+      const now = store.clock(); const nextVersion = current.version + 1;
+      await tx.run(
+        `UPDATE margin_needs_owner SET status='resolved',resolution=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,resolved_at=? WHERE id=?`,
+        input.resolution ?? input.resolutionSummary ?? input.optionId ?? null,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,now,current.id
+      );
+      const auditId = await evidence(tx, { operation: 'needs_owner_resolve', requestId: input.requestId, actor, workstreamId: current.workstream_id, entityType: 'needs_owner', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'resolved' });
+      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', current.id), auditId };
+    }),
+    listEventRows: async ({ workstreamId, afterCursor = 0, limit = 50 } = {}) => {
+      if (!Number.isInteger(afterCursor) || afterCursor < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new CoreContractError('invalid_request', 'Valid event cursor and limit are required');
+      const filters = ['c.sequence>?']; const values = [afterCursor];
+      if (workstreamId) { filters.push('e.project_id=?'); values.push(workstreamId); }
+      const rows = await store.db.all(
+        `SELECT c.sequence,c.event_id,e.* FROM margin_event_cursors c JOIN margin_events e ON e.id=c.event_id
+         WHERE ${filters.join(' AND ')} ORDER BY c.sequence ASC LIMIT ?`,
+        ...values, limit + 1
+      );
+      const items = rows.slice(0, limit);
+      return { items, nextCursor: rows.length > limit && items.length ? items.at(-1).sequence : null };
+    }
   };
 }
 

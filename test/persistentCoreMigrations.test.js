@@ -18,7 +18,7 @@ test('migration 3 adds persistent work tables and workstream fields', async () =
     for (const name of ['title', 'workstream_status', 'current_plan', 'next_action', 'blockers', 'dependencies', 'workspace_path', 'autonomy_level', 'artifact_refs', 'last_checkpoint_id']) {
       assert.equal(columns.includes(name), true, name);
     }
-    assert.deepEqual((await fixture.store.getSchemaEvidence()).map((row) => row.version), [1, 2, 3]);
+    assert.deepEqual((await fixture.store.getSchemaEvidence()).map((row) => row.version), [1, 2, 3, 4]);
   } finally {
     await fixture.cleanup();
   }
