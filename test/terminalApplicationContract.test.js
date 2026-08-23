@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function contractOnlyCoreFixture({ workstreamPages } = {}) {
+function contractOnlyCoreFixture({ workstreamPages, workstreamGetFailure } = {}) {
   const calls = [];
   const hostBindings = [];
   const workstream = {
@@ -25,7 +25,14 @@ function contractOnlyCoreFixture({ workstreamPages } = {}) {
         async query(request, context) {
           assert.equal(request.requestId, context.requestId);
           calls.push({ type: request.type, request, context });
-          if (request.type === 'workstream.get') return { ok: false, error: { code: 'not_found' }, meta: { requestId: request.requestId } };
+          if (request.type === 'workstream.get') {
+            if (request.payload.workstreamId === workstream.id && workstreamGetFailure) {
+              return { ok: false, error: { code: workstreamGetFailure }, meta: { requestId: request.requestId } };
+            }
+            return request.payload.workstreamId === workstream.id
+              ? { ok: true, data: workstream, meta: { requestId: request.requestId } }
+              : { ok: false, error: { code: 'not_found' }, meta: { requestId: request.requestId } };
+          }
           if (request.type === 'workstream.list') {
             const index = request.payload.cursor ? Number(request.payload.cursor) : 0;
             return {
@@ -93,7 +100,7 @@ test('terminal lifecycle uses only Application Contract for persistent Workstrea
   await controller.handle('/stop');
   assert.deepEqual(core.calls.map((call) => call.type), [
     'workstream.get', 'workstream.list', 'run.list', 'run.create', 'run.start',
-    'run.pause', 'run.resume', 'checkpoint.create', 'run.stop'
+    'run.pause', 'run.resume', 'workstream.get', 'checkpoint.create', 'run.stop'
   ]);
   const commands = core.calls.filter((call) => call.command);
   assert.equal(new Set(commands.map((call) => call.command.idempotencyKey)).size, commands.length);
@@ -104,7 +111,7 @@ test('terminal lifecycle uses only Application Contract for persistent Workstrea
   assert.equal(new Set(core.calls.map((call) => call.context.correlationId)).size, 1);
   assert.deepEqual(core.calls.map((call) => call.context.capabilities), [
     ['workstream:read'], ['workstream:read'], ['run:read'], ['run:control'], ['run:control'],
-    ['run:control'], ['run:control'], ['checkpoint:write'], ['run:control']
+    ['run:control'], ['run:control'], ['workstream:read'], ['checkpoint:write'], ['run:control']
   ]);
   assert.deepEqual(core.hostBindings.map((context) => context.requestId), core.calls
     .filter((call) => call.type.startsWith('run.') && call.command)
@@ -125,4 +132,15 @@ test('terminal discovers the pilot Workstream across Application Contract pages'
     'workstream.list', 'workstream.list', 'run.list'
   ]);
   assert.equal(core.calls.some((call) => call.type === 'workstream.create'), false);
+});
+
+test('/checkpoint returns a stable failure without writing when Workstream refresh fails', async () => {
+  const core = contractOnlyCoreFixture({ workstreamGetFailure: 'storage_failure' });
+  const controller = createTerminalPilotController(dependencies(core));
+  await controller.start();
+  const result = await controller.handle('/checkpoint');
+  assert.deepEqual({ kind: result.kind, code: result.code, text: result.text }, {
+    kind: 'error', code: 'storage_failure', text: 'Checkpoint 保存失败，请重试。'
+  });
+  assert.equal(core.calls.some((call) => call.type === 'checkpoint.create'), false);
 });

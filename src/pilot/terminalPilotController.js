@@ -47,7 +47,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       return { runtimeSessionId: session.id };
     },
     async halt(runToHalt) {
-      const persistedSessionId = runToHalt?.runtimeReference?.id;
+      const persistedSessionId = runToHalt?.runtimeReference?.id ?? runToHalt?.runtime_session_id;
       if (!sessionClosed && session && (!persistedSessionId || session.id === persistedSessionId)) {
         sessionClosed = true;
         await session.close();
@@ -259,6 +259,14 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     }
     if (parsed.name === 'checkpoint') {
       if (!run) return { kind: 'error', code: 'run_unavailable', text: 'Persistent Run 未启用。', sessionId: session?.id };
+      try {
+        project = await query('workstream.get', { workstreamId: project.id }, ['workstream:read']);
+      } catch (error) {
+        return {
+          kind: 'error', code: error?.code ?? 'checkpoint_failed', text: 'Checkpoint 保存失败，请重试。',
+          sessionId: session?.id, runId: run.id
+        };
+      }
       const checkpoint = await execute('checkpoint.create', {
         workstreamId: project.id, runId: run.id,
         runVersion: run.version, stateVersion: project.version,
