@@ -61,6 +61,8 @@ The read-only inventory observed 10 tables and emitted only schema/count/hash me
 - `27176cb` repository and application services
 - `8a4c732` persistent Run controls
 - `618c369` unified CLI and legacy inventory
+- `268e98a` authority, migration, idempotency and restart reconciliation fixes
+- `37c1e7f` host capability and Workstream–Run invariant fixes
 
 ## Phase 2 recommendation
 
