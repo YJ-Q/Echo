@@ -61,12 +61,12 @@ function contentFreeRequestShape(params = {}) {
   };
 }
 
-function pruneUndefined(value) {
-  if (Array.isArray(value)) return value.map(pruneUndefined);
+function pruneEmptyOptionals(value) {
+  if (Array.isArray(value)) return value.map(pruneEmptyOptionals);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value)
-    .filter(([, entry]) => entry !== undefined)
-    .map(([key, entry]) => [key, pruneUndefined(entry)]));
+    .filter(([, entry]) => entry !== undefined && entry !== null && entry !== '')
+    .map(([key, entry]) => [key, pruneEmptyOptionals(entry)]));
 }
 
 export function toPiToolResult(result) {
@@ -92,7 +92,7 @@ export function toPiToolResult(result) {
 function createExecutor({ toolName, handler, getInvocationContext, onToolResult, schedule }) {
   return (toolCallId, params) => schedule(async () => {
     try {
-      const cleanParams = pruneUndefined(params);
+      const cleanParams = pruneEmptyOptionals(params);
       const trusted = await getInvocationContext({ toolName, toolCallId });
       if (trusted?.projectId && cleanParams.projectId !== trusted.projectId) {
         const denied = errorResult('cross_project_reference');

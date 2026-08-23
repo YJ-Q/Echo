@@ -197,7 +197,7 @@ test('reports a content-free request shape when a tool call is rejected', async 
   assert.doesNotMatch(JSON.stringify(results[0]), /must-not-leak/);
 });
 
-test('removes TypeBox-populated undefined optionals before Core validation', async () => {
+test('removes TypeBox-populated empty optionals before Core validation', async () => {
   let observed;
   const registered = await registerAdapter({
     tools: {
@@ -209,8 +209,8 @@ test('removes TypeBox-populated undefined optionals before Core validation', asy
 
   await registered.find((tool) => tool.name === 'state_update').execute('call-clean', {
     requestId: 'request-1', projectId: 'project-1', operation: 'update_task', taskId: 'task-1', expectedVersion: 1,
-    blocker: undefined, decisionId: undefined,
-    changes: { currentStep: '投递并记录', goal: undefined, phase: undefined, status: undefined, title: undefined, blocker: undefined, completionCondition: undefined }
+    blocker: null, decisionId: '',
+    changes: { currentStep: '投递并记录', goal: null, phase: '', status: undefined, title: '', blocker: null, completionCondition: undefined }
   });
 
   assert.deepEqual(observed.changes, { currentStep: '投递并记录' });
