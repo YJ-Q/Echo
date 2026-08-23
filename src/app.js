@@ -1,7 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import achievementRoutes from './routes/achievementRoutes.js';
 import actionRoutes from './routes/actionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -17,25 +15,20 @@ import { ensureMemoryStore } from './storage/memoryStore.js';
 
 export async function createApp({ logger } = {}) {
   const app = express();
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const publicDir = path.join(__dirname, '..', 'public');
 
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
   if (logger) {
     app.use(createRequestLogger(logger));
   }
-  app.use(express.static(publicDir));
-
   await ensureMemoryStore();
 
   app.get('/api', (_req, res) => {
     const ttsAvailable = Boolean(process.env.SILICONFLOW_API_KEY);
     sendData(res, {
       name: 'Margin',
-      status: 'ui-connected',
-      message: 'Margin API is running with the local desktop-style frontend.',
+      status: 'api-ready',
+      message: 'Margin API is running.',
       endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/management', '/achievements', '/tts'],
       capabilities: { tts: ttsAvailable }
     });
