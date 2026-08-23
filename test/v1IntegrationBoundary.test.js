@@ -57,3 +57,30 @@ test('start script launches the terminal pilot', () => {
     'package.json.scripts.start must equal npm run pilot:terminal',
   );
 });
+
+for (const obsoleteDocumentPath of [
+  'docs/CURRENT_UI_DESIGN_SPEC.html',
+  'docs/CURRENT_UI_DESIGN_SPEC.md',
+  'docs/DESIGN_IMAGERY.md',
+  'docs/DESIGN_SPEC_COMPONENT_MAPPING.md',
+  'docs/DEVELOPMENT_EXECUTION_GUIDE.md',
+  'docs/DIALOGUE_RHYTHM.md',
+  'docs/GEMINI_NOW_PAGE_HTML_RELAY.md',
+  'docs/NOW_PAGE_INFORMATION_ARCHITECTURE.md',
+  'docs/NOW_PAGE_WIREFRAME_SPEC.md',
+  'docs/current-ui-preview.png',
+  'docs/gemini-design-preview.html',
+  'docs/gemini-design-preview.png',
+  'docs/margin-component-ui-spec.html',
+  'docs/MARGIN_DESIGN_LANGUAGE.md',
+  'docs/PRODUCT_POSITIONING_V2.md',
+  'docs/VOICE_AND_GUARDRAILS.md',
+]) {
+  test(`obsolete UI product document is absent: ${obsoleteDocumentPath}`, () => {
+    assert.equal(
+      fs.existsSync(path.join(repositoryRoot, obsoleteDocumentPath)),
+      false,
+      `obsolete UI product document must not exist: ${obsoleteDocumentPath}`,
+    );
+  });
+}
