@@ -1,7 +1,7 @@
 # Phase 2A Main Integration Validation Report
 
-Date: 2026-08-24  
-Branch: `codex/phase2a-main-integration`  
+Date: 2026-08-24
+Branch: `codex/phase2a-main-integration`
 Pre-report verification HEAD: `b3c2861fdce3c2d1c139e484f2acfc11c87aea06`
 
 ## Authoritative baseline and strategy
@@ -54,11 +54,21 @@ The 16 deleted obsolete UI/product document categories are:
 
 The V1 default database is `data/terminal-pilot/margin-core.sqlite`: `scripts/run-terminal-pilot.js` constructs that exact path before `createMarginCore`. `README.md` and `docs/audit/legacy_data_disposition.md` designate it as the only V1 source of truth for Workstream, Run, Event, Decision, Artifact, Checkpoint, Memory, and Action state.
 
-`data/echo.sqlite` is a frozen legacy dataset, documented in `docs/audit/legacy_data_disposition.md`. Old Express is an explicit transition command only (`npm run legacy:api`); `package.json` maps both `start` and `dev` to `npm run pilot:terminal`. Its removal gate is: completed export, table-by-table user decision, and verification of each approved migration against IDs and counts.
+`data/echo.sqlite` is **frozen legacy by product and development policy**, as documented in `docs/audit/legacy_data_disposition.md`; it is not technically read-only. Old Express is an explicit transition command only (`npm run legacy:api`), and `package.json` maps both `start` and `dev` to `npm run pilot:terminal`. In this checkout, that explicit command opens `data/echo.sqlite` through the writable legacy memory store: no database-path override or `data/margin.sqlite` exists, so `src/config/env.js` falls back to the present legacy database before `src/server.js` configures the store. The retained legacy routes can mutate it. That is an operational risk and technical debt, not V1 behavior. Its removal gate is: completed export, table-by-table user decision, and verification of each approved migration against IDs and counts.
 
 Static review found no V1 reference to `echo.sqlite` under `src/core/`, `src/application/`, `src/pilot/`, or `scripts/run-terminal-pilot.js`; V1 startup opens one Margin Core database. Thus no V1 code writes both databases and legacy Express is not the default. This is a single-source-of-truth/no-double-write assessment, not deletion of legacy code or data.
 
 `src/application/marginApplicationContract.js` returns a frozen Gateway containing only `execute`, `query`, and `events`. In `src/pilot/terminalPilotController.js`, persistent Workstream, Run, and Checkpoint reads and controls use its Gateway-backed `query` and `execute` helpers. `test/terminalApplicationContract.test.js` verifies this routing boundary.
+
+The remaining files below `data/terminal-pilot/` have separate roles and are not a second V1 source of truth:
+
+| Path | Classification and boundary |
+| --- | --- |
+| `agent/` | Runtime/agent-resource and session data owned by the Pi runtime, not a Workstream/Run/Event aggregate store. |
+| `project.json` | Atomically written, rebuildable pointer containing only the selected Workstream ID. The controller re-queries the Gateway and can rediscover the pilot Workstream if the pointer is absent or stale; restart tests constrain this pointer-to-Core consistency. |
+| `report.json` | Sanitized validation/evidence projection (project ID, session IDs, digests, result codes, audit IDs, and tool/safety metadata), not current-state authority. |
+
+The Gateway exposes no database handle, cache, or aggregate map: its frozen public object has only `execute`, `query`, and `events`. Activity is a deterministic projection of Event rows and has no independent Activity/current-state table or store. These roles do not introduce shadow state, although the `project.json` pointer remains subject to the tested restart and discovery consistency constraints.
 
 ## Validation results
 
@@ -76,6 +86,10 @@ Result: 12 files; 90 tests passed; 0 failed, cancelled, skipped, or todo.
 | `npm run validate:stage1` | passed: `ok=true`, protocol `1.0.0`, 10 fixtures (`career_project=5`, `learning_research=5`), manifest bound. |
 | `npm run audit:pi` | passed: Pi `0.84.2`, pinned runtime Node `22.23.1`, no failures. |
 | `git diff --check` | passed with exit code 0 and no output. |
+
+### Evidence limitations
+
+Raw TAP output and command logs are not committed with this report. The PASS counts and durations are execution evidence recorded in the ignored implementer report `.superpowers/sdd/2026-08-24-phase2a-main-integration/task-4-report.md` (focused 2631.4292 ms; full 6651.7534 ms). The exact reproducible commands are recorded above; this clarification does not represent a test rerun.
 
 ## Known risks and boundary
 
@@ -96,4 +110,3 @@ The accepted Phase 2A runtime and SQLite transaction limitations remain: local S
 - `test/terminalApplicationContract.test.js`
 - `test/v1IntegrationBoundary.test.js`
 - `docs/superpowers/specs/2026-08-24-phase2a-main-integration-design.md`
-
