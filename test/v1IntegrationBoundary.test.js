@@ -9,7 +9,7 @@ const packageJson = JSON.parse(
   fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'),
 );
 
-test('v1 integration boundary has no legacy frontend surface', () => {
+test('legacy repository directories are absent', () => {
   for (const directory of ['frontend', 'electron', 'public']) {
     assert.equal(
       fs.existsSync(path.join(repositoryRoot, directory)),
@@ -18,8 +18,13 @@ test('v1 integration boundary has no legacy frontend surface', () => {
     );
   }
 
-  assert.equal(packageJson.main, undefined, 'package.json must not define an Electron main entry');
+});
 
+test('package.json has no Electron main entry', () => {
+  assert.equal(packageJson.main, undefined, 'package.json must not define an Electron main entry');
+});
+
+test('legacy frontend scripts are absent', () => {
   for (const script of ['desktop', 'dev:ui', 'build:ui']) {
     assert.equal(
       packageJson.scripts?.[script],
@@ -28,6 +33,9 @@ test('v1 integration boundary has no legacy frontend surface', () => {
     );
   }
 
+});
+
+test('legacy frontend dependencies are absent', () => {
   const dependencies = {
     ...packageJson.dependencies,
     ...packageJson.devDependencies,
@@ -40,5 +48,12 @@ test('v1 integration boundary has no legacy frontend surface', () => {
     );
   }
 
-  assert.equal(packageJson.scripts?.start, 'npm run pilot:terminal');
+});
+
+test('start script launches the terminal pilot', () => {
+  assert.equal(
+    packageJson.scripts?.start,
+    'npm run pilot:terminal',
+    'package.json.scripts.start must equal npm run pilot:terminal',
+  );
 });
