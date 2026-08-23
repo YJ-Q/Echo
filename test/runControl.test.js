@@ -55,6 +55,39 @@ test('failed runtime activation leaves a run queued', async () => {
   } finally { await core.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
+test('persistence failure after activation rolls back and compensates with runtime halt', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-control-compensate-'));
+  let rejectRunEvidence = false;
+  const core = await createMarginCore({
+    enabled: true,
+    dbPath: path.join(directory, 'core.sqlite'),
+    beforeEvidenceWrite({ entityType }) {
+      if (rejectRunEvidence && entityType === 'run') throw new Error('evidence unavailable');
+    }
+  });
+  const calls = [];
+  try {
+    const workstream = (await core.workstreams.create({ requestId: 'w', title: 'Margin', goal: 'Phase 1', scenario: 'learning_research' }, actor)).data;
+    const hostActor = core.bindHostActor(actor);
+    const run = (await core.runs.create({ requestId: 'r', workstreamId: workstream.id, scope: '补偿启动', runtimeKind: 'pi' }, hostActor)).data;
+    rejectRunEvidence = true;
+    await assert.rejects(
+      core.runs.start(
+        { requestId: 'start', runId: run.id, expectedVersion: run.version },
+        hostActor,
+        {
+          async activate(value) { calls.push(`activate:${value.id}`); return { runtimeSessionId: 'runtime-compensate' }; },
+          async halt(value) { calls.push(`halt:${value.id}`); }
+        }
+      ),
+      /evidence unavailable/
+    );
+    assert.deepEqual(calls, [`activate:${run.id}`, `halt:${run.id}`]);
+    assert.equal((await core.runs.get(run.id)).status, 'queued');
+    assert.equal((await core.store.db.get("SELECT COUNT(*) count FROM margin_audit_log WHERE operation='run_start'")).count, 0);
+  } finally { await core.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
 test('agent and system actors cannot control Runs', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-control-auth-'));
   const core = await createMarginCore({ enabled: true, dbPath: path.join(directory, 'core.sqlite') });

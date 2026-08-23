@@ -11,11 +11,31 @@ export async function openMarginCoreStore({
   idFactory = () => randomUUID(),
   beforeEvidenceWrite,
   embedder,
-  retrievalConfig
+  retrievalConfig,
+  transactionBusyTimeoutMs = 30_000
 } = {}) {
   if (!dbPath) throw new TypeError('dbPath is required');
+  if (!Number.isInteger(transactionBusyTimeoutMs) || transactionBusyTimeoutMs < 1) throw new TypeError('transactionBusyTimeoutMs must be a positive integer');
   const db = await open({ filename: dbPath, driver: sqlite3.Database });
   await db.exec('PRAGMA foreign_keys = ON;');
+  await db.exec(`PRAGMA busy_timeout = ${transactionBusyTimeoutMs};`);
+  let transactionTail = Promise.resolve();
+
+  const transaction = (work) => {
+    const run = transactionTail.then(async () => {
+      await db.exec('BEGIN IMMEDIATE');
+      try {
+        const result = await work(db);
+        await db.exec('COMMIT');
+        return result;
+      } catch (error) {
+        await db.exec('ROLLBACK');
+        throw error;
+      }
+    });
+    transactionTail = run.catch(() => {});
+    return run;
+  };
 
   const store = {
     db,
@@ -49,17 +69,7 @@ export async function openMarginCoreStore({
         }
       }
     },
-    async transaction(work) {
-      await db.exec('BEGIN IMMEDIATE');
-      try {
-        const result = await work(db);
-        await db.exec('COMMIT');
-        return result;
-      } catch (error) {
-        await db.exec('ROLLBACK');
-        throw error;
-      }
-    },
+    transaction,
     async getSchemaEvidence() {
       return db.all('SELECT version, name, checksum, applied_at FROM margin_schema_migrations ORDER BY version');
     },

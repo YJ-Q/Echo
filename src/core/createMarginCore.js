@@ -14,9 +14,9 @@ import { createContinuityService } from '../application/continuityService.js';
 import { createV1ToolSet } from '../application/v1ToolSet.js';
 import { validateInvocationContext } from '../contracts/validation.js';
 
-export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig } = {}) {
+export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig, transactionBusyTimeoutMs } = {}) {
   if (!enabled) return { enabled: false };
-  const store = await openMarginCoreStore({ dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig });
+  const store = await openMarginCoreStore({ dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig, transactionBusyTimeoutMs });
   const memory = createMemoryTools({ store });
   const state = createStateTool({ store });
   const action = createActionTool({ store });

@@ -116,3 +116,20 @@ test('run artifact and checkpoint remain scoped to one workstream', async () => 
     assert.equal((await f.core.runs.get(run.id)).checkpoint_id, checkpoint.id);
   } finally { await f.cleanup(); }
 });
+
+test('checkpoint service rejects runVersion without runId before persistence', async () => {
+  const f = await fixture();
+  try {
+    const workstream = (await f.core.workstreams.create({ requestId: 'token-w', title: 'Tokens', goal: 'Pair tokens', scenario: 'career_project' }, actor)).data;
+    const eventsBefore = (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count;
+    await assert.rejects(
+      f.core.checkpoints.create({
+        requestId: 'orphan-run-version', workstreamId: workstream.id, stateVersion: workstream.version,
+        runVersion: 1, stateDigest: 'orphan'
+      }, actor),
+      (error) => error.code === 'invalid_request'
+    );
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_checkpoints')).count, 0);
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count, eventsBefore);
+  } finally { await f.cleanup(); }
+});

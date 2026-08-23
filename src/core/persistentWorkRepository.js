@@ -111,7 +111,10 @@ export function createPersistentWorkRepository(store) {
         ...(replayRelated ? { replayRelated } : {})
       }), now
     );
-    return auditId;
+    return {
+      auditId,
+      ...(replayRelated === undefined ? {} : { replayContext: replayRelated })
+    };
   };
 
   const replay = async (tx, operation, requestId, table, input, actor) => {
@@ -133,6 +136,33 @@ export function createPersistentWorkRepository(store) {
   const mutation = async (actor, work) => {
     normalizeEvidenceMetadata(actor);
     return store.transaction(work);
+  };
+
+  const transitionRunInTransaction = async (tx, input, actor, coordinate) => {
+    const operation = `run_${input.command}`;
+    const requestInput = input.requestInput ?? input;
+    const prior = await replay(tx, operation, input.requestId, 'margin_runs', requestInput, actor);
+    if (prior) return prior;
+    const current = await tx.get('SELECT * FROM margin_runs WHERE id=?', input.runId);
+    if (!current) throw new CoreContractError('run_not_found','Run not found');
+    if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+    const coordinated = coordinate ? await coordinate(current) : {};
+    const transition = { ...input, ...coordinated };
+    const now=store.clock(); const nextVersion=current.version+1;
+    let checkpointId=current.checkpoint_id;
+    if (transition.checkpoint) {
+      const workstream=await tx.get('SELECT version FROM margin_projects WHERE id=?',current.workstream_id);
+      checkpointId=store.idFactory('checkpoint');
+      await tx.run(`INSERT INTO margin_checkpoints VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,checkpointId,current.workstream_id,current.id,nextVersion,workstream.version,digestInput({runId:current.id,status:transition.status,version:nextVersion}),null,transition.note ?? input.command,actor.actorType,actor.sourceSessionId,actor.sourceEventId,now);
+      await tx.run('UPDATE margin_projects SET last_checkpoint_id=?,updated_at=? WHERE id=?',checkpointId,now,current.workstream_id);
+    }
+    const startedAt=transition.status==='running' ? (current.started_at ?? now) : current.started_at;
+    const endedAt=['completed','failed','cancelled'].includes(transition.status) ? now : null;
+    await tx.run(`UPDATE margin_runs SET status=?,runtime_session_id=?,checkpoint_id=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,started_at=?,ended_at=? WHERE id=?`,
+      transition.status,transition.runtimeSessionId ?? current.runtime_session_id,checkpointId,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,startedAt,endedAt,current.id);
+    const eventType=transition.status==='completed'?'completed':transition.status==='failed'?'failed':'updated';
+    const replayEvidence=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:requestInput,status:transition.status});
+    return {data:await tx.get('SELECT * FROM margin_runs WHERE id=?',current.id),...replayEvidence};
   };
 
   return {
@@ -194,8 +224,8 @@ export function createPersistentWorkRepository(store) {
         next.goal,next.phase,legacyStatus,workstreamStatus,next.priority,next.currentState,next.currentPlan,next.nextAction,next.autonomyLevel,next.workspacePath,
         nextVersion,actor.sourceSessionId,actor.sourceEventId,now,current.id
       );
-      const auditId=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input,status:workstreamStatus});
-      return {data:mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?',current.id)),auditId};
+      const replayEvidence=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input,status:workstreamStatus});
+      return {data:mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?',current.id)),...replayEvidence};
     }),
     createWorkstream: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'workstream_create', input.requestId, 'margin_projects', input, actor);
@@ -213,8 +243,8 @@ export function createPersistentWorkRepository(store) {
       if (input.currentPlan?.length || input.nextAction) {
         await tx.run('UPDATE margin_projects SET current_plan=?,next_action=? WHERE id=?', json(input.currentPlan), input.nextAction ?? null, id);
       }
-      const auditId = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input, status: 'running' });
-      return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), auditId };
+      const replayEvidence = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input, status: 'running' });
+      return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), ...replayEvidence };
     }),
     createRun: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'run_create', input.requestId, 'margin_runs', input, actor);
@@ -234,34 +264,13 @@ export function createPersistentWorkRepository(store) {
         id, input.workstreamId, input.runtimeKind, input.runtimeSessionId ?? null, input.scope, input.stopCondition ?? null,
         json(input.allowedActions), json(input.forbiddenActions), actor.sourceSessionId, actor.sourceEventId, now, now
       );
-      const auditId = await evidence(tx, { operation: 'run_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'run', entityId: id, version: 1, eventType: 'created', input });
-      return { data: await tx.get('SELECT * FROM margin_runs WHERE id=?', id), auditId };
+      const replayEvidence = await evidence(tx, { operation: 'run_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'run', entityId: id, version: 1, eventType: 'created', input });
+      return { data: await tx.get('SELECT * FROM margin_runs WHERE id=?', id), ...replayEvidence };
     }),
     getRun: (id) => store.db.get('SELECT * FROM margin_runs WHERE id=?', id),
     findOpenRun: (workstreamId) => store.db.get("SELECT * FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') ORDER BY created_at DESC,id LIMIT 1", workstreamId),
-    transitionRun: (input, actor) => mutation(actor, async (tx) => {
-      const operation = `run_${input.command}`;
-      const prior = await replay(tx, operation, input.requestId, 'margin_runs', input.requestInput ?? input, actor);
-      if (prior) return prior;
-      const current = await tx.get('SELECT * FROM margin_runs WHERE id=?', input.runId);
-      if (!current) throw new CoreContractError('run_not_found','Run not found');
-      if (current.version !== input.expectedVersion) throw new CoreContractError('version_conflict','Run version conflict');
-      const now=store.clock(); const nextVersion=current.version+1;
-      let checkpointId=current.checkpoint_id;
-      if (input.checkpoint) {
-        const workstream=await tx.get('SELECT version FROM margin_projects WHERE id=?',current.workstream_id);
-        checkpointId=store.idFactory('checkpoint');
-        await tx.run(`INSERT INTO margin_checkpoints VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,checkpointId,current.workstream_id,current.id,nextVersion,workstream.version,digestInput({runId:current.id,status:input.status,version:nextVersion}),null,input.note ?? input.command,actor.actorType,actor.sourceSessionId,actor.sourceEventId,now);
-        await tx.run('UPDATE margin_projects SET last_checkpoint_id=?,updated_at=? WHERE id=?',checkpointId,now,current.workstream_id);
-      }
-      const startedAt=input.status==='running' ? (current.started_at ?? now) : current.started_at;
-      const endedAt=['completed','failed','cancelled'].includes(input.status) ? now : null;
-      await tx.run(`UPDATE margin_runs SET status=?,runtime_session_id=?,checkpoint_id=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,started_at=?,ended_at=? WHERE id=?`,
-        input.status,input.runtimeSessionId ?? current.runtime_session_id,checkpointId,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,startedAt,endedAt,current.id);
-      const eventType=input.status==='completed'?'completed':input.status==='failed'?'failed':'updated';
-      const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:input.requestInput ?? input,status:input.status});
-      return {data:await tx.get('SELECT * FROM margin_runs WHERE id=?',current.id),auditId};
-    }),
+    transitionRun: (input, actor) => mutation(actor, (tx) => transitionRunInTransaction(tx, input, actor)),
+    coordinateRunTransition: (input, actor, coordinate) => mutation(actor, (tx) => transitionRunInTransaction(tx, input, actor, coordinate)),
     createArtifact: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'artifact_create', input.requestId, 'margin_artifacts', input, actor);
       if (prior) return prior;
@@ -275,12 +284,15 @@ export function createPersistentWorkRepository(store) {
         id,input.workstreamId,input.runId ?? null,input.type,input.title,input.uri,input.contentHash,actor.actorType,actor.sourceSessionId,actor.sourceEventId,now,now,
         jsonObject(input.metadata),jsonObject(input.previewMetadata)
       );
-      const auditId = await evidence(tx,{operation:'artifact_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'artifact',entityId:id,version:1,eventType:'created',input});
-      return {data:await tx.get('SELECT * FROM margin_artifacts WHERE id=?',id),auditId};
+      const replayEvidence = await evidence(tx,{operation:'artifact_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'artifact',entityId:id,version:1,eventType:'created',input});
+      return {data:await tx.get('SELECT * FROM margin_artifacts WHERE id=?',id),...replayEvidence};
     }),
     createCheckpoint: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'checkpoint_create', input.requestId, 'margin_checkpoints', input, actor);
       if (prior) return prior;
+      const hasRunId = input.runId !== undefined && input.runId !== null;
+      const hasRunVersion = input.runVersion !== undefined && input.runVersion !== null;
+      if (hasRunId !== hasRunVersion) throw new CoreContractError('invalid_request','runId and runVersion must be provided together');
       const workstream = await tx.get('SELECT id,version FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
       if (!workstream) throw new CoreContractError('workstream_not_found','Workstream not found');
       if (workstream.version !== input.stateVersion) throw versionConflict(workstream.version);
@@ -291,8 +303,8 @@ export function createPersistentWorkRepository(store) {
       await tx.run(`INSERT INTO margin_checkpoints VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,id,input.workstreamId,input.runId ?? null,input.runVersion ?? null,input.stateVersion,input.stateDigest,input.gitRef ?? null,input.note ?? '',actor.actorType,actor.sourceSessionId,actor.sourceEventId,now);
       await tx.run('UPDATE margin_projects SET last_checkpoint_id=?,updated_at=? WHERE id=?',id,now,input.workstreamId);
       if (input.runId) await tx.run('UPDATE margin_runs SET checkpoint_id=?,updated_at=? WHERE id=?',id,now,input.runId);
-      const auditId=await evidence(tx,{operation:'checkpoint_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'checkpoint',entityId:id,version:1,eventType:'created',input});
-      return {data:await tx.get('SELECT * FROM margin_checkpoints WHERE id=?',id),auditId};
+      const replayEvidence=await evidence(tx,{operation:'checkpoint_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'checkpoint',entityId:id,version:1,eventType:'created',input});
+      return {data:await tx.get('SELECT * FROM margin_checkpoints WHERE id=?',id),...replayEvidence};
     }),
     latestCheckpoint: (runId) => store.db.get('SELECT * FROM margin_checkpoints WHERE run_id=? ORDER BY created_at DESC,id DESC LIMIT 1',runId),
     latestCheckpointFor: ({ workstreamId, runId } = {}) => {
@@ -336,8 +348,8 @@ export function createPersistentWorkRepository(store) {
         id,input.workstreamId,input.runId ?? null,input.type,input.reason,json(input.options),input.consequenceSummary ?? null,input.contextSummary ?? null,
         actor.sourceSessionId,actor.sourceEventId,now,now
       );
-      const auditId = await evidence(tx, { operation: 'needs_owner_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'needs_owner', entityId: id, version: 1, eventType: 'created', input, status: 'open' });
-      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', id), auditId };
+      const replayEvidence = await evidence(tx, { operation: 'needs_owner_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'needs_owner', entityId: id, version: 1, eventType: 'created', input, status: 'open' });
+      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', id), ...replayEvidence };
     }),
     resolveNeedsOwner: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'needs_owner_resolve', input.requestId, 'margin_needs_owner', input, actor);
@@ -351,8 +363,8 @@ export function createPersistentWorkRepository(store) {
         `UPDATE margin_needs_owner SET status='resolved',resolution=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,resolved_at=? WHERE id=?`,
         input.resolution ?? input.resolutionSummary ?? input.optionId ?? null,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,now,current.id
       );
-      const auditId = await evidence(tx, { operation: 'needs_owner_resolve', requestId: input.requestId, actor, workstreamId: current.workstream_id, entityType: 'needs_owner', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'resolved' });
-      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', current.id), auditId };
+      const replayEvidence = await evidence(tx, { operation: 'needs_owner_resolve', requestId: input.requestId, actor, workstreamId: current.workstream_id, entityType: 'needs_owner', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'resolved' });
+      return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', current.id), ...replayEvidence };
     }),
     listEventRows: async ({ workstreamId, afterCursor = 0, limit = 50 } = {}) => {
       if (!Number.isInteger(afterCursor) || afterCursor < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new CoreContractError('invalid_request', 'Valid event cursor and limit are required');

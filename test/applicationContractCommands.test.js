@@ -344,3 +344,169 @@ test('one business idempotency key cannot be reused for a different command type
     assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_needs_owner')).count, 0);
   } finally { await f.cleanup(); }
 });
+
+test('concurrent run.start replay invokes runtime activate only once', async () => {
+  const f = await fixture();
+  let peer;
+  try {
+    const workstream = (await f.gateway.execute(
+      command('workstream.create', 'concurrent-w', 'concurrent-w-key', { title: 'Concurrent start', goal: 'One activation', scenario: 'career_project' }),
+      context('concurrent-w', ['workstream:write'])
+    )).data;
+    const run = (await executeHost(f,
+      command('run.create', 'concurrent-r', 'concurrent-r-key', { workstreamId: workstream.id, workerKind: 'pi', scope: 'Start once' }),
+      ['run:control']
+    )).data;
+    let activations = 0;
+    const concurrentRuntime = {
+      async activate(value) {
+        activations += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return { runtimeSessionId: `runtime-${value.id}` };
+      },
+      async halt() {}
+    };
+    peer = await createMarginCore({ enabled: true, dbPath: path.join(f.directory, 'core.sqlite') });
+    const firstGateway = f.core.createApplicationContract({ runtimeControl: concurrentRuntime });
+    const peerGateway = peer.createApplicationContract({ runtimeControl: concurrentRuntime });
+    const firstCommand = command('run.start', 'concurrent-call-1', 'concurrent-start-key', { runId: run.id }, run.version);
+    const firstTrusted = f.core.bindHostContext(context('concurrent-call-1', ['run:control']));
+    const peerTrusted = peer.bindHostContext(context('concurrent-call-2', ['run:control']));
+    const [first, retry] = await Promise.all([
+      firstGateway.execute(firstCommand, firstTrusted),
+      peerGateway.execute({ ...firstCommand, requestId: 'concurrent-call-2' }, peerTrusted)
+    ]);
+    assert.equal(first.ok, true);
+    assert.equal(retry.ok, true);
+    assert.deepEqual(retry.data, first.data);
+    assert.equal(activations, 1);
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events WHERE entity_id=?', run.id)).count, 2);
+  } finally {
+    if (peer) await peer.close();
+    await f.cleanup();
+  }
+});
+
+test('concurrent conflicting run.start input is rejected before a second runtime side effect', async () => {
+  const f = await fixture();
+  let peer;
+  try {
+    const workstream1 = (await f.gateway.execute(
+      command('workstream.create', 'conflict-w1', 'conflict-w1-key', { title: 'First', goal: 'One activation', scenario: 'career_project' }),
+      context('conflict-w1', ['workstream:write'])
+    )).data;
+    const workstream2 = (await f.gateway.execute(
+      command('workstream.create', 'conflict-w2', 'conflict-w2-key', { title: 'Second', goal: 'No activation', scenario: 'career_project' }),
+      context('conflict-w2', ['workstream:write'])
+    )).data;
+    const run1 = (await executeHost(f,
+      command('run.create', 'conflict-r1', 'conflict-r1-key', { workstreamId: workstream1.id, workerKind: 'pi', scope: 'First run' }),
+      ['run:control']
+    )).data;
+    const run2 = (await executeHost(f,
+      command('run.create', 'conflict-r2', 'conflict-r2-key', { workstreamId: workstream2.id, workerKind: 'pi', scope: 'Second run' }),
+      ['run:control']
+    )).data;
+    let activations = 0;
+    const concurrentRuntime = {
+      async activate(value) {
+        activations += 1;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        return { runtimeSessionId: `runtime-${value.id}` };
+      },
+      async halt() {}
+    };
+    peer = await createMarginCore({ enabled: true, dbPath: path.join(f.directory, 'core.sqlite') });
+    const firstGateway = f.core.createApplicationContract({ runtimeControl: concurrentRuntime });
+    const peerGateway = peer.createApplicationContract({ runtimeControl: concurrentRuntime });
+    const firstTrusted = f.core.bindHostContext(context('conflict-call-1', ['run:control']));
+    const peerTrusted = peer.bindHostContext(context('conflict-call-2', ['run:control']));
+    const [left, right] = await Promise.all([
+      firstGateway.execute(command('run.start', 'conflict-call-1', 'shared-conflict-key', { runId: run1.id }, run1.version), firstTrusted),
+      peerGateway.execute(command('run.start', 'conflict-call-2', 'shared-conflict-key', { runId: run2.id }, run2.version), peerTrusted)
+    ]);
+    const results = [left, right];
+    assert.equal(results.filter((result) => result.ok).length, 1);
+    assert.equal(results.filter((result) => result.error?.code === 'idempotency_conflict').length, 1);
+    assert.equal(activations, 1);
+  } finally {
+    if (peer) await peer.close();
+    await f.cleanup();
+  }
+});
+
+test('durable run replay succeeds without runtime control and matches the first transaction snapshot', async () => {
+  const f = await fixture();
+  try {
+    const workstream = (await f.gateway.execute(
+      command('workstream.create', 'replay-runtime-w', 'replay-runtime-w-key', { title: 'Replay runtime', goal: 'Replay first', scenario: 'career_project' }),
+      context('replay-runtime-w', ['workstream:write'])
+    )).data;
+    const run = (await executeHost(f,
+      command('run.create', 'replay-runtime-r', 'replay-runtime-r-key', { workstreamId: workstream.id, workerKind: 'pi', scope: 'Replay without runtime' }),
+      ['run:control']
+    )).data;
+    const firstCommand = command('run.start', 'replay-runtime-call-1', 'replay-runtime-key', { runId: run.id }, run.version);
+    const trusted = f.core.bindHostContext(context('replay-runtime-call-1', ['run:control']));
+    const first = await f.gateway.execute(firstCommand, trusted);
+    const gatewayWithoutRuntime = f.core.createApplicationContract();
+    const retry = await gatewayWithoutRuntime.execute(
+      { ...firstCommand, requestId: 'replay-runtime-call-2' },
+      { ...trusted, requestId: 'replay-runtime-call-2' }
+    );
+    assert.equal(retry.ok, true);
+    assert.deepEqual(retry.data, first.data);
+  } finally { await f.cleanup(); }
+});
+
+test('fresh run.create and its replay use the same transaction-captured related snapshot', async () => {
+  const f = await fixture();
+  try {
+    const workstream = (await f.gateway.execute(
+      command('workstream.create', 'snapshot-w-call', 'snapshot-w-key', { title: 'Snapshot', goal: 'Stable DTO', scenario: 'career_project' }),
+      context('snapshot-w-call', ['workstream:write'])
+    )).data;
+    const originalCreateRun = f.core.repository.createRun;
+    f.core.repository.createRun = async (input, actor) => {
+      const result = await originalCreateRun(input, actor);
+      await f.core.repository.createCheckpoint({
+        requestId: 'snapshot-after-commit', workstreamId: workstream.id, runId: result.data.id,
+        runVersion: result.data.version, stateVersion: workstream.version, stateDigest: 'after-commit'
+      }, actor);
+      return result;
+    };
+    const createRunCommand = command('run.create', 'snapshot-run-call-1', 'snapshot-run-key', {
+      workstreamId: workstream.id, workerKind: 'pi', scope: 'Capture relation'
+    });
+    const trusted = f.core.bindHostContext(context('snapshot-run-call-1', ['run:control']));
+    const first = await f.gateway.execute(createRunCommand, trusted);
+    f.core.repository.createRun = originalCreateRun;
+    const retry = await f.gateway.execute(
+      { ...createRunCommand, requestId: 'snapshot-run-call-2' },
+      { ...trusted, requestId: 'snapshot-run-call-2' }
+    );
+    assert.equal(first.ok, true);
+    assert.equal(first.data.checkpoint, null);
+    assert.deepEqual(retry.data, first.data);
+  } finally { await f.cleanup(); }
+});
+
+test('checkpoint.create rejects runVersion without runId before state or evidence writes', async () => {
+  const f = await fixture();
+  try {
+    const workstream = (await f.gateway.execute(
+      command('workstream.create', 'orphan-token-w', 'orphan-token-w-key', { title: 'Tokens', goal: 'Pair tokens', scenario: 'career_project' }),
+      context('orphan-token-w', ['workstream:write'])
+    )).data;
+    const eventsBefore = (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count;
+    const rejected = await f.gateway.execute(
+      command('checkpoint.create', 'orphan-token-call', 'orphan-token-key', {
+        workstreamId: workstream.id, stateVersion: workstream.version, runVersion: 1, stateDigest: 'orphan'
+      }),
+      context('orphan-token-call', ['checkpoint:write'])
+    );
+    assert.equal(rejected.error.code, 'invalid_request');
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_checkpoints')).count, 0);
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count, eventsBefore);
+  } finally { await f.cleanup(); }
+});

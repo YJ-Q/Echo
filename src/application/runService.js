@@ -1,12 +1,6 @@
 import { CoreContractError } from '../core/contracts.js';
 import { transitionRun } from '../domain/run.js';
 
-function versionConflict(actual) {
-  const error = new CoreContractError('version_conflict','Run version conflict');
-  error.details = { actual };
-  return error;
-}
-
 export function createRunService({ repository, authorization }) {
   const authorize = (actor) => {
     if (actor?.actorType !== 'user' || authorization?.(actor) !== true) throw new CoreContractError('permission_denied','Run control is host-user owned');
@@ -14,30 +8,33 @@ export function createRunService({ repository, authorization }) {
   const control = async (command, input, actor, runtimeControl) => {
     authorize(actor);
     if (!input?.requestId || !input?.runId || !Number.isInteger(input.expectedVersion)) throw new CoreContractError('invalid_request','Valid Run control input is required');
-    if (!runtimeControl?.activate || !runtimeControl?.halt) throw new CoreContractError('runtime_control_required','Host runtime control is required');
-    const operation=`run_${command}`;
-    const prior=await repository.getOperationReplay(operation,input.requestId,'margin_runs',input,actor);
-    if (prior) return {ok:true,...prior};
-    const current=await repository.getRun(input.runId);
-    if (!current) throw new CoreContractError('run_not_found','Run not found');
-    if (current.version !== input.expectedVersion) throw versionConflict(current.version);
-    let status;
-    try { status=transitionRun(current,{type:command}).status; }
-    catch (error) {
-      if (error?.code === 'invalid_run_transition') throw new CoreContractError('invalid_transition','Invalid Run transition');
+    let activatedRun;
+    try {
+      const result = await repository.coordinateRunTransition(
+        { ...input, command, requestInput: input },
+        actor,
+        async (current) => {
+          if (!runtimeControl?.activate || !runtimeControl?.halt) throw new CoreContractError('runtime_control_required','Host runtime control is required');
+          let status;
+          try { status=transitionRun(current,{type:command}).status; }
+          catch (error) {
+            if (error?.code === 'invalid_run_transition') throw new CoreContractError('invalid_transition','Invalid Run transition');
+            throw error;
+          }
+          if (command==='start' || command==='resume') {
+            const activated=await runtimeControl.activate(current);
+            activatedRun={...current,...activated};
+            return {status,runtimeSessionId:activated?.runtimeSessionId,checkpoint:false};
+          }
+          await runtimeControl.halt(current);
+          return {status,checkpoint:['pause','stop','complete'].includes(command)};
+        }
+      );
+      return {ok:true,...result};
+    } catch (error) {
+      if (activatedRun) await runtimeControl.halt(activatedRun).catch(()=>{});
       throw error;
     }
-    if (command==='start' || command==='resume') {
-      const activated=await runtimeControl.activate(current);
-      try {
-        return {ok:true,...await repository.transitionRun({...input,command,status,runtimeSessionId:activated?.runtimeSessionId,checkpoint:false,requestInput:input},actor)};
-      } catch (error) {
-        await runtimeControl.halt({...current,...activated}).catch(()=>{});
-        throw error;
-      }
-    }
-    await runtimeControl.halt(current);
-    return {ok:true,...await repository.transitionRun({...input,command,status,checkpoint:['pause','stop','complete'].includes(command),requestInput:input},actor)};
   };
   return {
     async create(input, actor) {
