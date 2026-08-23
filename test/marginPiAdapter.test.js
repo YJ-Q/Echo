@@ -141,6 +141,39 @@ test('reports the proposed memory identifier and version for host confirmation',
   }]);
 });
 
+test('serializes concurrent Margin tool executions on the shared SQLite store', async () => {
+  let active = 0;
+  let maxActive = 0;
+  const handler = async () => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    active -= 1;
+    return { ok: true, data: {}, auditId: 'audit-write' };
+  };
+  const registered = await registerAdapter({
+    tools: Object.fromEntries(toolNames.map((name) => [name, handler])),
+    getInvocationContext: async () => ({ actorType: 'agent', permissions: {}, sourceSessionId: 'session-1' })
+  });
+
+  await Promise.all([
+    registered.find((tool) => tool.name === 'state_update').execute('call-state', { requestId: 'r1', projectId: 'p1', operation: 'update_project' }),
+    registered.find((tool) => tool.name === 'memory_propose').execute('call-memory', { requestId: 'r2', projectId: 'p1', content: 'c', memoryType: 'context', confidence: 1, validFrom: '2026-08-23T00:00:00.000Z', durableIntent: true })
+  ]);
+
+  assert.equal(maxActive, 1);
+});
+
+test('state tool description states operation-specific required fields', async () => {
+  const registered = await registerAdapter({
+    tools: Object.fromEntries(toolNames.map((name) => [name, async () => ({ ok: true, data: {} })])),
+    getInvocationContext: async () => ({})
+  });
+  const description = registered.find((tool) => tool.name === 'state_update').description;
+  assert.match(description, /update_task requires taskId, expectedVersion, and non-empty changes/);
+  assert.match(description, /currentStep/);
+});
+
 test('converts stable Core successes and errors to Pi results', () => {
   const success = toPiToolResult({ ok: true, data: { id: 'memory-1' }, auditId: 'audit-success' });
   const failure = toPiToolResult({ ok: false, error: { code: 'permission_denied', retryable: false }, auditId: 'audit-failure' });

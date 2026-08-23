@@ -71,8 +71,8 @@ export function toPiToolResult(result) {
   };
 }
 
-function createExecutor({ toolName, handler, getInvocationContext, onToolResult }) {
-  return async (toolCallId, params) => {
+function createExecutor({ toolName, handler, getInvocationContext, onToolResult, schedule }) {
+  return (toolCallId, params) => schedule(async () => {
     try {
       const trusted = await getInvocationContext({ toolName, toolCallId });
       if (trusted?.projectId && params.projectId !== trusted.projectId) {
@@ -104,30 +104,36 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult 
       onToolResult?.({ toolName, code: 'adapter_execution_failed', auditId: undefined });
       return failed;
     }
-  };
+  });
 }
 
 export function createMarginPiExtension({ tools, getInvocationContext, onToolResult }) {
+  let executionTail = Promise.resolve();
+  const schedule = (work) => {
+    const result = executionTail.then(work, work);
+    executionTail = result.then(() => undefined, () => undefined);
+    return result;
+  };
   return async (pi) => {
     pi.registerTool(defineTool({
       name: 'memory_search', label: 'Margin Memory Search', description: 'Search confirmed Margin memories for a project.',
       parameters: memorySearchParameters,
-      execute: createExecutor({ toolName: 'memory_search', handler: tools.memory_search, getInvocationContext, onToolResult })
+      execute: createExecutor({ toolName: 'memory_search', handler: tools.memory_search, getInvocationContext, onToolResult, schedule })
     }));
     pi.registerTool(defineTool({
       name: 'memory_propose', label: 'Margin Memory Propose', description: 'Propose a durable Margin memory for review.',
       parameters: memoryProposeParameters,
-      execute: createExecutor({ toolName: 'memory_propose', handler: tools.memory_propose, getInvocationContext, onToolResult })
+      execute: createExecutor({ toolName: 'memory_propose', handler: tools.memory_propose, getInvocationContext, onToolResult, schedule })
     }));
     pi.registerTool(defineTool({
-      name: 'state_update', label: 'Margin State Update', description: 'Apply a governed update to Margin project state.',
+      name: 'state_update', label: 'Margin State Update', description: 'Apply a governed state update. update_task requires taskId, expectedVersion, and non-empty changes using only title, currentStep, blocker, completionCondition, or status. update_project requires expectedVersion and non-empty changes using only goal, phase, or status. create_task requires task.',
       parameters: stateUpdateParameters,
-      execute: createExecutor({ toolName: 'state_update', handler: tools.state_update, getInvocationContext, onToolResult })
+      execute: createExecutor({ toolName: 'state_update', handler: tools.state_update, getInvocationContext, onToolResult, schedule })
     }));
     pi.registerTool(defineTool({
       name: 'action_update', label: 'Margin Action Update', description: 'Create or transition a governed Margin action.',
       parameters: actionUpdateParameters,
-      execute: createExecutor({ toolName: 'action_update', handler: tools.action_update, getInvocationContext, onToolResult })
+      execute: createExecutor({ toolName: 'action_update', handler: tools.action_update, getInvocationContext, onToolResult, schedule })
     }));
   };
 }

@@ -10,6 +10,7 @@ const sameTools = (actual) => Array.isArray(actual) && actual.length === CONTINU
 const PILOT_OPERATION_RULES = [
   '状态或行动发生变化时调用相应工具；不得只在回复中声称已经记录。',
   '更新已有 project、task 或 action 时，必须使用上下文中的 entityId 和 version 作为 expectedVersion。',
+  '更新当前任务必须使用 update_task，并同时提供 taskId、expectedVersion 和非空 changes；当前步骤字段名是 currentStep。',
   '完成旧行动后，如用户已给出明确下一步，应创建对应的 pending、internal_write 行动。',
   '长期信息只能通过 memory_propose 提出候选；不得声称候选已经确认。',
   '任何工具返回非 allowed 时，必须明确说明对应更新失败，不得声称全部更新成功。'
