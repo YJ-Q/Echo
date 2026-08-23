@@ -40,6 +40,16 @@ The run used read-only user instructions. Session B described the same active jo
 
 A second focused run exercised the missing action-continuity path after review. Session `01a02d9c-ba11-70ae-980e-3f08cb8b794d` used natural language to invoke `action_update`, creating pending action `8f3933ec-fd7d-401c-8587-cdf5a17c8f29` with audit `a13182af-f936-4250-9756-8d11b4f47083`. After `/new`, Session `01a02d9c-e0a8-7be4-afe4-311621601511` received a context digest that included the open action, described it as pending, and `/state` displayed the same action ID and version. The sanitized result codes were `allowed` and `no_tool_call`; no-tool turns are no longer mislabeled as successful tool calls.
 
+## Real-use failure and retrieval closure
+
+A real Chinese progress update exposed four implementation failures: a mismatched `memoryPropose` permission name, Pi-populated empty optional fields entering the closed Core patch contract, missing model request IDs reaching required audit storage, and concurrent tool writes sharing one SQLite connection. The host also allowed optimistic assistant prose to appear above failed tool results. These failures were fixed with exact host permissions, empty-option pruning, host request-ID fallback, serialized adapter execution, operation-specific tool guidance, and a mandatory partial-write warning. The same task update then completed with `state_update=allowed`; `/state` showed task version 2 and the new current step.
+
+Memory `9aff5475-e37c-4b13-a440-b211aca0ac6b` was confirmed by the user at version 2. Before the retrieval fix it was stored but `/memory` returned no result because continuous Chinese text was treated as a whole token. Deterministic Chinese 2–3 character n-grams now provide the lexical half of lightweight hybrid retrieval. In a fresh Session, `/memory` recalled the same ID and version with its source Session and confirmed provenance. A preceding ordinary acknowledgement produced no tool result and did not enter durable state.
+
+The semantic half is optional and default-off. Migration 2 adds versioned SQLite embedding storage; a deterministic fake embedder verifies semantic-only recall, hybrid evidence, model-version isolation, and lexical fallback when embedding fails. No paid embedding API was called, and the real pilot currently runs in lexical fallback mode.
+
+A pure four-way router now labels each natural-language turn as `ignore`, `state`, `action`, and/or `memory_proposal` before Pi is called. The label is hidden guidance only: it neither writes storage nor expands the four-tool permission boundary.
+
 ## Claim boundary
 
 Passing tests show implementation behavior only. A hands-on run shows technical operability only. Neither establishes task success rate, recall quality, reliability, market need, adoption, or user value.
