@@ -1,0 +1,70 @@
+{
+  "taskId": "cp-resume-version-001",
+  "protocolVersion": "1.0.0",
+  "scenario": "career_project",
+  "synthetic": true,
+  "projectId": "synthetic-career-analyst",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "resume_bullet_revision",
+    "messages": [
+      "Paused after confirming the latest synthetic project evidence for an analyst role."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "cp1-evidence",
+      "value": "The latest verified result is a 12-hour synthetic workflow reduction.",
+      "sourceId": "session-cp1:event-9",
+      "version": 3
+    }
+  ],
+  "distractors": [
+    {
+      "id": "cp1-stale",
+      "kind": "stale",
+      "value": "An earlier draft claimed a 20-hour reduction.",
+      "sourceId": "session-cp1:event-3",
+      "version": 1
+    }
+  ],
+  "newSessionRequest": "Finish the resume bullet using the verified project evidence.",
+  "oracle": {
+    "requiredFactIds": [
+      "cp1-evidence"
+    ],
+    "forbiddenFactIds": [
+      "cp1-stale"
+    ],
+    "artifact": {
+      "type": "resume_bullet_revision",
+      "checks": [
+        "uses the 12-hour result",
+        "does not use the stale 20-hour claim",
+        "cites cp1-evidence"
+      ]
+    },
+    "allowedTools": [
+      "memory_search"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "stale_state_override",
+    "recap_without_progress"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}

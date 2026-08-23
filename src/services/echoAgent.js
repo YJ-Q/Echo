@@ -1,5 +1,5 @@
 import { buildEchoMessages } from './llm/echoPrompt.js';
-import { resolveEchoProvider } from './llm/providerRegistry.js';
+import { resolveMarginProvider } from './llm/providerRegistry.js';
 import { extractLearningTopic } from './topicExtractor.js';
 import { formatEchoReply } from './toneProfile.js';
 
@@ -9,7 +9,7 @@ export async function generateEchoResponse({
   memoryContext,
   learningSession
 }) {
-  const provider = resolveEchoProvider();
+  const provider = resolveMarginProvider();
   const messages = buildEchoMessages({
     userInput,
     analysis,

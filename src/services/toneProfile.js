@@ -1,4 +1,4 @@
-export const ECHO_TONE_PROFILE = {
+export const MARGIN_TONE_PROFILE = {
   id: 'second_self_we',
   name: 'Margin second-self voice',
   perspective: 'we',
@@ -25,8 +25,8 @@ export function formatEchoReply(rawReply) {
   return {
     reply,
     tone: {
-      profile: ECHO_TONE_PROFILE.id,
-      perspective: ECHO_TONE_PROFILE.perspective,
+      profile: MARGIN_TONE_PROFILE.id,
+      perspective: MARGIN_TONE_PROFILE.perspective,
       audit
     }
   };

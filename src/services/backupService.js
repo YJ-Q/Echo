@@ -13,9 +13,7 @@ const TABLES = [
   'actions',
   'operation_proposals',
   'operation_events',
-  'summaries',
-  'achievement_definitions',
-  'achievement_unlocks'
+  'summaries'
 ];
 
 export async function exportEchoDataSnapshot({ outDir } = {}) {
@@ -61,6 +59,8 @@ export async function exportEchoDataSnapshot({ outDir } = {}) {
   }
 }
 
+export const exportMarginDataSnapshot = exportEchoDataSnapshot;
+
 export async function createSqliteBackup({ outDir } = {}) {
   const storePaths = getMemoryStorePaths();
   const targetDir = outDir
@@ -96,7 +96,7 @@ export async function createBackupBundle({ outDir, includeJson = true, includeSq
   const results = [];
 
   if (includeJson) {
-    results.push(await exportEchoDataSnapshot({ outDir }));
+    results.push(await exportMarginDataSnapshot({ outDir }));
   }
 
   if (includeSqlite) {
@@ -205,6 +205,8 @@ export async function importEchoDataSnapshot({
     await db.close();
   }
 }
+
+export const importMarginDataSnapshot = importEchoDataSnapshot;
 
 export async function databaseExists() {
   const storePaths = getMemoryStorePaths();

@@ -73,6 +73,8 @@ The script prints a JSON summary with:
 ## Notes
 
 - if `MARGIN_DB_PATH` is set, backup/export follows that database path
+- `ECHO_DB_PATH` remains supported for one compatibility period, but is deprecated when `MARGIN_DB_PATH` is present
+- legacy `echo-export-` filenames remain importable
 - the script fails fast when no database file exists
 - JSON export is easier to inspect and migrate
 - SQLite backup is better for full local restore

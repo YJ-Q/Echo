@@ -1,16 +1,42 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const SUPPORTED_PROVIDERS = ['openai', 'anthropic', 'siliconflow', 'local'];
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const defaultRootDir = path.resolve(moduleDir, '..', '..');
 
-export function loadRuntimeConfig(env = process.env) {
+export function loadRuntimeConfig(
+  env = process.env,
+  {
+    rootDir = defaultRootDir,
+    pathExists = fs.existsSync
+  } = {}
+) {
   const port = parsePort(env.PORT);
-  const llmProvider = (env.MARGIN_LLM_PROVIDER || env.ECHO_LLM_PROVIDER || '').trim().toLowerCase() || 'local';
-  const nodeEnv = (env.NODE_ENV || 'development').trim().toLowerCase();
-  const logLevel = (env.MARGIN_LOG_LEVEL || env.ECHO_LOG_LEVEL || 'info').trim().toLowerCase();
-
   const warnings = [];
+  const providerSetting = resolveCompatValue(
+    env,
+    'MARGIN_LLM_PROVIDER',
+    'ECHO_LLM_PROVIDER',
+    'local',
+    warnings
+  );
+  const llmProvider = providerSetting.value.toLowerCase();
+  const nodeEnv = (env.NODE_ENV || 'development').trim().toLowerCase();
+  const logLevel = resolveCompatValue(
+    env,
+    'MARGIN_LOG_LEVEL',
+    'ECHO_LOG_LEVEL',
+    'info',
+    warnings
+  ).value.toLowerCase();
+  const dbPath = resolveDatabasePath({ env, rootDir, pathExists, warnings });
   const errors = [];
+  const marginCoreEnabled = parseBoolean(env.MARGIN_CORE_ENABLED, 'MARGIN_CORE_ENABLED', false, errors);
 
   if (!SUPPORTED_PROVIDERS.includes(llmProvider)) {
-    errors.push(`Unsupported MARGIN_LLM_PROVIDER: ${llmProvider}`);
+    errors.push(`Unsupported ${providerSetting.source === 'default' ? 'MARGIN_LLM_PROVIDER' : providerSetting.source}: ${llmProvider}`);
   }
 
   if (llmProvider === 'openai' && !env.OPENAI_API_KEY) {
@@ -42,8 +68,71 @@ export function loadRuntimeConfig(env = process.env) {
     nodeEnv,
     llmProvider,
     logLevel,
+    dbPath,
+    marginCoreEnabled,
     warnings
   };
+}
+
+function parseBoolean(value, name, fallback, errors) {
+  if (value === undefined || String(value).trim() === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  errors.push(`${name} must be true or false`);
+  return fallback;
+}
+
+function resolveCompatValue(env, marginKey, echoKey, fallback, warnings) {
+  const marginValue = String(env[marginKey] || '').trim();
+  const echoValue = String(env[echoKey] || '').trim();
+
+  if (marginValue) {
+    if (echoValue) {
+      warnings.push(`${echoKey} is ignored because ${marginKey} is set.`);
+    }
+    return { value: marginValue, source: marginKey };
+  }
+
+  if (echoValue) {
+    warnings.push(`${echoKey} is deprecated; use ${marginKey}.`);
+    return { value: echoValue, source: echoKey };
+  }
+
+  return { value: fallback, source: 'default' };
+}
+
+function resolveDatabasePath({ env, rootDir, pathExists, warnings }) {
+  const setting = resolveCompatValue(
+    env,
+    'MARGIN_DB_PATH',
+    'ECHO_DB_PATH',
+    '',
+    warnings
+  );
+
+  if (setting.value) {
+    return path.resolve(rootDir, setting.value);
+  }
+
+  const marginPath = path.join(rootDir, 'data', 'margin.sqlite');
+  const echoPath = path.join(rootDir, 'data', 'echo.sqlite');
+  const marginExists = pathExists(marginPath);
+  const echoExists = pathExists(echoPath);
+
+  if (marginExists) {
+    if (echoExists) {
+      warnings.push('A legacy database also exists at data/echo.sqlite; it was not merged automatically.');
+    }
+    return marginPath;
+  }
+
+  if (echoExists) {
+    warnings.push('Using the legacy database at data/echo.sqlite; set MARGIN_DB_PATH to migrate explicitly.');
+    return echoPath;
+  }
+
+  return marginPath;
 }
 
 function parsePort(value) {

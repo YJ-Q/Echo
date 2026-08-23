@@ -1,6 +1,6 @@
 # Margin
 
-Margin is a paper-and-ink companion space that keeps the user's live line visible.
+Margin is a memory-driven personal AI companion built as a "second self" rather than a generic chatbot.
 
 Its brand language is centered on paper, ink, margin notes, and continuation:
 
@@ -8,13 +8,7 @@ Its brand language is centered on paper, ink, margin notes, and continuation:
 - a companion that remembers the live line, not just the task list
 - a product that helps the user continue from the last trace, without making them feel managed
 
-The current repository contains one product surface:
-
-- React/Vite paper interface in `frontend/`
-- Express API and local memory engine in `src/`
-- Electron desktop shell in `electron/`
-
-Core capabilities include:
+The current repository is centered on the terminal-first Persistent Core MVP:
 
 - conversation and memory storage
 - state aggregation
@@ -23,13 +17,15 @@ Core capabilities include:
 - action suggestions
 - explainability output for `/chat` and `/state`
 
-See [docs/README.md](docs/README.md) for the current documentation index, [docs/VOICE_AND_GUARDRAILS.md](docs/VOICE_AND_GUARDRAILS.md) for voice rules, and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
+See [docs/VOICE.md](docs/VOICE.md) for Margin's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
 For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
 For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
 
-## Current Status
+## Current Status: Terminal-first Pilot
 
-The MVP is functional across the Express backend, React/Vite frontend, and Electron desktop shell.
+The repository is currently running a terminal-first pilot of the Pi + Margin continuity path. Pi provides its terminal UI, Agent runtime, sessions, branching, compaction, SDK, and RPC mode; it does not include a reusable desktop web interface for Margin. The obsolete Margin Electron/static frontend has therefore been removed while continuity behavior is validated.
+
+The legacy backend remains test-covered as a frozen, deprecated data-compatibility surface. It is no longer the default entry point and does not receive new V1 behavior.
 
 Implemented:
 
@@ -43,23 +39,66 @@ Implemented:
 - startup config validation and request logging
 - local backup / export / import tooling
 - optional TTS route
-- React notebook interface backed by the real state, learning, memory, achievement, action, summary, and management APIs
-- Electron desktop window with a fixed 4:3 aspect ratio and managed backend lifecycle
 
 Still worth improving before a polished open-source `1.0`:
 
-- clean migration of early records that were corrupted by shell encoding
-- installer packaging, application icons, and release signing
-- optional speech-to-text provider for microphone input
-- persisted custom notebook sections
+- stronger long-term memory organization
+- production-ready deployment and backups
+- richer provider configuration
+- frontend rebuild on top of the stabilized backend
+
+## Pi Continuity Development Verification
+
+Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries. The Stage 0 live spike passed on 2026-08-20 with the `yapi` provider and `gpt-5.6-terra`; this is technical feasibility evidence only, not a production or user-value claim.
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-pi-runtime.ps1
+$env:MARGIN_PI_PROVIDER='<configured-provider>'
+$env:MARGIN_PI_MODEL='<configured-model-id>'
+npm run spike:pi
+npm run verify:pi-stage-0
+```
+
+For the YAPI-compatible endpoint, the spike recognizes `yapi` with `https://yapi.click/v1`, the OpenAI Responses wire API, and `YAPI_API_KEY`. Generic custom endpoints can instead set `MARGIN_PI_BASE_URL`, `MARGIN_PI_API`, and `MARGIN_PI_API_KEY_ENV`. Only the environment-variable name is configured; the credential value remains process-local.
+
+The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. User/project extensions, skills, prompt templates, themes, and context files are also disabled, and the spike uses an isolated agent directory under ignored local data. Authentication must be supplied through the environment for the selected provider; credentials are not read from the user's normal Pi directory or stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
+
+See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.
+
+Run the isolated cross-session continuity path:
+
+```powershell
+npm run spike:pi-continuity
+```
+
+This command is the current terminal validation entry point, not a production chat client. It requires the configured model credential and keeps Pi's built-in high-risk tools disabled.
+
+## Interactive terminal pilot
+
+Start the local job-application continuity pilot after configuring the same provider variables used by the Pi smoke test:
+
+```powershell
+npm run pilot:terminal
+```
+
+Available commands are `/state`, `/status`, `/pause`, `/resume`, `/stop`, `/checkpoint`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session while preserving the Workstream and Run. Proposed durable memories remain unavailable to recall until the user confirms the displayed memory identifier and version through `/confirm-memory`.
+
+The authoritative V1 database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the frozen legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
+
+Pi is not the final runtime decision. This pilot gathers evidence before comparing Pi Agent, DeepSeek Harness, and the Codex open-source project under the same continuity scenario.
 
 ## Quick Start
 
 ```bash
-git clone <repository-url> margin
-cd margin
+git clone https://github.com/YJ-Q/Echo.git
+cd Echo
 npm install
 ```
+
+The GitHub URL and cloned directory retain `Echo` until the repository itself is
+renamed; `Echo` is currently a legacy external identifier, while the product is Margin.
 
 Copy the environment template:
 
@@ -73,29 +112,16 @@ On Windows PowerShell, the equivalent is:
 Copy-Item .env.example .env
 ```
 
-Build and start the web application:
-
-```bash
-npm start
-```
-
-Default local URL:
-
-```text
-http://localhost:3000
-```
-
-For frontend development, run the backend and Vite dev server in separate terminals:
+Start the Persistent Core terminal client:
 
 ```bash
 npm run dev
-npm run dev:ui
 ```
 
-Start the desktop application:
+The deprecated API can be started explicitly only for compatibility or migration checks:
 
 ```bash
-npm run desktop
+npm run legacy:api
 ```
 
 ## Environment
@@ -107,7 +133,7 @@ PORT=3000
 NODE_ENV=development
 MARGIN_LOG_LEVEL=info
 MARGIN_LLM_PROVIDER=local
-MARGIN_DB_PATH=./data/echo.sqlite
+MARGIN_DB_PATH=./data/margin.sqlite
 ```
 
 Optional provider variables:
@@ -121,9 +147,8 @@ SILICONFLOW_API_KEY=
 
 Notes:
 
-- `MARGIN_LLM_PROVIDER` supports `local`, `openai`, `anthropic`, `siliconflow`
-- legacy `ECHO_LOG_LEVEL`, `ECHO_LLM_PROVIDER`, and `ECHO_DB_PATH` remain supported during migration
-- the existing `data/echo.sqlite` filename is intentionally preserved so renaming does not hide current user data
+- `MARGIN_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
+- `ECHO_LOG_LEVEL`, `ECHO_LLM_PROVIDER`, and `ECHO_DB_PATH` are deprecated but remain supported for one compatibility period. `MARGIN_*` takes priority when both are present.
 - if a remote provider fails, Margin falls back to the local reflective engine
 - if `SILICONFLOW_API_KEY` is not set, `/tts` stays unavailable
 
@@ -179,7 +204,7 @@ The current backend test suite covers:
 - calibration behavior
 - backup export and import restore flow
 
-Current test status: `111/111` passing.
+Test counts are reported by each run rather than kept as a static product-value claim.
 
 ## Backup And Export
 

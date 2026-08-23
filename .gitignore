@@ -1,6 +1,4 @@
 node_modules/
-frontend/dist/
-.runtime/
 .env
 data/*.json
 data/*.sqlite
@@ -15,3 +13,7 @@ data/backups/
 npm-debug.log*
 huashu-design/
 design-references/
+.worktrees/
+.superpowers/sdd/
+.runtime/
+data/pi-spike/

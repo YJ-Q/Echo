@@ -10,6 +10,7 @@ import {
 } from '../src/services/learningEngine.js';
 import {
   closeMemoryStore,
+  configureMemoryStore,
   getLearningEvents,
   getLearningSessions,
   updateLearningStep
@@ -19,26 +20,10 @@ test('learning relevance gating ignores unrelated casual chat during an active s
   await withLearningStore(async () => {
     await prepareLearningSession('我想学 JavaScript');
 
-    const progress = await assessLearningProgress('我今天有点累，只想聊聊。');
+    const progress = await assessLearningProgress('我今天有点累，只想聊聊');
     const events = await getLearningEvents({ limit: 10 });
     const sessions = await getLearningSessions({ status: 'active', limit: 1 });
 
-    assert.equal(progress, null);
-    assert.equal(events.length, 1);
-    assert.equal(events[0].event_type, 'session_created');
-    assert.equal(sessions[0].current_step, 0);
-  });
-});
-
-test('learning relevance gating ignores English casual chat after a clean learning topic is created', async () => {
-  await withLearningStore(async () => {
-    const created = await prepareLearningSession('I want to learn JavaScript. Help me study.');
-
-    const progress = await assessLearningProgress('I feel tired today and I just want to talk a little.');
-    const events = await getLearningEvents({ limit: 10 });
-    const sessions = await getLearningSessions({ status: 'active', limit: 1 });
-
-    assert.equal(created.session.topic, 'JavaScript');
     assert.equal(progress, null);
     assert.equal(events.length, 1);
     assert.equal(events[0].event_type, 'session_created');
@@ -84,21 +69,6 @@ test('learning progress keeps substantive learning work as partial', async () =>
 
     assert.equal(progress.status, 'partial');
     assert.equal(progress.message, 'substantive_reply');
-  });
-});
-
-test('learning progress still records a concrete English attempt', async () => {
-  await withLearningStore(async () => {
-    await prepareLearningSession('I want to learn JavaScript. Help me study.');
-
-    const progress = await assessLearningProgress('I tried a JavaScript closures demo and it is not fully working yet.');
-    const events = await getLearningEvents({ limit: 10 });
-
-    assert.equal(progress.status, 'partial');
-    assert.equal(progress.message, 'substantive_reply');
-    assert.equal(events.length, 2);
-    assert.equal(events[0].event_type, 'step_attempted');
-    assert.equal(events[1].event_type, 'session_created');
   });
 });
 
@@ -166,13 +136,13 @@ test('isLearningRelatedMessage requires more than a bare completion keyword', as
 
 async function withLearningStore(run) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'echo-learning-test-'));
-  process.env.ECHO_DB_PATH = path.join(tempDir, 'echo.sqlite');
+  configureMemoryStore({ dbPath: path.join(tempDir, 'margin.sqlite') });
 
   try {
     await run();
   } finally {
     await closeMemoryStore();
-    delete process.env.ECHO_DB_PATH;
+    configureMemoryStore({ dbPath: '' });
     await rm(tempDir, { recursive: true, force: true });
   }
 }

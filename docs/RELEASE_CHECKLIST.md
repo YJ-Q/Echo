@@ -1,6 +1,6 @@
 # Margin Release Checklist
 
-This checklist covers the current desktop-first Margin release.
+This checklist is for the first cleaner public backend-oriented release of Margin.
 
 ## Before Push
 
@@ -8,9 +8,6 @@ This checklist covers the current desktop-first Margin release.
 - confirm `README.md` matches the current backend behavior
 - confirm `.env.example` matches the current runtime config
 - confirm `docs/API_CONTRACT.md` matches current route behavior
-- confirm `npm run build:ui` passes and the desktop shell loads the built frontend
-- confirm the 4:3 window ratio and minimum size behave correctly
-- confirm the left paper tabs align with the generated notebook background
 - confirm backup/import docs are present and readable
 - confirm no accidental local data files are staged
 
@@ -25,7 +22,6 @@ This checklist covers the current desktop-first Margin release.
 
 For this release, include:
 
-- the React notebook interface and Electron desktop shell
 - backend MVP routes
 - memory and state systems
 - learning / summary / action flows
@@ -36,7 +32,7 @@ For this release, include:
 Avoid presenting this release as:
 
 - finished production software
-- polished multi-platform support beyond the desktop target
+- polished multi-platform frontend
 - complete long-term memory architecture
 
 ## Nice To Add With The Release
@@ -44,4 +40,4 @@ Avoid presenting this release as:
 - short changelog section in the release description
 - one sample local run command block
 - one sample `/chat` request / response block
-- a note describing the Margin brand migration and legacy compatibility aliases
+- note that frontend redesign is intentionally postponed

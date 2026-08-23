@@ -1,0 +1,70 @@
+{
+  "taskId": "cp-project-switch-003",
+  "protocolVersion": "1.0.0",
+  "scenario": "career_project",
+  "synthetic": true,
+  "projectId": "synthetic-career-product",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "cover_letter_draft",
+    "messages": [
+      "Paused a product-role cover letter after selecting continuity-agent evidence."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "cp3-role",
+      "value": "Target is the synthetic Product Agent role; emphasize continuity evaluation.",
+      "sourceId": "session-cp3:event-7",
+      "version": 2
+    }
+  ],
+  "distractors": [
+    {
+      "id": "cp3-other",
+      "kind": "cross_project",
+      "value": "A separate data-role application emphasizes SQL migration.",
+      "sourceId": "session-career-other:event-4",
+      "version": 2
+    }
+  ],
+  "newSessionRequest": "Draft the next cover-letter paragraph for the current target.",
+  "oracle": {
+    "requiredFactIds": [
+      "cp3-role"
+    ],
+    "forbiddenFactIds": [
+      "cp3-other"
+    ],
+    "artifact": {
+      "type": "cover_letter_paragraph",
+      "checks": [
+        "targets the Product Agent role",
+        "emphasizes continuity evaluation",
+        "does not mention SQL migration"
+      ]
+    },
+    "allowedTools": [
+      "memory_search"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "cross_project_contamination",
+    "intrusive_recall"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}

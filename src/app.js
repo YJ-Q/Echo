@@ -1,7 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import achievementRoutes from './routes/achievementRoutes.js';
 import actionRoutes from './routes/actionRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -10,54 +8,29 @@ import managementRoutes from './routes/managementRoutes.js';
 import memoryRoutes from './routes/memoryRoutes.js';
 import stateRoutes from './routes/stateRoutes.js';
 import summaryRoutes from './routes/summaryRoutes.js';
-import sttRoutes from './routes/sttRoutes.js';
 import ttsRoutes from './routes/ttsRoutes.js';
-import { handleChat } from './services/chatService.js';
 import { sendData, sendError } from './lib/apiResponse.js';
 import { createRequestLogger } from './lib/logger.js';
 import { ensureMemoryStore } from './storage/memoryStore.js';
 
 export async function createApp({ logger } = {}) {
   const app = express();
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const frontendDistDir = path.join(__dirname, '..', 'frontend', 'dist');
 
   app.use(cors());
-  app.use(express.json({ limit: '12mb' }));
+  app.use(express.json({ limit: '1mb' }));
   if (logger) {
     app.use(createRequestLogger(logger));
   }
-  app.use(express.static(frontendDistDir));
-
   await ensureMemoryStore();
-
-  app.post('/api/reflect', async (req, res, next) => {
-    try {
-      const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-
-      if (!message) {
-        return sendError(res, 400, 'message is required', 'message_required');
-      }
-
-      const result = await handleChat(message);
-      return res.json({
-        text: result.reply,
-        result
-      });
-    } catch (error) {
-      return next(error);
-    }
-  });
 
   app.get('/api', (_req, res) => {
     const ttsAvailable = Boolean(process.env.SILICONFLOW_API_KEY);
     sendData(res, {
       name: 'Margin',
-      status: 'ui-connected',
-      message: 'Margin API is connected to the paper-and-ink desktop interface.',
-      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/management', '/achievements', '/tts', '/stt'],
-      capabilities: { tts: ttsAvailable, stt: ttsAvailable }
+      status: 'api-ready',
+      message: 'Margin API is running.',
+      endpoints: ['/health', '/state', '/actions', '/chat', '/memory', '/summary', '/learning', '/management', '/achievements', '/tts'],
+      capabilities: { tts: ttsAvailable }
     });
   });
 
@@ -73,7 +46,6 @@ export async function createApp({ logger } = {}) {
   app.use('/management', managementRoutes);
   app.use('/memory', memoryRoutes);
   app.use('/summary', summaryRoutes);
-  app.use('/stt', sttRoutes);
   app.use('/tts', ttsRoutes);
 
   app.use((err, req, res, _next) => {

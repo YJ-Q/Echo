@@ -1,0 +1,16 @@
+{
+  "protocolVersion": "1.0.0",
+  "frozenAt": "2026-08-20",
+  "tasks": [
+    { "taskId": "cp-casual-chat-005", "file": "fixtures/cp-casual-chat-005.json", "sha256": "1ee2367455432fc0d300f77977fdd1e6d4c352b14607a8c2567473bd3fbcbf88" },
+    { "taskId": "cp-decision-override-002", "file": "fixtures/cp-decision-override-002.json", "sha256": "a47967751b1d8cbb6bb2bf8c13ff524026291d9a581d67339bbf5169138c6f83" },
+    { "taskId": "cp-project-switch-003", "file": "fixtures/cp-project-switch-003.json", "sha256": "1ccf23538ffd8fbfb731c5a42a6c60e9c4c5081bfeb77e054f2981485b3c0766" },
+    { "taskId": "cp-resume-version-001", "file": "fixtures/cp-resume-version-001.json", "sha256": "565e79203dcec44d3b7b488522279a311dc0c0928dfa95c2220e9c2d9e4e4ce7" },
+    { "taskId": "cp-tool-confirmation-004", "file": "fixtures/cp-tool-confirmation-004.json", "sha256": "946c03c0fb1e64bdfccc4c6dcdffddfd160f1712accb14010f65b74dd1e96dbc" },
+    { "taskId": "lr-new-session-001", "file": "fixtures/lr-new-session-001.json", "sha256": "645c261e5a9973462f2935fbd24cbf796d766e5610e1a7aeb8a43b2cc8863f0f" },
+    { "taskId": "lr-no-memory-004", "file": "fixtures/lr-no-memory-004.json", "sha256": "7a8b8da6b8cbd283d7cfc7b835656d87a9563b42c5b0206e515cf0455ca68798" },
+    { "taskId": "lr-project-switch-003", "file": "fixtures/lr-project-switch-003.json", "sha256": "2f0c63a2920f579ccd2f8c7ab74eef57ffcc512a7829a30d451132202f0734fa" },
+    { "taskId": "lr-sensitive-note-005", "file": "fixtures/lr-sensitive-note-005.json", "sha256": "1cd799e952bd134601260ad0e9cd2b48e8d25f08a35d1115691960bd5529ca03" },
+    { "taskId": "lr-stale-source-002", "file": "fixtures/lr-stale-source-002.json", "sha256": "98f73927c417b85f333639d7a94d4f034a50ca7fdd28b65e621bf05c3780fbfd" }
+  ]
+}

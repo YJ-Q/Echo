@@ -1,0 +1,71 @@
+{
+  "taskId": "cp-casual-chat-005",
+  "protocolVersion": "1.0.0",
+  "scenario": "career_project",
+  "synthetic": true,
+  "projectId": "synthetic-project-portfolio",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "status_update_pending",
+    "messages": [
+      "Confirmed the portfolio case-study milestone; later casual chat was unrelated."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "cp5-status",
+      "value": "The current milestone is to validate the case-study evidence map.",
+      "sourceId": "session-cp5:event-5",
+      "version": 2
+    }
+  ],
+  "distractors": [
+    {
+      "id": "cp5-chat",
+      "kind": "ordinary_chat",
+      "value": "A casual preference about weekend movies.",
+      "sourceId": "session-chat:event-2",
+      "version": 1
+    }
+  ],
+  "newSessionRequest": "Continue the portfolio project and update its current status.",
+  "oracle": {
+    "requiredFactIds": [
+      "cp5-status"
+    ],
+    "forbiddenFactIds": [
+      "cp5-chat"
+    ],
+    "artifact": {
+      "type": "project_status_update",
+      "checks": [
+        "keeps the evidence-map milestone",
+        "excludes casual-chat content",
+        "identifies validation as the next action"
+      ]
+    },
+    "allowedTools": [
+      "memory_search",
+      "state_update"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "cross_project_contamination",
+    "intrusive_recall"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}

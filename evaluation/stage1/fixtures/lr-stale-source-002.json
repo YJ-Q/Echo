@@ -1,0 +1,70 @@
+{
+  "taskId": "lr-stale-source-002",
+  "protocolVersion": "1.0.0",
+  "scenario": "learning_research",
+  "synthetic": true,
+  "projectId": "synthetic-research-interface",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "conclusion_revision",
+    "messages": [
+      "A newer synthetic paper reversed the provisional interface conclusion."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "lr2-current",
+      "value": "Version 2 concludes interface stability depends on humidity control.",
+      "sourceId": "session-lr2:event-8",
+      "version": 2
+    }
+  ],
+  "distractors": [
+    {
+      "id": "lr2-stale",
+      "kind": "stale",
+      "value": "Version 1 concluded humidity was irrelevant.",
+      "sourceId": "session-lr2:event-4",
+      "version": 1
+    }
+  ],
+  "newSessionRequest": "Write the updated interim conclusion from the latest evidence.",
+  "oracle": {
+    "requiredFactIds": [
+      "lr2-current"
+    ],
+    "forbiddenFactIds": [
+      "lr2-stale"
+    ],
+    "artifact": {
+      "type": "source_grounded_conclusion",
+      "checks": [
+        "uses the version 2 conclusion",
+        "mentions humidity control",
+        "cites lr2-current"
+      ]
+    },
+    "allowedTools": [
+      "memory_search"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "stale_state_override",
+    "incorrect_recovery"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}

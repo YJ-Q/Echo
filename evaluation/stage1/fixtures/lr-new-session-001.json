@@ -1,0 +1,78 @@
+{
+  "taskId": "lr-new-session-001",
+  "protocolVersion": "1.0.0",
+  "scenario": "learning_research",
+  "synthetic": true,
+  "projectId": "synthetic-research-battery",
+  "priorSession": {
+    "kind": "sustained_task",
+    "interruptionPoint": "comparison_row_open",
+    "messages": [
+      "Compared two synthetic battery recycling methods and paused before the evidence row."
+    ]
+  },
+  "currentFacts": [
+    {
+      "id": "lr1-goal",
+      "value": "Compare recovery yield and energy demand for Method A and Method B.",
+      "sourceId": "session-lr1:event-3",
+      "version": 2
+    },
+    {
+      "id": "lr1-source",
+      "value": "The approved synthetic source reports Method A has lower energy demand.",
+      "sourceId": "session-lr1:event-5",
+      "version": 1
+    }
+  ],
+  "distractors": [
+    {
+      "id": "lr1-other",
+      "kind": "cross_project",
+      "value": "A separate catalyst project prefers Method C.",
+      "sourceId": "session-other:event-2",
+      "version": 1
+    }
+  ],
+  "newSessionRequest": "Continue the battery comparison and finish the pending evidence row.",
+  "oracle": {
+    "requiredFactIds": [
+      "lr1-goal",
+      "lr1-source"
+    ],
+    "forbiddenFactIds": [
+      "lr1-other"
+    ],
+    "artifact": {
+      "type": "comparison_row",
+      "checks": [
+        "compares Method A and Method B",
+        "states the lower-energy finding",
+        "cites lr1-source"
+      ]
+    },
+    "allowedTools": [
+      "memory_search"
+    ],
+    "confirmationRequiredFor": [],
+    "clarification": "forbidden",
+    "expectedFailureLabels": [
+      "missing_required_context",
+      "incorrect_recovery",
+      "stale_state_override",
+      "cross_project_contamination",
+      "unnecessary_background_request",
+      "unsupported_memory_claim",
+      "unauthorized_tool_attempt",
+      "recap_without_progress",
+      "intrusive_recall"
+    ]
+  },
+  "risks": [
+    "missing_required_context",
+    "cross_project_contamination",
+    "recap_without_progress"
+  ],
+  "durableStateQualified": true,
+  "containsRealPersonalData": false
+}
