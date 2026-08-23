@@ -9,7 +9,9 @@ export async function openMarginCoreStore({
   dbPath,
   clock = () => new Date().toISOString(),
   idFactory = () => randomUUID(),
-  beforeEvidenceWrite
+  beforeEvidenceWrite,
+  embedder,
+  retrievalConfig
 } = {}) {
   if (!dbPath) throw new TypeError('dbPath is required');
   const db = await open({ filename: dbPath, driver: sqlite3.Database });
@@ -20,6 +22,7 @@ export async function openMarginCoreStore({
     clock,
     idFactory,
     beforeEvidenceWrite,
+    embedder,
     close: () => db.close(),
     async migrate() {
       await db.exec(`CREATE TABLE IF NOT EXISTS margin_schema_migrations (
@@ -69,6 +72,30 @@ export async function openMarginCoreStore({
       "SELECT * FROM margin_tasks WHERE project_id = ? AND status = 'active' AND deleted_at IS NULL ORDER BY updated_at DESC, id ASC LIMIT 1",
       projectId
     ),
+    async rankMemories(rows, { query, asOf, topK }) {
+      if (!embedder?.embed || typeof embedder.model !== 'string' || rows.length === 0) {
+        return rankMemoryRows(rows, { query, asOf, topK, retrievalConfig });
+      }
+      let queryVector;
+      try {
+        queryVector = await embedder.embed(query);
+        if (!Array.isArray(queryVector) || queryVector.length === 0 || queryVector.some((value) => !Number.isFinite(value))) throw new Error('invalid_embedding');
+      } catch {
+        return rankMemoryRows(rows, { query, asOf, topK, retrievalConfig });
+      }
+      const placeholders = rows.map(() => '?').join(',');
+      const vectors = await db.all(
+        `SELECT memory_id, model, dimensions, vector_json FROM margin_memory_embeddings WHERE model = ? AND memory_id IN (${placeholders})`,
+        embedder.model, ...rows.map((row) => row.id)
+      );
+      const byId = new Map(vectors.map((entry) => [entry.memory_id, entry]));
+      const enriched = rows.map((row) => {
+        const stored = byId.get(row.id);
+        if (!stored || stored.dimensions !== queryVector.length) return row;
+        try { return { ...row, embeddingModel: stored.model, embeddingVector: JSON.parse(stored.vector_json) }; } catch { return row; }
+      });
+      return rankMemoryRows(enriched, { query, asOf, topK, queryVector, embeddingModel: embedder.model, retrievalConfig });
+    },
     getTask: (id) => db.get('SELECT * FROM margin_tasks WHERE id = ?', id),
     async getContinuitySnapshot({ projectId, query, asOf, memoryTopK = 5, recentDialogue = [] } = {}) {
       if (!projectId || typeof query !== 'string' || !asOf) {
@@ -119,7 +146,7 @@ export async function openMarginCoreStore({
         project,
         activeTask,
         decisions,
-        memories: rankMemoryRows(memoryRows, { query, asOf, topK: memoryTopK }),
+        memories: await store.rankMemories(memoryRows, { query, asOf, topK: memoryTopK }),
         recentDialogue: recentDialogue.map((turn) => ({ ...turn }))
       };
     }
@@ -209,7 +236,7 @@ export async function openMarginCoreStore({
     return tx.get('SELECT * FROM margin_tasks WHERE id = ?', id);
   });
 
-  store.confirmMemory = ({ memoryId, expectedVersion } = {}, context = {}) => store.transaction(async (tx) => {
+  store.confirmMemory = async ({ memoryId, expectedVersion } = {}, context = {}) => {
     const evidence = context.trustedConfirmation;
     if (!memoryId || !Number.isInteger(expectedVersion) || !evidence ||
       evidence.action !== 'confirm_memory' || evidence.memoryId !== memoryId ||
@@ -217,6 +244,19 @@ export async function openMarginCoreStore({
       !['user', 'system'].includes(context.actorType) || !context.requestId || !context.sourceSessionId || !context.sourceEventId) {
       throw new CoreContractError('invalid_confirmation', 'Trusted memory confirmation is required');
     }
+    let embeddingVector;
+    if (embedder?.embed && typeof embedder.model === 'string') {
+      const candidate = await db.get('SELECT * FROM margin_memories WHERE id = ? AND deleted_at IS NULL', memoryId);
+      if (candidate && candidate.project_id === evidence.projectId && candidate.version === expectedVersion && candidate.confirmation_status === 'proposed') {
+        try {
+          const vector = await embedder.embed(candidate.content);
+          if (Array.isArray(vector) && vector.length > 0 && vector.every(Number.isFinite)) embeddingVector = vector;
+        } catch {
+          embeddingVector = undefined;
+        }
+      }
+    }
+    return store.transaction(async (tx) => {
     const current = await tx.get('SELECT * FROM margin_memories WHERE id = ? AND deleted_at IS NULL', memoryId);
     if (!current) throw new CoreContractError('memory_not_found', 'Memory not found');
     if (evidence.projectId !== current.project_id) {
@@ -237,6 +277,12 @@ export async function openMarginCoreStore({
       context.sourceSessionId, context.sourceEventId, now, memoryId
     );
     const memory = await tx.get('SELECT * FROM margin_memories WHERE id = ?', memoryId);
+    if (embeddingVector) {
+      await tx.run(
+        `INSERT OR REPLACE INTO margin_memory_embeddings(memory_id, model, dimensions, vector_json, created_at) VALUES (?, ?, ?, ?, ?)`,
+        memoryId, embedder.model, embeddingVector.length, JSON.stringify(embeddingVector), now
+      );
+    }
     await tx.run(
       `INSERT INTO margin_events VALUES (?, 'memory', ?, ?, 'updated', ?, '{}', ?, ?, ?)`,
       idFactory('event'), memoryId, current.project_id, memory.version, context.sourceSessionId, context.sourceEventId, now
@@ -248,7 +294,8 @@ export async function openMarginCoreStore({
       auditId, context.requestId, context.actorType, current.project_id, memoryId, digestConfirmation({ memoryId, expectedVersion, evidence }), now
     );
     return { memory, auditId };
-  });
+    });
+  };
 
   try {
     await store.migrate();

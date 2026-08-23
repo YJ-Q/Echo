@@ -27,3 +27,21 @@ test('lexical ranking stays deterministic and requires overlap', () => {
   const rows = [memory('b', '继续投递'), memory('a', '继续投递'), memory('x', '完全无关')];
   assert.deepEqual(rankMemoryRows(rows, { query: '继续投递', asOf: NOW, topK: 5 }).map((row) => row.id), ['a', 'b']);
 });
+
+test('semantic similarity recalls a memory without lexical overlap', () => {
+  const rows = [memory('m1', '新版材料', { embeddingVector: [1, 0], embeddingModel: 'fake-v1' })];
+  const ranked = rankMemoryRows(rows, { query: '继续求职', queryVector: [1, 0], embeddingModel: 'fake-v1', asOf: NOW, topK: 5 });
+  assert.equal(ranked[0].id, 'm1');
+  assert.equal(ranked[0].retrievalReason, 'semantic');
+});
+
+test('hybrid ranking labels combined evidence and ignores mismatched embedding models', () => {
+  const hybrid = rankMemoryRows([
+    memory('m1', '继续投递', { embeddingVector: [1, 0], embeddingModel: 'fake-v1' })
+  ], { query: '继续投递', queryVector: [1, 0], embeddingModel: 'fake-v1', asOf: NOW, topK: 5 });
+  assert.equal(hybrid[0].retrievalReason, 'hybrid');
+  const mismatch = rankMemoryRows([
+    memory('m2', '无字面重叠', { embeddingVector: [1, 0], embeddingModel: 'old-model' })
+  ], { query: '继续求职', queryVector: [1, 0], embeddingModel: 'fake-v1', asOf: NOW, topK: 5 });
+  assert.deepEqual(mismatch, []);
+});

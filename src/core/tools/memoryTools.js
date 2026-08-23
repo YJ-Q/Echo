@@ -1,6 +1,5 @@
 import { decidePermission } from '../permissions.js';
 import { CoreContractError, digestInput, fail, ok, requireFields } from '../contracts.js';
-import { rankMemoryRows } from '../memoryRetrieval.js';
 
 const MEMORY_TYPES = new Set(['fact', 'preference', 'constraint', 'context', 'sensitive']);
 
@@ -42,7 +41,7 @@ export function createMemoryTools({ store }) {
          ${taskClause} ${typeClause}`,
         ...params
       );
-      const ranked = rankMemoryRows(rows, { query: input.query, asOf: input.asOf, topK });
+      const ranked = await store.rankMemories(rows, { query: input.query, asOf: input.asOf, topK });
       const items = ranked.map((row) => ({
         id: row.id, content: row.content, memoryType: row.memory_type, confidence: row.confidence,
         sourceSessionId: row.source_session_id, sourceEventId: row.source_event_id, version: row.version,

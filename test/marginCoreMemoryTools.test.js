@@ -75,6 +75,41 @@ test('confirmed Chinese memory is recalled across wording variants', async (t) =
   assert.deepEqual(recalled.data.items.map((item) => item.id), ['zh-memory']);
 });
 
+test('optional embedder indexes confirmation and enables semantic-only recall', async (t) => {
+  const embedder = {
+    model: 'fake-v1',
+    async embed(text) { return text.includes('咖啡') ? [0, 1] : [1, 0]; }
+  };
+  const fixture = await createMarginCoreTestDb({ embedder });
+  t.after(() => fixture.cleanup());
+  const project = await fixture.store.createProject({ scenario: 'career_project', goal: '求职', phase: 'pilot' }, {
+    requestId: 'seed-semantic', actorType: 'user', sourceSessionId: 's', sourceEventId: 'e', inputDigest: 'a'.repeat(64), permissionDecision: 'allowed'
+  });
+  const tools = createMemoryTools({ store: fixture.store });
+  const proposed = await tools.memoryPropose({ ...base, projectId: project.id, content: '新版材料', memoryType: 'context', confidence: 0.9, validFrom: '2026-08-20T00:00:00.000Z', durableIntent: true }, context);
+  await fixture.store.confirmMemory({ memoryId: proposed.data.memory.id, expectedVersion: 1 }, {
+    requestId: 'confirm-semantic', actorType: 'user', sourceSessionId: 'host', sourceEventId: 'confirm-event',
+    trustedConfirmation: { ref: 'confirm-ref', action: 'confirm_memory', memoryId: proposed.data.memory.id, projectId: project.id, actorType: 'user' }
+  });
+  const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: '继续求职', topK: 5, asOf: '2026-08-23T00:00:00.000Z' }, context);
+  assert.deepEqual(recalled.data.items.map((item) => item.id), [proposed.data.memory.id]);
+  assert.equal(recalled.data.items[0].retrievalReason, 'semantic');
+});
+
+test('embedding failure degrades to Chinese lexical recall', async (t) => {
+  const fixture = await createMarginCoreTestDb({ embedder: { model: 'broken-v1', async embed() { throw new Error('offline'); } } });
+  t.after(() => fixture.cleanup());
+  const project = await fixture.store.createProject({ scenario: 'career_project', goal: '求职', phase: 'pilot' }, {
+    requestId: 'seed-fallback', actorType: 'user', sourceSessionId: 's', sourceEventId: 'e', inputDigest: 'a'.repeat(64), permissionDecision: 'allowed'
+  });
+  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
+    ('fallback-memory', ?, NULL, '后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-fallback', 'event-fallback', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL)`, project.id);
+  const tools = createMemoryTools({ store: fixture.store });
+  const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: '继续简历投递', topK: 5, asOf: '2026-08-23T00:00:00.000Z' }, context);
+  assert.deepEqual(recalled.data.items.map((item) => item.id), ['fallback-memory']);
+  assert.equal(recalled.data.items[0].retrievalReason, 'lexical');
+});
+
 test('search is isolated, deterministic, bounded, and does not mutate memories', async (t) => {
   const { fixture, project, tools } = await setup(t);
   await fixture.store.db.run(`INSERT INTO margin_memories VALUES

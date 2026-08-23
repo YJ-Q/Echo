@@ -7,7 +7,7 @@ import { openMarginCoreStore } from '../src/core/marginCoreStore.js';
 
 const TABLES = [
   'margin_schema_migrations', 'margin_projects', 'margin_tasks', 'margin_decisions',
-  'margin_memories', 'margin_events', 'margin_actions', 'margin_audit_log'
+  'margin_memories', 'margin_memory_embeddings', 'margin_events', 'margin_actions', 'margin_audit_log'
 ];
 
 test('migration creates exactly the additive Margin Core tables and preserves legacy tables', async (t) => {
@@ -26,7 +26,7 @@ test('migration is idempotent and checksum-bound', async (t) => {
   const fixture = await createMarginCoreTestDb();
   t.after(() => fixture.cleanup());
   await fixture.store.migrate();
-  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 1);
+  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 2);
   await fixture.store.db.run("UPDATE margin_schema_migrations SET checksum = 'drift' WHERE version = 1");
   await assert.rejects(fixture.store.migrate(), /checksum mismatch/u);
 });

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { MEMORY_EMBEDDINGS_MIGRATION } from './002-memory-embeddings.js';
 
 const sql = `
 CREATE TABLE IF NOT EXISTS margin_schema_migrations (
@@ -67,4 +68,4 @@ export const MARGIN_CORE_MIGRATIONS = Object.freeze([{
   name: 'margin-core-initial',
   sql,
   checksum: createHash('sha256').update(sql).digest('hex')
-}]);
+}, MEMORY_EMBEDDINGS_MIGRATION]);

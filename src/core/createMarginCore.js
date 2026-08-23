@@ -4,9 +4,9 @@ import { createStateTool } from './tools/stateTool.js';
 import { createActionTool } from './tools/actionTool.js';
 import { planContinuityContext } from '../continuity/contextPlanner.js';
 
-export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite } = {}) {
+export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig } = {}) {
   if (!enabled) return { enabled: false };
-  const store = await openMarginCoreStore({ dbPath, clock, idFactory, beforeEvidenceWrite });
+  const store = await openMarginCoreStore({ dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig });
   const memory = createMemoryTools({ store });
   const state = createStateTool({ store });
   const action = createActionTool({ store });
