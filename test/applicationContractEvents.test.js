@@ -99,12 +99,21 @@ test('event envelopes whitelist aggregate identity and activity is a determinist
   try {
     const { gateway, workstream, updated } = await createFourEvents(f);
     const events = await gateway.events(eventList('event-safe', 0, 50), context('event-safe', ['event:read']));
-    const update = events.data.items.find((event) => event.type === 'workstream.updated');
-    assert.deepEqual(update.aggregate, { type: 'workstream', id: workstream.id, version: updated.version });
+    const update = events.data.items.find((event) => event.eventType === 'workstream.updated');
+    assert.deepEqual(Object.keys(update), [
+      'cursor', 'eventId', 'eventType', 'aggregateType', 'aggregateId', 'aggregateVersion', 'workstreamId', 'runId',
+      'occurredAt', 'actor', 'source', 'summary', 'data', 'contractVersion'
+    ]);
+    assert.equal(update.aggregateType, 'workstream');
+    assert.equal(update.aggregateId, workstream.id);
+    assert.equal(update.aggregateVersion, updated.version);
     assert.equal(update.workstreamId, workstream.id);
+    assert.equal(update.runId, null);
     assert.deepEqual(update.actor, { type: 'user', subjectId: 'event-reader' });
-    assert.equal(update.correlationId, 'events-correlation');
-    assert.deepEqual(update.surface, { kind: 'web' });
+    assert.deepEqual(update.source, { kind: 'application', surfaceKind: 'web', runtimeReference: null, correlationId: 'events-correlation' });
+    assert.equal(update.summary, 'Workstream updated');
+    assert.deepEqual(update.data, {});
+    assert.equal(update.contractVersion, '1.0');
     assert.equal(Object.isFrozen(events), true);
     const serialized = JSON.stringify(events);
     for (const forbidden of ['chainOfThought', 'prompt', 'runtime_session_id', 'apiKey', 'sessionObject', 'sourceSessionId', 'payload']) {
@@ -114,7 +123,10 @@ test('event envelopes whitelist aggregate identity and activity is a determinist
     const activity = await gateway.query(activityList('activity-safe', workstream.id), context('activity-safe', ['activity:read']));
     assert.equal(activity.ok, true);
     assert.deepEqual(activity.data.items.map((item) => item.cursor), events.data.items.map((item) => item.cursor));
-    assert.ok(activity.data.items.every((item) => typeof item.message === 'string' && item.message.length > 0));
+    assert.deepEqual(Object.keys(activity.data.items[0]), [
+      'cursor', 'type', 'workstreamId', 'runId', 'title', 'summary', 'status', 'occurredAt', 'artifactReference', 'needsOwnerId'
+    ]);
+    assert.ok(activity.data.items.every((item) => typeof item.title === 'string' && item.title.length > 0 && typeof item.summary === 'string'));
     assert.equal(JSON.stringify(activity).includes('payload'), false);
     assert.equal((await f.core.store.db.get("SELECT COUNT(*) count FROM sqlite_master WHERE type='table' AND name LIKE '%activity%'")).count, 0);
   } finally { await f.cleanup(); }
@@ -212,8 +224,41 @@ test('event reads do not duplicate an aggregate when historical evidence reuses 
       requestId: 'direct-needs-resolve', needsOwnerId: created.data.id, expectedVersion: created.data.version, resolution: 'Recorded'
     }, secondActor);
     const events = await gateway.events(eventList('event-direct-history', 0, 50, { workstreamId: workstream.id }), context('event-direct-history', ['event:read']));
-    const directEvents = events.data.items.filter((event) => event.aggregate.id === created.data.id);
+    const directEvents = events.data.items.filter((event) => event.aggregateId === created.data.id);
     assert.equal(directEvents.length, 2);
     assert.deepEqual(directEvents.map((event) => event.actor.subjectId), ['direct-user-one', 'direct-user-two']);
+  } finally { await f.cleanup(); }
+});
+
+test('event actor is anonymous unless audit identity, aggregate scope, project scope, and operation all match', async () => {
+  const f = await fixture();
+  try {
+    const { gateway, workstream } = await createFourEvents(f);
+    const now = f.options.clock();
+    const forged = [
+      { id: 'forged-entity', entityId: 'other-workstream', projectId: workstream.id, operation: 'workstream_update' },
+      { id: 'forged-project', entityId: workstream.id, projectId: 'other-project', operation: 'workstream_update' },
+      { id: 'forged-operation', entityId: workstream.id, projectId: workstream.id, operation: 'run_start' }
+    ];
+    for (const [index, audit] of forged.entries()) {
+      await f.core.store.db.run(
+        `INSERT INTO margin_audit_log
+         (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
+         VALUES (?,?,?,'agent',?,'workstream',?,'allowed','allowed','digest',?,?)`,
+        audit.id, audit.operation, `forged-request-${index}`, audit.projectId, audit.entityId,
+        JSON.stringify({ actorSubjectId: `forged-subject-${index}` }), now
+      );
+      await f.core.store.db.run(
+        `INSERT INTO margin_events
+         (id,entity_type,entity_id,project_id,event_type,entity_version,payload,source_session_id,source_event_id,created_at)
+         VALUES (?,'workstream',?,?,'updated',9,?,'private','forged',?)`,
+        `forged-event-${index}`, workstream.id, workstream.id,
+        JSON.stringify({ command: 'workstream_update', status: 'running', correlationId: 'forged-correlation', surfaceKind: 'web', auditId: audit.id }), now
+      );
+    }
+    const events = await gateway.events(eventList('event-forged-audit', 0, 50, { workstreamId: workstream.id }), context('event-forged-audit', ['event:read']));
+    const forgedEvents = events.data.items.filter((event) => event.eventId.startsWith('forged-event-'));
+    assert.equal(forgedEvents.length, 3);
+    for (const event of forgedEvents) assert.deepEqual(event.actor, { type: null, subjectId: null });
   } finally { await f.cleanup(); }
 });

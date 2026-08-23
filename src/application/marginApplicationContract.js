@@ -244,7 +244,7 @@ export function createMarginApplicationContract({ services, repository, runtimeC
   async function eventPage(payload) {
     const page = await repository.listEventRows(payload);
     const mapped = page.items.map(toEventEnvelope);
-    const items = mapped.filter((item) => item && (!payload.eventTypes || payload.eventTypes.includes(item.type)));
+    const items = mapped.filter((item) => item && (!payload.eventTypes || payload.eventTypes.includes(item.eventType)));
     return {
       items,
       nextCursor: page.nextCursor,

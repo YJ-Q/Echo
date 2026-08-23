@@ -1,4 +1,4 @@
-import { ACTOR_TYPES, EVENT_TYPES, SURFACE_KINDS } from './contractTypes.js';
+import { ACTOR_TYPES, CONTRACT_VERSION, EVENT_TYPES, SURFACE_KINDS } from './contractTypes.js';
 import { deepFreeze } from './validation.js';
 
 const EVENT_TYPE_BY_EVIDENCE = new Map([
@@ -25,7 +25,7 @@ const EVENT_TYPE_BY_EVIDENCE = new Map([
 
 const AGGREGATE_TYPES = Object.freeze({
   workstream: 'workstream', run: 'run', artifact: 'artifact', checkpoint: 'checkpoint',
-  decision: 'decision', needs_owner: 'needsOwner'
+  decision: 'decision', needs_owner: 'needs_owner'
 });
 
 const ACTIVITY_MESSAGES = Object.freeze({
@@ -71,9 +71,10 @@ function safeAuditMetadata(value) {
 
 function safeActor(row) {
   const metadata = safeAuditMetadata(row.audit_metadata);
+  const type = ACTOR_TYPES.includes(row.audit_actor_type) ? row.audit_actor_type : null;
   return {
-    type: ACTOR_TYPES.includes(row.audit_actor_type) ? row.audit_actor_type : null,
-    subjectId: safeString(metadata.actorSubjectId, 200)
+    type,
+    subjectId: type ? safeString(metadata.actorSubjectId, 200) : null
   };
 }
 
@@ -104,31 +105,40 @@ export function toEventEnvelope(row) {
   if (!eventType || !aggregateType || !Number.isInteger(cursor) || cursor < 1 || !eventId || !aggregateId ||
     !Number.isInteger(row?.entity_version) || row.entity_version < 1 || !occurredAt) return null;
 
+  const summary = ACTIVITY_MESSAGES[eventType];
   const correlationId = safeString(payload.correlationId, 200);
   const surfaceKind = SURFACE_KINDS.includes(payload.surfaceKind) ? payload.surfaceKind : null;
   return deepFreeze({
     cursor,
     eventId,
-    type: eventType,
+    eventType,
+    aggregateType,
+    aggregateId,
+    aggregateVersion: row.entity_version,
     workstreamId,
-    aggregate: { type: aggregateType, id: aggregateId, version: row.entity_version },
+    runId: aggregateType === 'run' ? aggregateId : null,
+    occurredAt,
     actor: safeActor(row),
-    correlationId,
-    surface: surfaceKind ? { kind: surfaceKind } : null,
-    occurredAt
+    source: { kind: 'application', surfaceKind, runtimeReference: null, correlationId },
+    summary,
+    data: {},
+    contractVersion: CONTRACT_VERSION
   });
 }
 
 /** Derives Activity strictly from an already safe Event Envelope. */
 export function toActivityDTO(envelope) {
-  if (!envelope || !ACTIVITY_MESSAGES[envelope.type]) return null;
+  if (!envelope || !ACTIVITY_MESSAGES[envelope.eventType]) return null;
   return deepFreeze({
     cursor: envelope.cursor,
-    eventId: envelope.eventId,
-    type: envelope.type,
+    type: envelope.eventType,
     workstreamId: envelope.workstreamId,
-    aggregate: { ...envelope.aggregate },
+    runId: envelope.runId,
+    title: ACTIVITY_MESSAGES[envelope.eventType],
+    summary: envelope.summary,
+    status: null,
     occurredAt: envelope.occurredAt,
-    message: ACTIVITY_MESSAGES[envelope.type]
+    artifactReference: null,
+    needsOwnerId: envelope.aggregateType === 'needs_owner' ? envelope.aggregateId : null
   });
 }
