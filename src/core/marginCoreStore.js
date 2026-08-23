@@ -89,6 +89,10 @@ export async function openMarginCoreStore({
       "SELECT * FROM margin_projects WHERE scenario = ? AND status = 'active' AND deleted_at IS NULL ORDER BY updated_at DESC, id ASC LIMIT 1",
       scenario
     ),
+    findActiveTaskByProject: (projectId) => db.get(
+      "SELECT * FROM margin_tasks WHERE project_id = ? AND status = 'active' AND deleted_at IS NULL ORDER BY updated_at DESC, id ASC LIMIT 1",
+      projectId
+    ),
     getTask: (id) => db.get('SELECT * FROM margin_tasks WHERE id = ?', id),
     async getContinuitySnapshot({ projectId, query, asOf, memoryTopK = 5, recentDialogue = [] } = {}) {
       if (!projectId || typeof query !== 'string' || !asOf) {

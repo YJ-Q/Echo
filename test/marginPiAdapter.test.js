@@ -113,6 +113,34 @@ test('rejects a model project id outside the host-selected project', async () =>
   assert.deepEqual(results, [{ toolName: 'memory_search', code: 'cross_project_reference', auditId: undefined }]);
 });
 
+test('reports the proposed memory identifier and version for host confirmation', async () => {
+  const results = [];
+  const registered = await registerAdapter({
+    tools: {
+      memory_search: async () => ({ ok: true, data: { items: [] }, auditId: 'audit-search' }),
+      memory_propose: async () => ({
+        ok: true,
+        data: { memory: { id: 'memory-visible', version: 1 }, confirmationRequired: true },
+        auditId: 'audit-propose'
+      }),
+      state_update: async () => ({ ok: true, data: {}, auditId: 'audit-state' }),
+      action_update: async () => ({ ok: true, data: {}, auditId: 'audit-action' })
+    },
+    getInvocationContext: async () => ({ actorType: 'agent', projectId: 'project-1', permissions: { memoryWrite: true }, sourceSessionId: 'session-1' }),
+    onToolResult: (result) => results.push(result)
+  });
+
+  await registered.find((tool) => tool.name === 'memory_propose').execute('call-propose', {
+    requestId: 'request-1', projectId: 'project-1', content: '长期维护投递记录', memoryType: 'preference',
+    confidence: 0.9, validFrom: '2026-08-23T00:00:00.000Z', durableIntent: true
+  });
+
+  assert.deepEqual(results, [{
+    toolName: 'memory_propose', code: 'allowed', auditId: 'audit-propose',
+    entityId: 'memory-visible', entityVersion: 1, confirmationRequired: true
+  }]);
+});
+
 test('converts stable Core successes and errors to Pi results', () => {
   const success = toPiToolResult({ ok: true, data: { id: 'memory-1' }, auditId: 'audit-success' });
   const failure = toPiToolResult({ ok: false, error: { code: 'permission_denied', retryable: false }, auditId: 'audit-failure' });

@@ -90,8 +90,14 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult 
         permissions: trusted.permissions,
         confirmations: trusted.confirmations ?? []
       } : { actorType: 'agent', permissions: {}, confirmations: [] };
-      const result = toPiToolResult(await handler(input, context));
-      onToolResult?.({ toolName, code: result.details.code, auditId: result.details.auditId });
+      const coreResult = await handler(input, context);
+      const result = toPiToolResult(coreResult);
+      const entity = coreResult?.data?.memory;
+      onToolResult?.({
+        toolName, code: result.details.code, auditId: result.details.auditId,
+        ...(entity?.id ? { entityId: entity.id, entityVersion: entity.version } : {}),
+        ...(coreResult?.data?.confirmationRequired === true ? { confirmationRequired: true } : {})
+      });
       return result;
     } catch {
       const failed = errorResult('adapter_execution_failed');

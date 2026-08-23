@@ -2,16 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function fixture({ discoverExisting = false } = {}) {
-  const calls = { created: 0, sessions: [], saved: null, queries: [] };
+function fixture({ discoverExisting = false, activeTask = true } = {}) {
+  const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [] };
   const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'active' };
   const snapshot = { project, activeTask: { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' }, decisions: [], memories: [], recentDialogue: [] };
   const core = {
     store: {
       async getProject(id) { return id === project.id ? project : null; },
       async findActiveProjectByScenario() { return discoverExisting ? project : null; },
+      async findActiveTaskByProject() { return activeTask ? snapshot.activeTask : null; },
       async createProject() { calls.created += 1; return project; },
-      async createTask() { return snapshot.activeTask; },
+      async createTask() { calls.taskCreated += 1; return snapshot.activeTask; },
       async getContinuitySnapshot(input) { calls.queries.push(input); return snapshot; },
       db: { async all() { return [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }]; } }
     },
@@ -53,6 +54,15 @@ test('controller discovers an existing pilot project when the registry is missin
   assert.equal(f.calls.saved, 'project-1');
 });
 
+test('controller repairs a discovered pilot project whose initial task was not committed', async () => {
+  const f = fixture({ discoverExisting: true, activeTask: false });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  assert.equal(f.calls.created, 0);
+  assert.equal(f.calls.taskCreated, 1);
+  assert.equal(f.calls.saved, 'project-1');
+});
+
 test('/new creates a distinct session while state and memory remain model-free', async () => {
   const f = fixture();
   const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
@@ -77,6 +87,29 @@ test('/confirm-memory uses the host confirmation path', async () => {
   assert.equal(result.code, 'memory_confirmed');
   assert.equal(f.calls.confirmed.input.memoryId, 'memory-1');
   assert.equal(f.calls.confirmed.context.trustedConfirmation.actorType, 'user');
+});
+
+test('natural-language memory proposal exposes the host confirmation coordinates', async () => {
+  const f = fixture();
+  f.runtime.createSession = async () => ({
+    id: 'session-memory',
+    async send() {
+      return {
+        text: '我已提出候选记忆。', resultCodes: ['allowed'],
+        toolResults: [{ toolName: 'memory_propose', code: 'allowed', auditId: 'audit-propose', entityId: 'memory-7', entityVersion: 1, confirmationRequired: true }]
+      };
+    },
+    async close() {}
+  });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  const proposed = await controller.handle('请记住我需要长期维护投递记录');
+  assert.match(proposed.text, /memory-7/);
+  assert.match(proposed.text, /v1/);
+  assert.match(proposed.text, /需确认/);
+  assert.deepEqual(proposed.trace.toolResults[0], {
+    toolName: 'memory_propose', code: 'allowed', auditId: 'audit-propose', entityId: 'memory-7', entityVersion: 1, confirmationRequired: true
+  });
 });
 
 test('/exit closes exactly once and provider failure is sanitized', async () => {

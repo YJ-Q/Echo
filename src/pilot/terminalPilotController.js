@@ -75,10 +75,13 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (!project || project.status !== 'active') {
       const input = { scenario: 'career_project', goal: GOAL, phase: 'pilot', status: 'active' };
       project = await core.store.createProject(input, evidence(idFactory, session.id, 'create_project', input));
+    }
+    const activeTask = await core.store.findActiveTaskByProject?.(project.id);
+    if (!activeTask) {
       const task = { projectId: project.id, title: '推进简历投递', currentStep: '记录下一次投递', blocker: null, completionCondition: '投递记录已更新', status: 'active' };
       await core.store.createTask(task, evidence(idFactory, session.id, 'create_task', task));
-      await registry.save(project.id);
     }
+    await registry.save(project.id);
     return { projectId: project.id, sessionId: session.id };
   }
 
@@ -86,15 +89,18 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     try {
       const { plan } = await planned(message);
       const response = await session.send({ context: plan, message });
-      const confirmations = (response?.toolResults ?? []).map((item) =>
-        `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}]`
-      );
+      const confirmations = (response?.toolResults ?? []).map((item) => {
+        const entity = item.entityId ? ` entity=${item.entityId}${item.entityVersion ? ` v${item.entityVersion}` : ''}` : '';
+        const confirmation = item.confirmationRequired ? ' 需确认' : '';
+        return `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}${entity}${confirmation}]`;
+      });
       return {
         kind: 'message', text: [response?.text ?? '', ...confirmations].filter(Boolean).join('\n'), sessionId: session.id,
         trace: {
           sessionId: session.id, projectId: project.id, contextDigest: plan.digest,
           resultCodes: response?.resultCodes ?? [],
-          toolResults: (response?.toolResults ?? []).map(({ toolName, code, auditId }) => ({ toolName, code, auditId }))
+          toolResults: (response?.toolResults ?? []).map(({ toolName, code, auditId, entityId, entityVersion, confirmationRequired }) =>
+            ({ toolName, code, auditId, entityId, entityVersion, confirmationRequired }))
         }
       };
     } catch (error) {
