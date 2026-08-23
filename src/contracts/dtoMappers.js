@@ -1,4 +1,4 @@
-import { ContractValidationError, deepFreeze } from './validation.js';
+import { boundedJsonClone, ContractValidationError, deepFreeze } from './validation.js';
 import { NEEDS_OWNER_STATUSES, NEEDS_OWNER_TYPES, RUN_STATUSES, WORKER_KINDS, WORKSTREAM_STATUSES } from './contractTypes.js';
 
 const storageFailure = (message) => new ContractValidationError('storage_failure', message);
@@ -72,14 +72,14 @@ export function toCheckpointDTO(row) {
 
 function toRunSummaryDTO(row) { const dto = toRunDTO(row); return { id: dto.id, status: dto.status, version: dto.version, runtimeReference: dto.runtimeReference }; }
 function parse(value, label) { if (typeof value !== 'string') return value; try { return JSON.parse(value); } catch { throw storageFailure(`Malformed persisted ${label}`); } }
-function jsonArray(value, label) { const parsed = parse(value, label); if (!Array.isArray(parsed) || parsed.some((item) => !safe(item))) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
+function clonePersistedJson(value, label) { try { return boundedJsonClone(value, label); } catch { throw storageFailure(`Invalid persisted ${label}`); } }
+function jsonArray(value, label) { const parsed = clonePersistedJson(parse(value, label), label); if (!Array.isArray(parsed)) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
 function jsonStringArray(value, label, max = 20) { const parsed = jsonArray(value, label); if (parsed.length > max || parsed.some((item) => typeof item !== 'string' || !item.trim() || item.length > 2_000)) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
-function jsonObject(value, label) { const parsed = parse(value, label); if (!plain(parsed) || !safe(parsed) || Buffer.byteLength(JSON.stringify(parsed)) > 16_384) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
-function jsonNullable(value, label) { if (value === undefined || value === null) return null; const parsed = parse(value, label); if (!safe(parsed)) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
+function jsonObject(value, label) { const parsed = parse(value, label); if (!plain(parsed)) throw storageFailure(`Invalid persisted ${label}`); return clonePersistedJson(parsed, label); }
+function jsonNullable(value, label) { if (value === undefined || value === null) return null; return clonePersistedJson(parse(value, label), label); }
 function string(value, label) { if (typeof value !== 'string' || !value.trim()) throw storageFailure(`Invalid persisted ${label}`); return value; }
 function nullableString(value) { return value === undefined || value === null ? null : string(value, 'string'); }
 function integer(value, label) { if (!Number.isInteger(value) || value < 0) throw storageFailure(`Invalid persisted ${label}`); return value; }
 function nullableInteger(value, label) { return value === undefined || value === null ? null : integer(value, label); }
 function enumValue(value, allowed, label) { if (!allowed.includes(value)) throw storageFailure(`Invalid persisted ${label}`); return value; }
 function plain(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return false; const prototype = Object.getPrototypeOf(value); return prototype === Object.prototype || prototype === null; }
-function safe(value) { if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return true; if (Array.isArray(value)) return value.every(safe); return plain(value) && Object.entries(value).every(([key, child]) => !key.includes('_') && !['chainOfThought', 'reasoning', 'prompt', 'apiKey', 'sessionObject', 'runtime', 'runtimeSessionId', 'sourceSessionId', 'hostAuthority', 'stack'].includes(key) && safe(child)); }

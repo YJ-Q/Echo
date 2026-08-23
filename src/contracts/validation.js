@@ -5,6 +5,8 @@ import {
 
 const MAX_STRING = 2_000;
 const MAX_METADATA_BYTES = 16_384;
+const MAX_JSON_DEPTH = 8;
+const MAX_JSON_ITEMS = 100;
 
 export class ContractValidationError extends Error {
   constructor(code, message) { super(message); this.name = 'ContractValidationError'; this.code = code; }
@@ -37,14 +39,18 @@ export function boundedStringArray(value, label, max = 20) {
   return value;
 }
 export function boundedJsonObject(value, label, maxBytes = MAX_METADATA_BYTES) {
-  if (!isPlainObject(value) || !isSafeJson(value)) throw invalid(`${label} must be a bounded JSON object`);
+  if (!isPlainObject(value)) throw invalid(`${label} must be a bounded JSON object`);
+  return boundedJsonClone(value, label, maxBytes);
+}
+export function boundedJsonClone(value, label, maxBytes = MAX_METADATA_BYTES) {
+  if (!isSafeJson(value, 0, { items: 0 })) throw invalid(`${label} must be bounded JSON`);
   try {
     if (Buffer.byteLength(JSON.stringify(value)) > maxBytes) throw invalid(`${label} must be a bounded JSON object`);
   } catch (error) {
     if (error instanceof ContractValidationError) throw error;
     throw invalid(`${label} must be a bounded JSON object`);
   }
-  return value;
+  return cloneJson(value);
 }
 
 export function validateInvocationContext(context) {
@@ -58,34 +64,32 @@ export function validateInvocationContext(context) {
   requireString(context.requestId, 'requestId');
   requireString(context.correlationId, 'correlationId');
   boundedStringArray(context.capabilities, 'capabilities', 50);
-  return context;
+  return freezeContext(context);
 }
 
 export function validateCommand(command, context) {
-  validateInvocationContext(context);
+  const normalizedContext = validateInvocationContext(context);
   const base = assertClosedObject(command, ['type', 'requestId', 'idempotencyKey', 'expectedVersion', 'payload'], 'command');
   requireEnum(base.type, COMMAND_TYPES, 'command.type');
   requireString(base.requestId, 'command.requestId');
-  if (base.requestId !== context.requestId) throw invalid('requestId must match context');
+  if (base.requestId !== normalizedContext.requestId) throw invalid('requestId must match context');
   requireString(base.idempotencyKey, 'idempotencyKey');
   if (!isPlainObject(base.payload)) throw invalid('command.payload must be an object');
   COMMAND_VALIDATORS[base.type](base);
-  return command;
+  return deepFreeze(cloneJson(command));
 }
 
 export function validateQuery(query, context) {
-  validateInvocationContext(context);
-  return validateRequest(query, context, QUERY_TYPES, QUERY_VALIDATORS, 'query');
+  return validateRequest(query, validateInvocationContext(context), QUERY_TYPES, QUERY_VALIDATORS, 'query');
 }
 
 export function validateEventQuery(query, context) {
-  validateInvocationContext(context);
-  return validateRequest(query, context, EVENT_QUERY_TYPES, EVENT_QUERY_VALIDATORS, 'event query');
+  return validateRequest(query, validateInvocationContext(context), EVENT_QUERY_TYPES, EVENT_QUERY_VALIDATORS, 'event query');
 }
 
 export function validateContractOutput(output) {
   scanOutput(output);
-  return deepFreeze(output);
+  return deepFreeze(cloneJson(output));
 }
 
 function validateRequest(request, context, types, validators, label) {
@@ -94,13 +98,13 @@ function validateRequest(request, context, types, validators, label) {
   requireString(base.requestId, `${label}.requestId`);
   if (base.requestId !== context.requestId) throw invalid('requestId must match context');
   validators[base.type](base.payload);
-  return request;
+  return deepFreeze(cloneJson(request));
 }
 
 function mutation(base, payloadKeys, validator, requiresVersion = false) {
   assertClosedObject(base.payload, payloadKeys, `${base.type}.payload`);
   if (requiresVersion) requireInteger(base.expectedVersion, 'expectedVersion', { min: 1 });
-  else if (base.expectedVersion !== undefined) requireInteger(base.expectedVersion, 'expectedVersion', { min: 1 });
+  else if (base.expectedVersion !== undefined) throw invalid('expectedVersion is not supported for this command');
   validator(base.payload);
 }
 const requiredId = (value, label) => requireString(value, label, 200);
@@ -134,7 +138,7 @@ const COMMAND_VALIDATORS = Object.freeze({
   'run.pause': (base) => mutation(base, ['runId'], (p) => requiredId(p.runId, 'runId'), true),
   'run.resume': (base) => mutation(base, ['runId'], (p) => requiredId(p.runId, 'runId'), true),
   'run.stop': (base) => mutation(base, ['runId'], (p) => requiredId(p.runId, 'runId'), true),
-  'checkpoint.create': (base) => mutation(base, ['workstreamId', 'runId', 'runVersion', 'stateVersion', 'stateDigest', 'gitRef', 'note'], (p) => { requiredId(p.workstreamId, 'workstreamId'); optionalId(p.runId, 'runId'); if (p.runVersion !== undefined) requireInteger(p.runVersion, 'runVersion', { min: 1 }); requireInteger(p.stateVersion, 'stateVersion', { min: 0 }); requireString(p.stateDigest, 'stateDigest'); optionalString(p.gitRef, 'gitRef'); optionalString(p.note, 'note'); }),
+  'checkpoint.create': (base) => mutation(base, ['workstreamId', 'runId', 'runVersion', 'stateVersion', 'stateDigest', 'gitRef', 'note'], (p) => { requiredId(p.workstreamId, 'workstreamId'); optionalId(p.runId, 'runId'); if (p.runId !== undefined && p.runId !== null) requireInteger(p.runVersion, 'runVersion', { min: 1 }); else if (p.runVersion !== undefined) requireInteger(p.runVersion, 'runVersion', { min: 1 }); requireInteger(p.stateVersion, 'stateVersion', { min: 0 }); requireString(p.stateDigest, 'stateDigest'); optionalString(p.gitRef, 'gitRef'); optionalString(p.note, 'note'); }),
   'artifact.create': (base) => mutation(base, ['workstreamId', 'runId', 'type', 'title', 'resourceReference', 'metadata', 'previewMetadata'], (p) => { requiredId(p.workstreamId, 'workstreamId'); optionalId(p.runId, 'runId'); requireString(p.type, 'type'); requireString(p.title, 'title'); resourceReference(p.resourceReference); metadata(p.metadata, 'metadata'); metadata(p.previewMetadata, 'previewMetadata'); }),
   'needs_owner.create': (base) => mutation(base, ['workstreamId', 'runId', 'type', 'reason', 'options', 'consequenceSummary', 'contextSummary'], (p) => { requiredId(p.workstreamId, 'workstreamId'); optionalId(p.runId, 'runId'); requireEnum(p.type, NEEDS_OWNER_TYPES, 'type'); requireString(p.reason, 'reason'); if (!Array.isArray(p.options) || p.options.length > 10) throw invalid('options must be bounded'); p.options.forEach((o) => { assertClosedObject(o, ['id', 'label', 'consequenceSummary'], 'option'); requiredId(o.id, 'option.id'); requireString(o.label, 'option.label'); optionalString(o.consequenceSummary, 'option.consequenceSummary'); }); optionalString(p.consequenceSummary, 'consequenceSummary'); optionalString(p.contextSummary, 'contextSummary'); }),
   'needs_owner.resolve': (base) => mutation(base, ['needsOwnerId', 'optionId', 'resolutionSummary'], (p) => { requiredId(p.needsOwnerId, 'needsOwnerId'); optionalId(p.optionId, 'optionId'); optionalString(p.resolutionSummary, 'resolutionSummary'); }, true)
@@ -168,5 +172,11 @@ function scanOutput(value, key = '') {
 }
 export function deepFreeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(deepFreeze); Object.freeze(value); } return value; }
 function isPlainObject(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return false; const prototype = Object.getPrototypeOf(value); return prototype === Object.prototype || prototype === null; }
-function isSafeJson(value) { if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return true; if (Array.isArray(value)) return value.every(isSafeJson); return isPlainObject(value) && Object.entries(value).every(([key, child]) => !isForbiddenKey(key) && isSafeJson(child)); }
-function isForbiddenKey(key) { return key.includes('_') || ['chainOfThought', 'reasoning', 'prompt', 'apiKey', 'sessionObject', 'runtime', 'runtimeSessionId', 'sourceSessionId', 'hostAuthority', 'stack'].includes(key); }
+function isSafeJson(value, depth = 0, budget = { items: 0 }) { if (value === null || typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) return true; if (depth >= MAX_JSON_DEPTH) return false; if (Array.isArray(value)) { if (value.length > MAX_JSON_ITEMS || (budget.items += value.length) > MAX_JSON_ITEMS) return false; return value.every((child) => isSafeJson(child, depth + 1, budget)); } if (!isPlainObject(value) || Object.keys(value).length > MAX_JSON_ITEMS || (budget.items += Object.keys(value).length) > MAX_JSON_ITEMS) return false; return Object.entries(value).every(([key, child]) => !isForbiddenKey(key) && isSafeJson(child, depth + 1, budget)); }
+function isForbiddenKey(key) { const normalized = key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(); return key.includes('_') || ['chainofthought', 'reasoning', 'prompt', 'apikey', 'credential', 'credentials', 'accesstoken', 'password', 'token', 'sessionobject', 'runtime', 'runtimesessionid', 'sourcesessionid', 'hostauthority', 'stack'].includes(normalized); }
+function cloneJson(value) { if (value === null || typeof value !== 'object') return value; if (Array.isArray(value)) return value.map(cloneJson); return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneJson(child)])); }
+function freezeContext(context) {
+  const normalized = cloneJson({ actor: context.actor, surface: context.surface, requestId: context.requestId, correlationId: context.correlationId, capabilities: context.capabilities });
+  for (const symbol of Object.getOwnPropertySymbols(context)) Object.defineProperty(normalized, symbol, Object.getOwnPropertyDescriptor(context, symbol));
+  return deepFreeze(normalized);
+}

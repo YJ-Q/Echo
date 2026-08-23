@@ -27,7 +27,17 @@ const context = {
 const hasCode = (code) => (error) => error?.code === code;
 
 test('InvocationContext is closed and requires matching stable identity fields', () => {
-  assert.deepEqual(validateInvocationContext(context), context);
+  const authority = Symbol('trusted-host-authority');
+  const input = { ...context, hostAuthority: 'forged-json-field' };
+  Object.defineProperty(input, authority, { value: { trusted: true } });
+  const normalized = validateInvocationContext(input);
+  assert.deepEqual(normalized.actor, context.actor);
+  assert.notEqual(normalized, input);
+  assert.notEqual(normalized.actor, input.actor);
+  assert.equal(Object.isFrozen(normalized), true);
+  assert.equal(Object.isFrozen(normalized.actor), true);
+  assert.equal(normalized[authority], input[authority]);
+  assert.equal('hostAuthority' in normalized, false);
   assert.throws(() => validateInvocationContext({ ...context, extra: true }), hasCode('invalid_request'));
   assert.throws(() => validateInvocationContext({ ...context, actor: { type: 'user' } }), hasCode('invalid_request'));
   assert.throws(() => validateInvocationContext({ ...context, surface: { kind: 'unknown' } }), hasCode('invalid_request'));
@@ -38,7 +48,11 @@ test('command validators reject unknown keys and mismatched request identity', (
     type: 'run.pause', requestId: 'request-1', idempotencyKey: 'retry-1', expectedVersion: 2,
     payload: { runId: 'run-1' }
   };
-  assert.deepEqual(validateCommand(valid, context), valid);
+  const normalized = validateCommand(valid, context);
+  assert.deepEqual(normalized, valid);
+  assert.notEqual(normalized, valid);
+  assert.notEqual(normalized.payload, valid.payload);
+  assert.equal(Object.isFrozen(normalized), true);
   assert.throws(() => validateCommand({ ...valid, payload: { runId: 'run-1', runtimeSessionId: 'pi-1' } }, context), hasCode('invalid_request'));
   assert.throws(() => validateCommand({ ...valid, requestId: 'different' }, context), hasCode('invalid_request'));
   assert.throws(() => validateCommand({ ...valid, idempotencyKey: '' }, context), hasCode('invalid_request'));
@@ -64,9 +78,29 @@ test('command validators bound list and metadata payloads', () => {
     payload: { ...command.payload, metadata: { value: 1n } }
   }, context), hasCode('invalid_request'));
   assert.throws(() => validateCommand({
+    ...command,
+    payload: { ...command.payload, metadata: { nested: Array.from({ length: 80 }, () => Array(80).fill(0)) } }
+  }, context), hasCode('invalid_request'));
+  for (const key of ['credentials', 'access-token', 'PASSWORD', 'token']) {
+    assert.throws(() => validateCommand({
+      ...command,
+      payload: { ...command.payload, metadata: { nested: { [key]: 'secret' } } }
+    }, context), hasCode('invalid_request'));
+  }
+  assert.throws(() => validateCommand({
     type: 'run.create', requestId: 'request-1', idempotencyKey: 'run-1',
     payload: { workstreamId: 'workstream-1', workerKind: 'pi', scope: 'work', allowedActions: Array(21).fill('read') }
   }, context), hasCode('invalid_request'));
+});
+
+test('checkpoint create uses state and run versions rather than expectedVersion', () => {
+  const command = {
+    type: 'checkpoint.create', requestId: 'request-1', idempotencyKey: 'checkpoint-1',
+    payload: { workstreamId: 'workstream-1', runId: 'run-1', runVersion: 2, stateVersion: 3, stateDigest: 'digest' }
+  };
+  assert.deepEqual(validateCommand(command, context), command);
+  assert.throws(() => validateCommand({ ...command, payload: { ...command.payload, runVersion: undefined } }, context), hasCode('invalid_request'));
+  assert.throws(() => validateCommand({ ...command, expectedVersion: 2 }, context), hasCode('invalid_request'));
 });
 
 test('query and event query validators require integer bounded cursors and limits', () => {
@@ -133,6 +167,16 @@ test('malformed persisted JSON is storage_failure and unsafe output is rejected'
   assert.throws(() => toArtifactDTO({ id: 'artifact-1', workstream_id: 'w-1', run_id: null, type: 'report', title: 'Report', uri: 'margin://artifact/1', content_hash: 'hash', created_by: 'agent', metadata: '{"apiKey":"secret"}', preview_metadata: '{}', version: 1 }), (error) => error?.code === 'storage_failure');
   assert.throws(() => toArtifactDTO({ id: 'artifact-1', workstream_id: 'w-1', run_id: null, type: 'report', title: 'Report', uri: 'margin://artifact/1', content_hash: 'hash', created_by: 'agent', metadata: '{"runtime":{"session":"pi-private"}}', preview_metadata: '{}', version: 1 }), (error) => error?.code === 'storage_failure');
   assert.throws(() => toArtifactDTO({ id: 'artifact-1', workstream_id: 'w-1', run_id: null, type: 'report', title: 'Report', uri: 'margin://artifact/1', content_hash: 'hash', created_by: 'agent', metadata: '{"hostAuthority":"serialized"}', preview_metadata: '{}', version: 1 }), (error) => error?.code === 'storage_failure');
+  for (const key of ['credentials', 'access_token', 'Password', 'TOKEN']) {
+    assert.throws(() => toArtifactDTO({ id: 'artifact-1', workstream_id: 'w-1', run_id: null, type: 'report', title: 'Report', uri: 'margin://artifact/1', content_hash: 'hash', created_by: 'agent', metadata: JSON.stringify({ nested: { [key]: 'secret' } }), preview_metadata: '{}', version: 1 }), (error) => error?.code === 'storage_failure');
+  }
+  const row = { id: 'run-1', workstream_id: 'w-1', runtime_kind: 'pi', status: 'queued', allowed_actions: [], forbidden_actions: [], result: { summary: 'safe' }, validation: { items: [] }, error: { code: 'none' }, version: 1 };
+  const run = toRunDTO(row);
+  assert.notEqual(run.result, row.result);
+  assert.equal(Object.isFrozen(row.result), false);
+  assert.throws(() => toRunDTO({ ...row, result: { nested: { token: 'secret' } } }), (error) => error?.code === 'storage_failure');
+  assert.throws(() => toRunDTO({ ...row, validation: Array.from({ length: 9 }, (_, index) => index).reduceRight((value, index) => ({ index, value }), {}) }), (error) => error?.code === 'storage_failure');
+  assert.throws(() => toRunDTO({ ...row, error: Buffer.from('runtime') }), (error) => error?.code === 'storage_failure');
   assert.throws(() => validateContractOutput({ data: { apiKey: 'secret' } }), hasCode('invalid_request'));
   assert.throws(() => validateContractOutput({ data: { stack: 'private stack', runtime: { session: 'pi-private' } } }), hasCode('invalid_request'));
   assert.throws(() => validateContractOutput({ data: { nested_value: 'x' } }), hasCode('invalid_request'));
