@@ -118,6 +118,9 @@ git commit -m "merge: establish phase2a persistent core baseline"
 - Delete: `docs/gemini-design-preview.html`
 - Delete: `docs/gemini-design-preview.png`
 - Delete: `docs/margin-component-ui-spec.html`
+- Delete: `docs/MARGIN_DESIGN_LANGUAGE.md`
+- Delete: `docs/PRODUCT_POSITIONING_V2.md`
+- Delete: `docs/VOICE_AND_GUARDRAILS.md`
 - Modify: `test/v1IntegrationBoundary.test.js`
 
 **Interfaces:**
