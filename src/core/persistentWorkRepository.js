@@ -76,7 +76,8 @@ export function createPersistentWorkRepository(store) {
       command: operation,
       status: status ?? null,
       correlationId: metadata.correlationId,
-      surfaceKind: metadata.surfaceKind
+      surfaceKind: metadata.surfaceKind,
+      auditId
     });
     await tx.run(
       `INSERT INTO margin_events
@@ -371,12 +372,21 @@ export function createPersistentWorkRepository(store) {
       const filters = ['c.sequence>?']; const values = [afterCursor];
       if (workstreamId) { filters.push('e.project_id=?'); values.push(workstreamId); }
       const rows = await store.db.all(
-        `SELECT c.sequence,c.event_id,e.* FROM margin_event_cursors c JOIN margin_events e ON e.id=c.event_id
+        `SELECT c.sequence,c.event_id,e.*,
+           (SELECT a.actor_type FROM margin_audit_log a
+            WHERE a.id=(CASE WHEN json_valid(e.payload) THEN json_extract(e.payload,'$.auditId') END) AND a.result_code='allowed') AS audit_actor_type,
+           (SELECT a.metadata FROM margin_audit_log a
+            WHERE a.id=(CASE WHEN json_valid(e.payload) THEN json_extract(e.payload,'$.auditId') END) AND a.result_code='allowed') AS audit_metadata
+         FROM margin_event_cursors c JOIN margin_events e ON e.id=c.event_id
          WHERE ${filters.join(' AND ')} ORDER BY c.sequence ASC LIMIT ?`,
         ...values, limit + 1
       );
       const items = rows.slice(0, limit);
-      return { items, nextCursor: rows.length > limit && items.length ? items.at(-1).sequence : null };
+      return {
+        items,
+        nextCursor: items.length ? items.at(-1).sequence : afterCursor,
+        hasMore: rows.length > limit
+      };
     }
   };
 }

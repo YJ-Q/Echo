@@ -16,6 +16,7 @@ import {
   toRunDTO,
   toWorkstreamDTO
 } from '../contracts/dtoMappers.js';
+import { toActivityDTO, toEventEnvelope } from '../contracts/eventEnvelope.js';
 
 const COMMAND_CAPABILITIES = Object.freeze({
   'workstream.create': 'workstream:write',
@@ -205,10 +206,7 @@ export function createMarginApplicationContract({ services, repository, runtimeC
       return pageMap(await repository.listDecisions(input), toDecisionDTO);
     },
     'needs_owner.list': async (request) => pageMap(await services.needsOwner.list(request.payload), toNeedsOwnerDTO),
-    'activity.list': async (request) => {
-      if (!services.activity?.list) throw new CoreContractError('storage_failure', 'Activity mapper is not configured');
-      return services.activity.list(request.payload);
-    },
+    'activity.list': async (request) => activityPage(request.payload),
     'checkpoint.latest': async (request) => {
       const row = await services.checkpoints.latest(request.payload);
       return row ? toCheckpointDTO(row) : null;
@@ -239,9 +237,30 @@ export function createMarginApplicationContract({ services, repository, runtimeC
       const context = validateInvocationContext(rawContext);
       const request = validateEventQuery(rawRequest, context);
       requireCapability(context, 'event:read', authorizeContext, request.type);
-      if (!services.events?.list) throw new CoreContractError('storage_failure', 'Event mapper is not configured');
-      return success(await services.events.list(request.payload), context);
+      return success(await eventPage(request.payload), context);
     } catch (error) { return failure(error, rawContext, rawRequest); }
+  }
+
+  async function eventPage(payload) {
+    const page = await repository.listEventRows(payload);
+    const mapped = page.items.map(toEventEnvelope);
+    const items = mapped.filter((item) => item && (!payload.eventTypes || payload.eventTypes.includes(item.type)));
+    return {
+      items,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      diagnostics: { skippedUnknownEvents: mapped.filter((item) => item === null).length }
+    };
+  }
+
+  async function activityPage(payload) {
+    const page = await eventPage(payload);
+    return {
+      items: page.items.map(toActivityDTO),
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      diagnostics: page.diagnostics
+    };
   }
 
   return Object.freeze({ execute: dispatchMutation, query: dispatchQuery, events: dispatchEvents });
