@@ -101,6 +101,7 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult,
       }
       const input = {
         ...cleanParams,
+        requestId: trusted?.requestId ?? cleanParams.requestId ?? toolCallId,
         sourceSessionId: trusted?.sourceSessionId,
         sourceEventId: trusted?.sourceEventId ?? toolCallId
       };
