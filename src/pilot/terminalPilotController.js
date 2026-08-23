@@ -92,7 +92,10 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       const confirmations = (response?.toolResults ?? []).map((item) => {
         const entity = item.entityId ? ` entity=${item.entityId}${item.entityVersion ? ` v${item.entityVersion}` : ''}` : '';
         const confirmation = item.confirmationRequired ? ' 需确认' : '';
-        return `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}${entity}${confirmation}]`;
+        const requestShape = item.requestShape
+          ? ` request=${item.requestShape.operation ?? '-'} fields=${item.requestShape.fields.join(',')} changes=${item.requestShape.changeFields.join(',') || '-'}`
+          : '';
+        return `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}${entity}${confirmation}${requestShape}]`;
       });
       const failures = (response?.toolResults ?? []).filter((item) => item.code !== 'allowed');
       const writeWarning = failures.length
@@ -103,8 +106,8 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
         trace: {
           sessionId: session.id, projectId: project.id, contextDigest: plan.digest,
           resultCodes: response?.resultCodes ?? [],
-          toolResults: (response?.toolResults ?? []).map(({ toolName, code, auditId, entityId, entityVersion, confirmationRequired }) =>
-            ({ toolName, code, auditId, entityId, entityVersion, confirmationRequired }))
+          toolResults: (response?.toolResults ?? []).map(({ toolName, code, auditId, entityId, entityVersion, confirmationRequired, requestShape }) =>
+            ({ toolName, code, auditId, entityId, entityVersion, confirmationRequired, ...(requestShape ? { requestShape } : {}) }))
         }
       };
     } catch (error) {

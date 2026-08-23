@@ -51,6 +51,16 @@ function errorResult(code, auditId) {
   };
 }
 
+function contentFreeRequestShape(params = {}) {
+  return {
+    operation: params.operation ?? null,
+    fields: Object.keys(params).sort(),
+    changeFields: Object.keys(params.changes ?? {}).sort(),
+    hasTaskId: typeof params.taskId === 'string' && params.taskId.length > 0,
+    hasExpectedVersion: Number.isInteger(params.expectedVersion)
+  };
+}
+
 export function toPiToolResult(result) {
   const payload = result.ok
     ? { ok: true, data: result.data, auditId: result.auditId }
@@ -96,7 +106,8 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult,
       onToolResult?.({
         toolName, code: result.details.code, auditId: result.details.auditId,
         ...(entity?.id ? { entityId: entity.id, entityVersion: entity.version } : {}),
-        ...(coreResult?.data?.confirmationRequired === true ? { confirmationRequired: true } : {})
+        ...(coreResult?.data?.confirmationRequired === true ? { confirmationRequired: true } : {}),
+        ...(result.details.code !== 'allowed' ? { requestShape: contentFreeRequestShape(params) } : {})
       });
       return result;
     } catch {

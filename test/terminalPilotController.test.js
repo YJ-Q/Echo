@@ -68,7 +68,7 @@ test('controller makes partial write failures explicit even when assistant prose
         text: '状态已经全部更新。', resultCodes: ['allowed', 'invalid_request'],
         toolResults: [
           { toolName: 'action_update', code: 'allowed', auditId: 'audit-ok' },
-          { toolName: 'state_update', code: 'invalid_request', auditId: 'audit-failed' }
+          { toolName: 'state_update', code: 'invalid_request', auditId: 'audit-failed', requestShape: { operation: 'update_task', fields: ['changes'], changeFields: ['current_step'], hasTaskId: false, hasExpectedVersion: false } }
         ]
       };
     },
@@ -79,6 +79,8 @@ test('controller makes partial write failures explicit even when assistant prose
   const result = await controller.handle('更新进度');
   assert.match(result.text, /部分更新未写入/);
   assert.match(result.text, /state_update=invalid_request/);
+  assert.match(result.text, /update_task/);
+  assert.match(result.text, /current_step/);
 });
 
 test('controller discovers an existing pilot project when the registry is missing', async () => {

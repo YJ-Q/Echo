@@ -174,6 +174,29 @@ test('state tool description states operation-specific required fields', async (
   assert.match(description, /currentStep/);
 });
 
+test('reports a content-free request shape when a tool call is rejected', async () => {
+  const results = [];
+  const registered = await registerAdapter({
+    tools: {
+      ...Object.fromEntries(toolNames.map((name) => [name, async () => ({ ok: true, data: {} })])),
+      state_update: async () => ({ ok: false, error: { code: 'invalid_request' }, auditId: 'audit-invalid' })
+    },
+    getInvocationContext: async () => ({ actorType: 'agent', projectId: 'project-1', permissions: { stateWrite: true }, sourceSessionId: 'session-1' }),
+    onToolResult: (result) => results.push(result)
+  });
+
+  await registered.find((tool) => tool.name === 'state_update').execute('call-invalid', {
+    requestId: 'request-1', projectId: 'project-1', operation: 'update_task', taskId: 'task-1',
+    expectedVersion: 1, changes: { current_step: 'must-not-leak' }
+  });
+
+  assert.deepEqual(results[0].requestShape, {
+    operation: 'update_task', fields: ['changes', 'expectedVersion', 'operation', 'projectId', 'requestId', 'taskId'],
+    changeFields: ['current_step'], hasTaskId: true, hasExpectedVersion: true
+  });
+  assert.doesNotMatch(JSON.stringify(results[0]), /must-not-leak/);
+});
+
 test('converts stable Core successes and errors to Pi results', () => {
   const success = toPiToolResult({ ok: true, data: { id: 'memory-1' }, auditId: 'audit-success' });
   const failure = toPiToolResult({ ok: false, error: { code: 'permission_denied', retryable: false }, auditId: 'audit-failure' });
