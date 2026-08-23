@@ -7,7 +7,8 @@ import { openMarginCoreStore } from '../src/core/marginCoreStore.js';
 
 const TABLES = [
   'margin_schema_migrations', 'margin_projects', 'margin_tasks', 'margin_decisions',
-  'margin_memories', 'margin_memory_embeddings', 'margin_events', 'margin_actions', 'margin_audit_log'
+  'margin_memories', 'margin_memory_embeddings', 'margin_events', 'margin_actions', 'margin_audit_log',
+  'margin_runs', 'margin_artifacts', 'margin_checkpoints'
 ];
 
 test('migration creates exactly the additive Margin Core tables and preserves legacy tables', async (t) => {
@@ -26,7 +27,7 @@ test('migration is idempotent and checksum-bound', async (t) => {
   const fixture = await createMarginCoreTestDb();
   t.after(() => fixture.cleanup());
   await fixture.store.migrate();
-  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 2);
+  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 3);
   await fixture.store.db.run("UPDATE margin_schema_migrations SET checksum = 'drift' WHERE version = 1");
   await assert.rejects(fixture.store.migrate(), /checksum mismatch/u);
 });
@@ -36,7 +37,9 @@ test('foreign keys and one-active-task-per-project are enforced', async (t) => {
   t.after(() => fixture.cleanup());
   const now = '2026-08-20T00:00:00.000Z';
   await fixture.store.db.run(
-    'INSERT INTO margin_projects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    `INSERT INTO margin_projects
+     (id, scenario, goal, phase, status, version, source_session_id, source_event_id, created_at, updated_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     'p1', 'learning_research', 'goal', 'phase', 'active', 1, 's1', 'e1', now, now, null
   );
   const task = ['t1', 'p1', 'title', 'step', null, 'done', 'active', 1, 's1', 'e1', now, now, null];
