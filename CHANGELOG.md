@@ -6,6 +6,10 @@ All notable changes to Margin will be documented in this file.
 
 ### Added
 
+- transport-neutral Application Contract `1.0` with closed commands/queries, frozen DTOs, stable errors, capability checks, and host-bound Run control
+- additive Migration 004 for Workstream/Artifact contract fields, persistent NeedsOwner, and monotonic Event cursor allocation
+- safe Event Envelope and deterministic Activity projection over the canonical Event Log without an Activity table
+- real SQLite restart E2E coverage for the complete Phase 2A Workstream/Run/Artifact/Checkpoint/NeedsOwner lifecycle
 - pinned Pi SDK `@earendil-works/pi-coding-agent@0.84.2` and Node 22.23.1 development runtime contract
 - SHA256-verified Node runtime bootstrap and reproducible Pi installation audit
 - isolated Pi SDK spike for Session create/restore/fork, compaction, and one audit-only custom tool
@@ -24,6 +28,7 @@ All notable changes to Margin will be documented in this file.
 
 ### Changed
 
+- the terminal pilot now routes persistent Workstream, Run, and Checkpoint operations through the shared Application Contract
 - the compatibility Express runtime is API-only and no longer serves static frontend assets
 - the terminal client now consumes the unified Application Core and is the default entry point; the frozen Express/Echo API is explicitly deprecated
 - the test command uses the pinned Node 22.23.1 runtime so Pi tests are reproducible on Windows
@@ -49,6 +54,7 @@ All notable changes to Margin will be documented in this file.
 
 ### Verified
 
+- Phase 2A acceptance: `333/333` automated tests, Stage 1 fixture validation `10/10`, and Pi baseline audit passed on 2026-08-24; YAPI Live Pi was not rerun and remains a declared gap
 - real Pi SDK execution with `yapi/gpt-5.6-terra`: tool call, new Session, restore, fork parent relationship, and manual compaction
 - Stage 0 verification gate: `212/212` automated tests passed on 2026-08-20
 - Stage 1 fixture structure and manifest integrity are reproducibly validated; no model-performance or user-outcome result is implied

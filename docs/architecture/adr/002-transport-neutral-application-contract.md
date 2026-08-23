@@ -1,6 +1,6 @@
 # ADR 002：Transport-neutral Application Contract
 
-状态：Phase 2A 设计已确认，待规格审阅后实施。日期：2026-08-23。
+状态：已实施，并于 2026-08-24 通过 Phase 2A 验收。原始设计于 2026-08-23 确认。
 
 ## Context
 
@@ -65,3 +65,11 @@ cursor index 不是第二份 Event Log；它只把 sequence 映射到现有 even
 ## Deferred
 
 HTTP 认证、REST/GraphQL、SSE/WebSocket、飞书签名验证、Scheduler lease、Codex Worker、Workspace 文件能力、DayPlan/NightPlan 的正式模型均不在 Phase 2A。
+
+## Implementation evidence
+
+Phase 2A 最终实现保持本 ADR 的边界：`MarginApplicationContract` 是 Surface 的唯一持久业务入口，Application Services 与 `PersistentWorkRepository` 继续使用同一 SQLite，Contract 自身不保存 aggregate 或 cursor 状态。Migration 004 是唯一 schema 增量；CLI 的 Workstream、Run 与 Checkpoint 路径已迁移到 Gateway。
+
+真实重启验收覆盖 Workstream 创建、Run 创建/启动、Artifact、显式与暂停 checkpoint、NeedsOwner、暂停、关闭并重开同一数据库、恢复、解决 NeedsOwner、停止，以及 Event/Activity 读取。验收确认重启前后 ID、version 与 `runtimeReference` 一致，Event cursor 持久、唯一、严格递增，且数据库没有 Activity 表。完整证据见 `docs/validation/phase_2a_acceptance_report.md`。
+
+Phase 0/1 的历史边界不变：Pi Stage 0/1 的审计与 fixture 证据仍独立保留；Persistent Core、host-owned Run control、checkpoint 与 restart recovery 仍是 Phase 1 基线。Phase 2A 没有把 Live Pi、HTTP、Web、飞书、Scheduler 或 Worker 纳入实现范围。

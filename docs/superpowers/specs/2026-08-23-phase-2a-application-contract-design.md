@@ -1,6 +1,6 @@
 # Margin Phase 2A Application Contract Design
 
-状态：设计已确认，正式规格待用户审阅。日期：2026-08-23。
+状态：已实施并通过 Phase 2A 验收。设计日期：2026-08-23；验收日期：2026-08-24。
 
 ## 1. Scope and success criteria
 
@@ -554,3 +554,11 @@ Phase 2B 只在本 Contract 通过后开始：
 6. 不加入飞书、Scheduler、Workspace 编辑或多 Agent UI。
 
 Phase 2B 不得绕过 Gateway，不得在浏览器保存权威 Workstream/Run 状态。
+
+## 16. Implementation status
+
+本规格的 Phase 2A 范围已完成：Contract types/validation/DTO、Migration 004、Gateway commands/queries、Event cursor/Activity projection、CLI persistence migration 和真实 SQLite restart E2E 均已有可执行测试。最终实现没有新增 Command、DTO 字段、transport、Scheduler、Worker 或 UI。
+
+有一项实现层表达差异：`run.pause`/`run.stop` 自动产生的恢复 checkpoint 与 Run 状态和 `run.paused`/`run.stopped` 事件在同一 SQLite 事务中提交，不另外产生 `checkpoint.created`；显式 `checkpoint.create` 仍产生独立的 `checkpoint.created`。这避免把一个 Run transition 表达为两个可独立消费的业务动作，同时保留 checkpoint 的持久恢复语义。
+
+验收证据与已知风险记录在 `docs/validation/phase_2a_acceptance_report.md`。YAPI Live Pi 仍是明确的验证缺口；Stage 1 fixture validation 与 Pi baseline audit 不代表 Live 模型执行。
