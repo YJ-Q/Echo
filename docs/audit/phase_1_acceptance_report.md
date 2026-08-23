@@ -1,6 +1,6 @@
 # Phase 1 Acceptance Report
 
-Date: 2026-08-23
+Date: 2026-08-23  
 Scope: roadmap Tasks 1–5 only. Phase 2 was not started.
 
 ## Outcome

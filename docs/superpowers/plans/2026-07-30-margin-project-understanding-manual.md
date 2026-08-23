@@ -27,11 +27,11 @@
 
 ### 新增文件
 
-- `docs/project-understanding/MARGIN_PROJECT_UNDERSTANDING_GUIDE.zh.md`
+- `docs/project-understanding/MARGIN_PROJECT_UNDERSTANDING_GUIDE.zh.md`  
   主手册；负责产品层、策略层、系统地图、请求旅程、质量风险和演进路线。
-- `docs/project-understanding/CODE_READING_PATH.zh.md`
+- `docs/project-understanding/CODE_READING_PATH.zh.md`  
   代码阅读路线；负责按真实调用顺序引导读者阅读与运行测试。
-- `docs/project-understanding/SELF_CHECK.zh.md`
+- `docs/project-understanding/SELF_CHECK.zh.md`  
   自测题、参考答案和最终能力清单。
 - `docs/project-understanding/decisions/01-node-javascript.md`
 - `docs/project-understanding/decisions/02-express-api.md`
@@ -45,12 +45,12 @@
 - `docs/project-understanding/decisions/10-echo-compatibility.md`
 - `docs/project-understanding/decisions/11-testing-and-scenario-validation.md`
 - `docs/project-understanding/decisions/12-case-study-isolation.md`
-- `test/projectUnderstandingDocs.test.js`
+- `test/projectUnderstandingDocs.test.js`  
   文档合同测试；验证文件、章节、决策卡结构、链接和证据标签。
 
 ### 修改文件
 
-- `README.md`
+- `README.md`  
   增加中文项目理解手册入口，并修正过时的测试数量表述，避免写死易失效数字。
 
 ---
@@ -871,3 +871,4 @@ git status --short
 ```
 
 Expected: 测试全部 PASS；仅保留实施前已经存在的用户未提交内容。
+
