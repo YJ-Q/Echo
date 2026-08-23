@@ -16,6 +16,8 @@ All notable changes to Margin will be documented in this file.
 - governed `memory_search`, `memory_propose`, `state_update`, and `action_update` handlers with explicit permissions and confirmation gates
 - isolated Stage 3 continuity planner facade, four-tool Pi adapter, deterministic cross-session harness, and optional credential-gated live smoke command
 - terminal-first workspace cleanup decision, implementation plan, and auditable cleanup report
+- local interactive job-application continuity pilot with `/state`, `/memory`, `/new`, and `/exit`
+- runtime-neutral pilot controller and restricted Pi Session adapter
 
 ### Changed
 

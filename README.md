@@ -75,6 +75,20 @@ npm run spike:pi-continuity
 
 This command is the current terminal validation entry point, not a production chat client. It requires the configured model credential and keeps Pi's built-in high-risk tools disabled.
 
+## Interactive terminal pilot
+
+Start the local job-application continuity pilot after configuring the same provider variables used by the Pi smoke test:
+
+```powershell
+npm run pilot:terminal
+```
+
+Available commands are `/state`, `/memory`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session and asks it to resume the same local project.
+
+The pilot database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
+
+Pi is not the final runtime decision. This pilot gathers evidence before comparing Pi Agent, DeepSeek Harness, and the Codex open-source project under the same continuity scenario.
+
 ## Quick Start
 
 ```bash

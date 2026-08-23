@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { PassThrough } from 'node:stream';
 import test from 'node:test';
-import { runTerminalLoop, sanitizePilotReport } from '../scripts/run-terminal-pilot.js';
+import { runInteractiveLoop, runTerminalLoop, sanitizePilotReport } from '../scripts/run-terminal-pilot.js';
 
 test('terminal loop advertises local-only scope and closes on exit', async () => {
   const output = [];
@@ -27,4 +28,18 @@ test('sanitized report excludes prompts, credentials, and assistant text', () =>
   assert.doesNotMatch(JSON.stringify(report), /secret|private/);
   assert.equal(report.safety.localOnly, true);
   assert.equal(report.safety.builtinToolsDisabled, true);
+});
+
+test('interactive input is buffered while the controller is still starting', async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  input.end('/state\n/exit\n');
+  const seen = [];
+  const controllerPromise = new Promise((resolve) => setTimeout(() => resolve({
+    async start() { return { projectId: 'p', sessionId: 's' }; },
+    async handle(line) { seen.push(line); return { kind: line === '/exit' ? 'exit' : 'state', text: line }; },
+    async close() {}
+  }), 10));
+  await runInteractiveLoop({ controllerPromise, input, output });
+  assert.deepEqual(seen, ['/state', '/exit']);
 });

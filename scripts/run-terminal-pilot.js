@@ -41,6 +41,22 @@ export async function runTerminalLoop({ controller, lines, write }) {
   return evidence;
 }
 
+export async function runInteractiveLoop({ controllerPromise, input, output }) {
+  const readline = createInterface({ input, output, terminal: Boolean(input.isTTY) });
+  try {
+    const bufferedLines = input.isTTY ? null : (async () => {
+      const values = [];
+      for await (const line of readline) values.push(line);
+      return values;
+    })();
+    const controller = await controllerPromise;
+    const lines = bufferedLines ? await bufferedLines : readline;
+    return await runTerminalLoop({ controller, lines, write: (text) => output.write(`${text}\n`) });
+  } finally {
+    readline.close();
+  }
+}
+
 async function atomicJson(file, value) {
   const temporary = `${file}.${randomUUID()}.tmp`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -67,27 +83,27 @@ export async function main({ env = process.env, stdin = process.stdin, stdout = 
     stdout.write('pi_credentials_required\n');
     return 3;
   }
-  await mkdir(path.join(dataDir, 'agent'), { recursive: true });
-  const core = await createMarginCore({ enabled: true, dbPath: path.join(dataDir, 'margin-core.sqlite') });
+  let core;
   let runtime;
-  let readline;
   try {
-    runtime = await createPiTerminalPilotRuntime({
-      repositoryRoot, agentDir: path.join(dataDir, 'agent'), provider, modelId,
-      customProvider: { baseUrl, api, apiKey }, tools: core.tools
-    });
-    const controller = createTerminalPilotController({
-      core, runtime, registry: registry(path.join(dataDir, 'project.json')),
-      clock: () => new Date().toISOString(), idFactory: (prefix) => `${prefix}-${randomUUID()}`
-    });
-    readline = createInterface({ input: stdin, output: stdout, terminal: Boolean(stdin.isTTY) });
-    const evidence = await runTerminalLoop({ controller, lines: readline, write: (text) => stdout.write(`${text}\n`) });
+    const controllerPromise = (async () => {
+      await mkdir(path.join(dataDir, 'agent'), { recursive: true });
+      core = await createMarginCore({ enabled: true, dbPath: path.join(dataDir, 'margin-core.sqlite') });
+      runtime = await createPiTerminalPilotRuntime({
+        repositoryRoot, agentDir: path.join(dataDir, 'agent'), provider, modelId,
+        customProvider: { baseUrl, api, apiKey }, tools: core.tools
+      });
+      return createTerminalPilotController({
+        core, runtime, registry: registry(path.join(dataDir, 'project.json')),
+        clock: () => new Date().toISOString(), idFactory: (prefix) => `${prefix}-${randomUUID()}`
+      });
+    })();
+    const evidence = await runInteractiveLoop({ controllerPromise, input: stdin, output: stdout });
     await atomicJson(path.join(dataDir, 'report.json'), sanitizePilotReport(evidence));
     return 0;
   } finally {
-    readline?.close();
     await runtime?.close?.();
-    await core.close();
+    await core?.close?.();
   }
 }
 
