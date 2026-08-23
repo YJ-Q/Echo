@@ -1,20 +1,8 @@
 import { decidePermission } from '../permissions.js';
 import { CoreContractError, digestInput, fail, ok, requireFields } from '../contracts.js';
+import { rankMemoryRows } from '../memoryRetrieval.js';
 
 const MEMORY_TYPES = new Set(['fact', 'preference', 'constraint', 'context', 'sensitive']);
-
-function tokens(value) {
-  return new Set(String(value).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
-}
-
-function overlap(query, content) {
-  const left = tokens(query);
-  const right = tokens(content);
-  if (left.size === 0) return 0;
-  let matches = 0;
-  for (const token of left) if (right.has(token)) matches += 1;
-  return matches / left.size;
-}
 
 export function createMemoryTools({ store }) {
   async function audit(input, context, permissionDecision, resultCode, entityId) {
@@ -54,18 +42,11 @@ export function createMemoryTools({ store }) {
          ${taskClause} ${typeClause}`,
         ...params
       );
-      const ranked = rows.map((row) => {
-        const lexicalOverlap = overlap(input.query, row.content);
-        const ageDays = Math.max(0, (new Date(input.asOf) - new Date(row.updated_at)) / 86400000);
-        const recencyBucket = ageDays <= 7 ? 1 : ageDays <= 30 ? 0.5 : 0;
-        return { row, lexicalOverlap, score: lexicalOverlap * 0.6 + row.confidence * 0.3 + recencyBucket * 0.1 };
-      }).filter((entry) => entry.lexicalOverlap > 0)
-        .sort((a, b) => b.score - a.score || b.row.updated_at.localeCompare(a.row.updated_at) || a.row.id.localeCompare(b.row.id))
-        .slice(0, topK);
-      const items = ranked.map(({ row, score }) => ({
+      const ranked = rankMemoryRows(rows, { query: input.query, asOf: input.asOf, topK });
+      const items = ranked.map((row) => ({
         id: row.id, content: row.content, memoryType: row.memory_type, confidence: row.confidence,
         sourceSessionId: row.source_session_id, sourceEventId: row.source_event_id, version: row.version,
-        validFrom: row.valid_from, expiresAt: row.expires_at, score: Number(score.toFixed(6))
+        validFrom: row.valid_from, expiresAt: row.expires_at, score: row.score, retrievalReason: row.retrievalReason
       }));
       const auditId = await audit(input, context, 'allowed', items.length ? 'allowed' : 'no_relevant_memory');
       return ok(items.length ? { items } : { items: [], reason: 'no_relevant_memory' }, auditId);

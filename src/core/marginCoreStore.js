@@ -3,31 +3,7 @@ import { open } from 'sqlite';
 import { randomUUID } from 'node:crypto';
 import { MARGIN_CORE_MIGRATIONS } from './migrations/001-margin-core.js';
 import { CoreContractError, digestInput } from './contracts.js';
-
-function tokens(value) {
-  return new Set(String(value).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
-}
-
-function overlap(query, content) {
-  const queryTokens = tokens(query);
-  const contentTokens = tokens(content);
-  if (queryTokens.size === 0) return 0;
-  let matches = 0;
-  for (const token of queryTokens) if (contentTokens.has(token)) matches += 1;
-  return matches / queryTokens.size;
-}
-
-function rankMemories(rows, { query, asOf, topK }) {
-  return rows.map((row) => {
-    const lexicalOverlap = overlap(query, row.content);
-    const ageDays = Math.max(0, (new Date(asOf) - new Date(row.updated_at)) / 86400000);
-    const recencyBucket = ageDays <= 7 ? 1 : ageDays <= 30 ? 0.5 : 0;
-    return { row, lexicalOverlap, score: lexicalOverlap * 0.6 + row.confidence * 0.3 + recencyBucket * 0.1 };
-  }).filter((entry) => entry.lexicalOverlap > 0)
-    .sort((a, b) => b.score - a.score || b.row.updated_at.localeCompare(a.row.updated_at) || a.row.id.localeCompare(b.row.id))
-    .slice(0, topK)
-    .map(({ row, score }) => ({ ...row, score: Number(score.toFixed(6)) }));
-}
+import { rankMemoryRows } from './memoryRetrieval.js';
 
 export async function openMarginCoreStore({
   dbPath,
@@ -143,7 +119,7 @@ export async function openMarginCoreStore({
         project,
         activeTask,
         decisions,
-        memories: rankMemories(memoryRows, { query, asOf, topK: memoryTopK }),
+        memories: rankMemoryRows(memoryRows, { query, asOf, topK: memoryTopK }),
         recentDialogue: recentDialogue.map((turn) => ({ ...turn }))
       };
     }

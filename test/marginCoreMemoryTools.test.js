@@ -67,6 +67,14 @@ test('a host-only trusted confirmation atomically promotes a proposed memory for
   );
 });
 
+test('confirmed Chinese memory is recalled across wording variants', async (t) => {
+  const { fixture, project, tools } = await setup(t);
+  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
+    ('zh-memory', ?, NULL, '昨天完成了新版简历并优化项目经历，后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-zh', 'event-zh', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL)`, project.id);
+  const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: '继续简历投递', topK: 5, asOf: '2026-08-23T00:00:00.000Z' }, context);
+  assert.deepEqual(recalled.data.items.map((item) => item.id), ['zh-memory']);
+});
+
 test('search is isolated, deterministic, bounded, and does not mutate memories', async (t) => {
   const { fixture, project, tools } = await setup(t);
   await fixture.store.db.run(`INSERT INTO margin_memories VALUES
