@@ -16,10 +16,28 @@ function runtime() {
   };
 }
 
-function forbidLegacyStoreWrites(core) {
-  for (const method of ['getProject', 'findActiveProjectByScenario', 'createProject', 'findActiveTaskByProject', 'createTask']) {
-    core.store[method] = async () => { throw new Error(`legacy_store_access:${method}`); };
-  }
+function terminalCore(core) {
+  return {
+    createApplicationContract: core.createApplicationContract,
+    bindHostContext: core.bindHostContext,
+    continuity: core.continuity,
+    v1Tools: core.v1Tools,
+    confirmMemory: core.confirmMemory
+  };
+}
+
+async function readRun(core, runId, requestId) {
+  const gateway = core.createApplicationContract();
+  const context = {
+    actor: { type: 'user', subjectId: 'restart-test' },
+    surface: { kind: 'cli', instanceId: 'restart-test' },
+    requestId,
+    correlationId: 'restart-test-correlation',
+    capabilities: ['run:read']
+  };
+  const response = await gateway.query({ type: 'run.get', requestId, payload: { runId } }, context);
+  assert.equal(response.ok, true);
+  return response.data;
 }
 
 test('terminal resumes the same Workstream and Run checkpoint after Core restart', async () => {
@@ -30,24 +48,22 @@ test('terminal resumes the same Workstream and Run checkpoint after Core restart
   const options = { clock: () => '2026-08-23T12:00:00.000Z', idFactory: (() => { let n = 0; return (prefix) => `${prefix}-${++n}`; })() };
   let core = await createMarginCore({ enabled: true, dbPath, ...options });
   try {
-    forbidLegacyStoreWrites(core);
-    let controller = createTerminalPilotController({ core, runtime: runtime(), registry, ...options });
+    let controller = createTerminalPilotController({ core: terminalCore(core), runtime: runtime(), registry, ...options });
     const first = await controller.start();
     const paused = await controller.handle('/pause');
     assert.equal(paused.runStatus, 'paused');
-    const checkpointId = (await core.runs.get(first.runId)).checkpoint_id;
+    const checkpointId = (await readRun(core, first.runId, 'read-first-run')).checkpoint.id;
     assert.ok(checkpointId);
     await controller.close();
     await core.close();
 
     core = await createMarginCore({ enabled: true, dbPath, ...options });
-    forbidLegacyStoreWrites(core);
-    controller = createTerminalPilotController({ core, runtime: runtime(), registry, ...options });
+    controller = createTerminalPilotController({ core: terminalCore(core), runtime: runtime(), registry, ...options });
     const restored = await controller.start();
     assert.equal(restored.projectId, first.projectId);
     assert.equal(restored.runId, first.runId);
     assert.equal(restored.runStatus, 'paused');
-    assert.equal((await core.runs.get(restored.runId)).checkpoint_id, checkpointId);
+    assert.equal((await readRun(core, restored.runId, 'read-restored-run')).checkpoint.id, checkpointId);
     assert.equal((await controller.handle('/resume')).runStatus, 'running');
     assert.equal((await controller.handle('/stop')).runStatus, 'cancelled');
     await controller.close();

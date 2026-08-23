@@ -4,38 +4,59 @@ import { createTerminalPilotController } from '../src/pilot/terminalPilotControl
 
 function fixture({ discoverExisting = false, activeTask = true, persistentRun = false, existingRunStatus = null } = {}) {
   const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [], haltedSessions: [] };
-  const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'running' };
+  const project = { id: 'project-1', version: 1, title: '简历投递与记录维护', goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'running' };
   const snapshot = { project, activeTask: activeTask ? { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' } : null, decisions: [], memories: [], recentDialogue: [], actions: [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }] };
   const core = {
-    bindHostActor(actor) { return { ...actor, hostBound: true }; },
-    workstreams: {
-      async get(id) { return id === project.id ? project : null; },
-      async findByScenario() { return discoverExisting ? project : null; },
-      async create() { calls.created += 1; return { ok: true, data: project, auditId: 'audit-project' }; }
-    },
+    bindHostContext(context) { return { ...context, hostBound: true }; },
     continuity: {
       async snapshot(input) { calls.queries.push(input); return snapshot; },
       async plan() { return { projectId: project.id, selected: [], excluded: [], digest: 'digest-1' }; }
     },
-    tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} },
+    v1Tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} },
     async confirmMemory(input, context) { calls.confirmed = { input, context }; return { memory: { id: input.memoryId, version: 3 }, auditId: 'audit-confirm' }; }
   };
-  if (persistentRun) {
-    let run = existingRunStatus ? { id: 'run-1', workstream_id: project.id, status: existingRunStatus, version: 2, runtime_session_id: 'persisted-session' } : null;
-    core.runs = {
-      async findOpen() { return run; },
-      async create() { run = { id: 'run-1', workstream_id: project.id, status: 'queued', version: 1 }; return { ok: true, data: run, auditId: 'audit-run-create' }; },
-      async start(input, _actor, control) { const active = await control.activate(run); run = { ...run, status: 'running', version: run.version + 1, runtime_session_id: active.runtimeSessionId }; return { ok: true, data: run, auditId: 'audit-run-start' }; },
-      async pause(_input, _actor, control) { await control.halt(run); run = { ...run, status: 'paused', version: run.version + 1, checkpoint_id: 'checkpoint-pause' }; return { ok: true, data: run, auditId: 'audit-pause' }; },
-      async resume(input, _actor, control) { const active = await control.activate(run); run = { ...run, status: 'running', version: run.version + 1, runtime_session_id: active.runtimeSessionId }; return { ok: true, data: run, auditId: 'audit-resume' }; },
-      async stop(_input, _actor, control) { await control.halt(run); run = { ...run, status: 'cancelled', version: run.version + 1, checkpoint_id: 'checkpoint-stop' }; return { ok: true, data: run, auditId: 'audit-stop' }; },
-      async get() { return run; }
-    };
-    core.checkpoints = {
-      async create(input) { calls.checkpointInput = input; return { ok: true, data: { id: 'checkpoint-manual' }, auditId: 'audit-checkpoint' }; },
-      async latest() { return run?.checkpoint_id ? { id: run.checkpoint_id } : null; }
-    };
-  }
+  let run = existingRunStatus ? {
+    id: 'run-1', workstreamId: project.id, workerKind: 'pi', status: existingRunStatus, version: 2,
+    runtimeReference: { kind: 'pi', id: 'persisted-session' }, checkpoint: null
+  } : null;
+  calls.currentRun = () => run;
+  core.createApplicationContract = ({ runtimeControl }) => ({
+    async query(request) {
+      if (request.type === 'workstream.get') return { ok: true, data: request.payload.workstreamId === project.id ? project : null };
+      if (request.type === 'workstream.list') return { ok: true, data: { items: discoverExisting ? [project] : [], nextCursor: null } };
+      if (request.type === 'run.list') return { ok: true, data: { items: persistentRun && run ? [run] : [], nextCursor: null } };
+      if (request.type === 'run.get') return { ok: true, data: run };
+      throw new Error(`unexpected_query:${request.type}`);
+    },
+    async execute(command, context) {
+      if (command.type === 'workstream.create') {
+        calls.created += 1;
+        return { ok: true, data: project };
+      }
+      if (command.type === 'run.create') {
+        assert.equal(context.hostBound, true);
+        run = { id: 'run-1', workstreamId: project.id, workerKind: 'pi', status: 'queued', version: 1, runtimeReference: null, checkpoint: null };
+      } else if (command.type === 'run.start' || command.type === 'run.resume') {
+        assert.equal(context.hostBound, true);
+        const active = await runtimeControl.activate(run);
+        run = { ...run, status: 'running', version: run.version + 1, runtimeReference: { kind: 'pi', id: active.runtimeSessionId } };
+      } else if (command.type === 'run.pause') {
+        assert.equal(context.hostBound, true);
+        await runtimeControl.halt(run);
+        run = { ...run, status: 'paused', version: run.version + 1, checkpoint: { id: 'checkpoint-pause' } };
+      } else if (command.type === 'run.stop') {
+        assert.equal(context.hostBound, true);
+        await runtimeControl.halt(run);
+        run = { ...run, status: 'cancelled', version: run.version + 1, checkpoint: { id: 'checkpoint-stop' } };
+      } else if (command.type === 'checkpoint.create') {
+        calls.checkpointInput = command.payload;
+        return { ok: true, data: { id: 'checkpoint-manual' } };
+      } else {
+        throw new Error(`unexpected_command:${command.type}`);
+      }
+      return { ok: true, data: run };
+    }
+  });
   let next = 0;
   const runtime = {
     async haltSession(id) { calls.haltedSessions.push(id); return { halted: true }; },
@@ -212,6 +233,6 @@ test('closing the terminal pauses a running persistent Run', async () => {
   const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
   await controller.start();
   await controller.close();
-  assert.equal((await f.core.runs.get()).status, 'paused');
+  assert.equal(f.calls.currentRun().status, 'paused');
   assert.equal(f.calls.sessions[0].closed, true);
 });
