@@ -3,6 +3,21 @@ import { transitionWorkstream } from '../domain/workstream.js';
 
 const json = (value) => JSON.stringify(value ?? []);
 const jsonObject = (value) => JSON.stringify(value ?? {});
+const SURFACE_KINDS = new Set(['cli', 'web', 'feishu', 'scheduler', 'worker']);
+
+function normalizeEvidenceMetadata(actor = {}) {
+  const correlationId = actor.correlationId;
+  if (correlationId !== undefined && correlationId !== null &&
+    (typeof correlationId !== 'string' || !correlationId.trim() || correlationId.length > 200)) {
+    throw new CoreContractError('invalid_request', 'correlationId must be a non-empty string up to 200 characters');
+  }
+  const surfaceKind = actor.surfaceKind;
+  if (surfaceKind !== undefined && surfaceKind !== null &&
+    (typeof surfaceKind !== 'string' || !SURFACE_KINDS.has(surfaceKind))) {
+    throw new CoreContractError('invalid_request', 'surfaceKind is not supported');
+  }
+  return { correlationId: correlationId ?? null, surfaceKind: surfaceKind ?? null };
+}
 
 function versionConflict(actual) {
   const error = new CoreContractError('version_conflict', 'Version conflict');
@@ -52,11 +67,12 @@ export function createPersistentWorkRepository(store) {
     if (store.beforeEvidenceWrite) await store.beforeEvidenceWrite({ entityType, entityId, eventType });
     const auditId = store.idFactory('audit');
     const now = store.clock();
+    const metadata = normalizeEvidenceMetadata(actor);
     const payload = JSON.stringify({
       command: operation,
       status: status ?? null,
-      correlationId: actor.correlationId ?? null,
-      surfaceKind: actor.surfaceKind ?? null
+      correlationId: metadata.correlationId,
+      surfaceKind: metadata.surfaceKind
     });
     await tx.run(
       `INSERT INTO margin_events
@@ -69,7 +85,7 @@ export function createPersistentWorkRepository(store) {
        (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
        VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,?,?)`,
       auditId, operation, requestId, actor.actorType, workstreamId, entityType, entityId, digestInput(input),
-      JSON.stringify({ actorSubjectId: actor.subjectId ?? null, correlationId: actor.correlationId ?? null, surfaceKind: actor.surfaceKind ?? null }), now
+      JSON.stringify({ actorSubjectId: actor.subjectId ?? null, correlationId: metadata.correlationId, surfaceKind: metadata.surfaceKind }), now
     );
     return auditId;
   };
@@ -85,6 +101,11 @@ export function createPersistentWorkRepository(store) {
     return { auditId: audit.id, data: await tx.get(`SELECT * FROM ${table} WHERE id=?`, audit.entity_id) };
   };
 
+  const mutation = async (actor, work) => {
+    normalizeEvidenceMetadata(actor);
+    return store.transaction(work);
+  };
+
   return {
     getOperationReplay: async (operation, requestId, table, input, actor) => {
       const found = await replay(store.db, operation, requestId, table, input, actor);
@@ -98,7 +119,7 @@ export function createPersistentWorkRepository(store) {
       const actions = await store.db.all("SELECT * FROM margin_actions WHERE project_id=? AND status IN ('pending','active') ORDER BY updated_at DESC,id LIMIT 10", input.projectId);
       return { ...snapshot, project: mapWorkstream(snapshot.project), actions };
     },
-    updateWorkstream: (input, actor) => store.transaction(async (tx) => {
+    updateWorkstream: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'workstream_update', input.requestId, 'margin_projects', input, actor);
       if (prior) return { ...prior, data: mapWorkstream(prior.data) };
       const current = await tx.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
@@ -139,7 +160,7 @@ export function createPersistentWorkRepository(store) {
       const auditId=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input,status:workstreamStatus});
       return {data:mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?',current.id)),auditId};
     }),
-    createWorkstream: (input, actor) => store.transaction(async (tx) => {
+    createWorkstream: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'workstream_create', input.requestId, 'margin_projects', input, actor);
       if (prior) return { ...prior, data: mapWorkstream(prior.data) };
       const id = store.idFactory('workstream');
@@ -158,7 +179,7 @@ export function createPersistentWorkRepository(store) {
       const auditId = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input, status: 'running' });
       return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), auditId };
     }),
-    createRun: (input, actor) => store.transaction(async (tx) => {
+    createRun: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'run_create', input.requestId, 'margin_runs', input, actor);
       if (prior) return prior;
       const workstream = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
@@ -181,7 +202,7 @@ export function createPersistentWorkRepository(store) {
     }),
     getRun: (id) => store.db.get('SELECT * FROM margin_runs WHERE id=?', id),
     findOpenRun: (workstreamId) => store.db.get("SELECT * FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') ORDER BY created_at DESC,id LIMIT 1", workstreamId),
-    transitionRun: (input, actor) => store.transaction(async (tx) => {
+    transitionRun: (input, actor) => mutation(actor, async (tx) => {
       const operation = `run_${input.command}`;
       const prior = await replay(tx, operation, input.requestId, 'margin_runs', input.requestInput ?? input, actor);
       if (prior) return prior;
@@ -204,7 +225,7 @@ export function createPersistentWorkRepository(store) {
       const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:input.requestInput ?? input,status:input.status});
       return {data:await tx.get('SELECT * FROM margin_runs WHERE id=?',current.id),auditId};
     }),
-    createArtifact: (input, actor) => store.transaction(async (tx) => {
+    createArtifact: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'artifact_create', input.requestId, 'margin_artifacts', input, actor);
       if (prior) return prior;
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId) : null;
@@ -220,7 +241,7 @@ export function createPersistentWorkRepository(store) {
       const auditId = await evidence(tx,{operation:'artifact_create',requestId:input.requestId,actor,workstreamId:input.workstreamId,entityType:'artifact',entityId:id,version:1,eventType:'created',input});
       return {data:await tx.get('SELECT * FROM margin_artifacts WHERE id=?',id),auditId};
     }),
-    createCheckpoint: (input, actor) => store.transaction(async (tx) => {
+    createCheckpoint: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'checkpoint_create', input.requestId, 'margin_checkpoints', input, actor);
       if (prior) return prior;
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?',input.runId) : null;
@@ -256,7 +277,7 @@ export function createPersistentWorkRepository(store) {
       return nextPage(await store.db.all(`SELECT * FROM margin_needs_owner ${where.clause} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1), page.limit);
     },
     getNeedsOwner: (id) => store.db.get('SELECT * FROM margin_needs_owner WHERE id=?', id),
-    createNeedsOwner: (input, actor) => store.transaction(async (tx) => {
+    createNeedsOwner: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'needs_owner_create', input.requestId, 'margin_needs_owner', input, actor);
       if (prior) return prior;
       const workstream = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
@@ -277,7 +298,7 @@ export function createPersistentWorkRepository(store) {
       const auditId = await evidence(tx, { operation: 'needs_owner_create', requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'needs_owner', entityId: id, version: 1, eventType: 'created', input, status: 'open' });
       return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', id), auditId };
     }),
-    resolveNeedsOwner: (input, actor) => store.transaction(async (tx) => {
+    resolveNeedsOwner: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'needs_owner_resolve', input.requestId, 'margin_needs_owner', input, actor);
       if (prior) return prior;
       const current = await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', input.needsOwnerId);

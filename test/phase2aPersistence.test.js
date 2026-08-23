@@ -105,6 +105,32 @@ test('NeedsOwner create rolls back its row when evidence fails', async () => {
   } finally { await f.cleanup(); }
 });
 
+test('NeedsOwner metadata rejects invalid actor values before create or resolve writes', async () => {
+  const f = await fixture();
+  try {
+    const counts = async () => ({
+      needsOwner: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_needs_owner')).count,
+      events: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count,
+      audits: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_audit_log')).count
+    });
+    const beforeCreate = await counts();
+    await assert.rejects(
+      f.core.repository.createNeedsOwner(needsOwnerInput(f.workstream.id), { ...actor, correlationId: 'x'.repeat(201) }),
+      (error) => error.code === 'invalid_request'
+    );
+    assert.deepEqual(await counts(), beforeCreate);
+
+    const created = await f.core.repository.createNeedsOwner(needsOwnerInput(f.workstream.id, 'valid-create'), actor);
+    const beforeResolve = await counts();
+    await assert.rejects(
+      f.core.repository.resolveNeedsOwner({ requestId: 'invalid-resolve', needsOwnerId: created.data.id, expectedVersion: created.data.version, resolution: 'Approved' }, { ...actor, surfaceKind: 'unknown' }),
+      (error) => error.code === 'invalid_request'
+    );
+    assert.deepEqual(await counts(), beforeResolve);
+    assert.equal((await f.core.repository.getNeedsOwner(created.data.id)).status, 'open');
+  } finally { await f.cleanup(); }
+});
+
 test('event cursors are monotonic at one timestamp and survive reopening the database', async () => {
   const f = await fixture();
   try {
