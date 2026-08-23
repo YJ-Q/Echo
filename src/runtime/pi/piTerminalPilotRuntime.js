@@ -80,7 +80,7 @@ export async function createPiTerminalPilotRuntime({
           currentToolResults = [];
           await session.sendCustomMessage({
             customType: 'margin_terminal_pilot_context',
-            content: JSON.stringify({ digest: context.digest, selected: context.selected, operationRules: PILOT_OPERATION_RULES }),
+            content: JSON.stringify({ digest: context.digest, selected: context.selected, operationRules: PILOT_OPERATION_RULES, writeRouting: context.writeRouting }),
             display: false, details: { digest: context.digest }
           }, { triggerTurn: false });
           await session.prompt(message);

@@ -1,5 +1,6 @@
 import { digestInput } from '../core/contracts.js';
 import { formatMemory, formatState, parseTerminalInput } from './terminalCommands.js';
+import { routeContinuityInput } from '../continuity/memoryWriteRouter.js';
 
 const GOAL = '持续完成简历投递并维护投递记录';
 const CONTINUE_QUERY = '继续简历投递和投递记录维护';
@@ -88,7 +89,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
   async function sendMessage(message) {
     try {
       const { plan } = await planned(message);
-      const response = await session.send({ context: plan, message });
+      const response = await session.send({ context: { ...plan, writeRouting: routeContinuityInput(message) }, message });
       const confirmations = (response?.toolResults ?? []).map((item) => {
         const entity = item.entityId ? ` entity=${item.entityId}${item.entityVersion ? ` v${item.entityVersion}` : ''}` : '';
         const confirmation = item.confirmationRequired ? ' 需确认' : '';

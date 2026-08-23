@@ -44,6 +44,7 @@ test('controller creates the pilot project and handles messages without leaking 
   assert.equal(result.text, '回复-session-1');
   assert.match(result.trace.contextDigest, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(JSON.stringify(result.trace), /示例公司/);
+  assert.deepEqual(f.calls.sessions[0].contexts[0].writeRouting.routes, ['state']);
 });
 
 test('controller grants the exact Core permission for proposing memory', async () => {

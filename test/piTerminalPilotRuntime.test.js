@@ -35,13 +35,14 @@ test('runtime creates isolated sessions and sends hidden context before promptin
     }
   });
   const session = await runtime.createSession();
-  const response = await session.send({ context: { digest: 'digest-1', selected: [] }, message: '继续' });
+  const response = await session.send({ context: { digest: 'digest-1', selected: [], writeRouting: { routes: ['action'], reasons: ['next_step_signal'] } }, message: '继续' });
   assert.equal(response.text, '已恢复');
   assert.deepEqual(response.resultCodes, ['no_tool_call']);
   assert.equal(records.find((r) => r.message).message.display, false);
   const hiddenContext = JSON.parse(records.find((r) => r.message).message.content);
   assert.match(hiddenContext.operationRules, /expectedVersion/);
   assert.match(hiddenContext.operationRules, /update_task.*taskId.*changes/);
+  assert.deepEqual(hiddenContext.writeRouting, { routes: ['action'], reasons: ['next_step_signal'] });
   assert.match(hiddenContext.operationRules, /不得声称/);
   assert.equal(records.find((r) => r.prompt).prompt, '继续');
   await session.close();
