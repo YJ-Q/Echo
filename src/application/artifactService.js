@@ -1,0 +1,2 @@
+import { CoreContractError } from '../core/contracts.js';
+export function createArtifactService({ repository }) { return { async create(input, actor) { if (!input?.requestId||!input?.workstreamId||!input?.type||!input?.title||!input?.uri||!input?.contentHash) throw new CoreContractError('invalid_request','Valid Artifact input is required'); return {ok:true,...await repository.createArtifact(input,actor)}; } }; }

@@ -1,0 +1,2 @@
+import { CoreContractError } from '../core/contracts.js';
+export function createCheckpointService({ repository }) { return { async create(input, actor) { if (!input?.requestId||!input?.workstreamId||!Number.isInteger(input?.stateVersion)||!input?.stateDigest) throw new CoreContractError('invalid_request','Valid Checkpoint input is required'); return {ok:true,...await repository.createCheckpoint(input,actor)}; }, latest: repository.latestCheckpoint }; }

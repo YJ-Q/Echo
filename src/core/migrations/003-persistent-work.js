@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 const sql = `
 ALTER TABLE margin_projects ADD COLUMN title TEXT NOT NULL DEFAULT '';
+ALTER TABLE margin_projects ADD COLUMN workstream_status TEXT NOT NULL DEFAULT 'running'
+  CHECK (workstream_status IN ('running','ready','waiting','watching','blocked','needs_owner','paused','completed'));
 ALTER TABLE margin_projects ADD COLUMN current_plan TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE margin_projects ADD COLUMN next_action TEXT;
 ALTER TABLE margin_projects ADD COLUMN blockers TEXT NOT NULL DEFAULT '[]';

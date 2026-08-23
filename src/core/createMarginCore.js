@@ -3,6 +3,11 @@ import { createMemoryTools } from './tools/memoryTools.js';
 import { createStateTool } from './tools/stateTool.js';
 import { createActionTool } from './tools/actionTool.js';
 import { planContinuityContext } from '../continuity/contextPlanner.js';
+import { createPersistentWorkRepository } from './persistentWorkRepository.js';
+import { createWorkstreamService } from '../application/workstreamService.js';
+import { createRunService } from '../application/runService.js';
+import { createArtifactService } from '../application/artifactService.js';
+import { createCheckpointService } from '../application/checkpointService.js';
 
 export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig } = {}) {
   if (!enabled) return { enabled: false };
@@ -10,6 +15,7 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
   const memory = createMemoryTools({ store });
   const state = createStateTool({ store });
   const action = createActionTool({ store });
+  const repository = createPersistentWorkRepository(store);
   const planContext = async (input, options) => planContinuityContext(
     await store.getContinuitySnapshot(input),
     options
@@ -17,6 +23,11 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
   return {
     enabled: true,
     store,
+    repository,
+    workstreams: createWorkstreamService({ repository }),
+    runs: createRunService({ repository }),
+    artifacts: createArtifactService({ repository }),
+    checkpoints: createCheckpointService({ repository }),
     tools: {
       memory_search: memory.memorySearch,
       memory_propose: memory.memoryPropose,
