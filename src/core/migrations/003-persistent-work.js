@@ -13,6 +13,15 @@ ALTER TABLE margin_projects ADD COLUMN autonomy_level INTEGER NOT NULL DEFAULT 0
 ALTER TABLE margin_projects ADD COLUMN artifact_refs TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE margin_projects ADD COLUMN last_checkpoint_id TEXT;
 
+UPDATE margin_projects
+SET workstream_status = CASE status
+  WHEN 'active' THEN 'running'
+  WHEN 'blocked' THEN 'blocked'
+  WHEN 'completed' THEN 'completed'
+  WHEN 'archived' THEN 'completed'
+  ELSE 'needs_owner'
+END;
+
 CREATE TABLE margin_runs (
   id TEXT PRIMARY KEY,
   workstream_id TEXT NOT NULL REFERENCES margin_projects(id),

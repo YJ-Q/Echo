@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 import { createMarginCoreTestDb } from './helpers/marginCoreTestDb.js';
+import { MARGIN_CORE_MIGRATIONS } from '../src/core/migrations/001-margin-core.js';
+import { PERSISTENT_WORK_MIGRATION } from '../src/core/migrations/003-persistent-work.js';
 
 test('migration 3 adds persistent work tables and workstream fields', async () => {
   const fixture = await createMarginCoreTestDb();
@@ -15,4 +22,21 @@ test('migration 3 adds persistent work tables and workstream fields', async () =
   } finally {
     await fixture.cleanup();
   }
+});
+
+test('migration 3 maps legacy project statuses into Workstream semantics', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-migration-map-'));
+  const db = await open({ filename: path.join(directory, 'legacy.sqlite'), driver: sqlite3.Database });
+  try {
+    await db.exec(MARGIN_CORE_MIGRATIONS[0].sql);
+    await db.exec(MARGIN_CORE_MIGRATIONS[1].sql);
+    for (const status of ['active', 'blocked', 'completed', 'archived']) {
+      await db.run('INSERT INTO margin_projects VALUES (?,?,?,?,?,?,?,?,?,?,NULL)', status, 'career_project', status, 'legacy', status, 1, 'session', 'event', '2026-08-23', '2026-08-23');
+    }
+    await db.exec(PERSISTENT_WORK_MIGRATION.sql);
+    const rows = await db.all('SELECT id,workstream_status FROM margin_projects ORDER BY id');
+    assert.deepEqual(Object.fromEntries(rows.map((row) => [row.id, row.workstream_status])), {
+      active: 'running', archived: 'completed', blocked: 'blocked', completed: 'completed'
+    });
+  } finally { await db.close(); await rm(directory, { recursive: true, force: true }); }
 });

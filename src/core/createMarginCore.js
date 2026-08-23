@@ -9,6 +9,7 @@ import { createRunService } from '../application/runService.js';
 import { createArtifactService } from '../application/artifactService.js';
 import { createCheckpointService } from '../application/checkpointService.js';
 import { createContinuityService } from '../application/continuityService.js';
+import { createV1ToolSet } from '../application/v1ToolSet.js';
 
 export async function createMarginCore({ enabled = false, dbPath, clock, idFactory, beforeEvidenceWrite, embedder, retrievalConfig } = {}) {
   if (!enabled) return { enabled: false };
@@ -22,21 +23,24 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
     await store.getContinuitySnapshot(input),
     options
   );
+  const tools = {
+    memory_search: memory.memorySearch,
+    memory_propose: memory.memoryPropose,
+    state_update: state.stateUpdate,
+    action_update: action.actionUpdate
+  };
+  const workstreams = createWorkstreamService({ repository });
   return {
     enabled: true,
     store,
     repository,
-    workstreams: createWorkstreamService({ repository }),
+    workstreams,
     runs: createRunService({ repository }),
     artifacts: createArtifactService({ repository }),
     checkpoints: createCheckpointService({ repository }),
     continuity,
-    tools: {
-      memory_search: memory.memorySearch,
-      memory_propose: memory.memoryPropose,
-      state_update: state.stateUpdate,
-      action_update: action.actionUpdate
-    },
+    tools,
+    v1Tools: createV1ToolSet({ legacyTools: tools, workstreams }),
     planContext,
     confirmMemory: (input, trustedContext) => store.confirmMemory(input, trustedContext),
     close: () => store.close()

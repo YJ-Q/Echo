@@ -6,7 +6,7 @@ Status: current architecture as of 2026-08-23. This updates, but does not delete
 
 Margin V1 has one authoritative SQLite schema managed by `src/core/migrations/` and one repository boundary in `src/core/persistentWorkRepository.js`. Application services for Workstream, Run, Artifact, Checkpoint and continuity planning are exposed by `createMarginCore()`.
 
-The terminal is the first client of these services. It no longer creates projects/tasks or queries actions through the Store/SQLite handle. The Store remains an internal compatibility implementation used by the repository and the four governed Margin tools; surfaces must not import or call it.
+The terminal is the first client of these services. It no longer creates projects/tasks or queries actions through the Store/SQLite handle. Its V1 tool set maps `update_project` to the Workstream Application Service so legacy `status` and canonical `workstream_status` change atomically; legacy Task mutations are denied on this surface. The Store remains an internal compatibility implementation used by the repository and governed compatibility tools; surfaces must not import or call it.
 
 The old Express/Echo database is frozen legacy input, not a second V1 state store. Its disposition is documented in `docs/audit/legacy_data_disposition.md`.
 
@@ -20,7 +20,7 @@ The old Express/Echo database is frozen legacy input, not a second V1 state stor
 - Artifact: metadata and provenance for a result; no file content is copied into state.
 - Checkpoint: durable recovery coordinates linked to Workstream and optional Run.
 
-The legacy Task table is retained for compatibility with the four existing tools and old records, but the V1 terminal no longer creates a shadow Task for a Workstream. Its deletion condition is replacement of remaining task-based tool contracts by Workstream/Run contracts in a later approved phase.
+The legacy Task table is retained for non-V1 compatibility tools and old records, but the V1 terminal neither creates nor mutates a shadow Task for a Workstream. Its deletion condition is replacement of remaining task-based contracts by Workstream/Run contracts in a later approved phase.
 
 ## Runtime boundary
 
@@ -29,7 +29,7 @@ Pi Agent `0.84.2` remains behind `src/runtime/pi/`. The Application Core knows o
 - `activate(run) -> { runtimeSessionId }`
 - `halt(run)`
 
-Start/resume activates runtime before committing `running`; a failed commit triggers compensating halt. Pause/stop halt runtime before committing the stable state and checkpoint. Closing the terminal automatically pauses a running Run. This prevents a UI or Session lifecycle from becoming authoritative state.
+Start/resume activates runtime before committing `running`; a failed commit triggers compensating halt. Pause/stop halt runtime before committing the stable state and checkpoint. Closing the terminal automatically pauses a running Run. Run control requires a user-host actor; agent/system callers are denied. This prevents a UI or Session lifecycle from becoming authoritative state.
 
 Pi is therefore replaceable by a future Codex Worker or another runtime without changing Workstream/Run persistence.
 

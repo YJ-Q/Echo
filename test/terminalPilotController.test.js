@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function fixture({ discoverExisting = false, activeTask = true, persistentRun = false } = {}) {
-  const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [] };
+function fixture({ discoverExisting = false, activeTask = true, persistentRun = false, existingRunStatus = null } = {}) {
+  const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [], haltedSessions: [] };
   const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'running' };
   const snapshot = { project, activeTask: activeTask ? { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' } : null, decisions: [], memories: [], recentDialogue: [], actions: [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }] };
   const core = {
@@ -20,7 +20,7 @@ function fixture({ discoverExisting = false, activeTask = true, persistentRun = 
     async confirmMemory(input, context) { calls.confirmed = { input, context }; return { memory: { id: input.memoryId, version: 3 }, auditId: 'audit-confirm' }; }
   };
   if (persistentRun) {
-    let run = null;
+    let run = existingRunStatus ? { id: 'run-1', workstream_id: project.id, status: existingRunStatus, version: 2, runtime_session_id: 'persisted-session' } : null;
     core.runs = {
       async findOpen() { return run; },
       async create() { run = { id: 'run-1', workstream_id: project.id, status: 'queued', version: 1 }; return { ok: true, data: run, auditId: 'audit-run-create' }; },
@@ -31,12 +31,13 @@ function fixture({ discoverExisting = false, activeTask = true, persistentRun = 
       async get() { return run; }
     };
     core.checkpoints = {
-      async create() { return { ok: true, data: { id: 'checkpoint-manual' }, auditId: 'audit-checkpoint' }; },
+      async create(input) { calls.checkpointInput = input; return { ok: true, data: { id: 'checkpoint-manual' }, auditId: 'audit-checkpoint' }; },
       async latest() { return run?.checkpoint_id ? { id: run.checkpoint_id } : null; }
     };
   }
   let next = 0;
   const runtime = {
+    async haltSession(id) { calls.haltedSessions.push(id); return { halted: true }; },
     async createSession() {
       const id = `session-${++next}`;
       const session = { id, closed: false, contexts: [], async send(input) { this.contexts.push(input.context); return { text: `回复-${id}`, resultCodes: ['allowed'] }; }, async close() { this.closed = true; } };
@@ -189,8 +190,20 @@ test('terminal is a client of persistent Run start pause resume checkpoint and s
   assert.match((await controller.handle('/resume')).text, /running/);
   assert.equal(f.calls.sessions.length, 2);
   assert.match((await controller.handle('/checkpoint')).text, /checkpoint-manual/);
+  assert.equal(f.calls.checkpointInput.stateVersion, 1);
+  assert.equal(f.calls.checkpointInput.runVersion, 4);
   assert.match((await controller.handle('/stop')).text, /cancelled/);
   assert.equal(f.calls.sessions[1].closed, true);
+});
+
+test('restart reconciliation targets the persisted runtime before opening a new Session', async () => {
+  const f = fixture({ persistentRun: true, discoverExisting: true, existingRunStatus: 'running' });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  const started = await controller.start();
+  assert.equal(started.runStatus, 'paused');
+  assert.equal(started.sessionId, null);
+  assert.deepEqual(f.calls.haltedSessions, ['persisted-session']);
+  assert.equal(f.calls.sessions.length, 0);
 });
 
 test('closing the terminal pauses a running persistent Run', async () => {

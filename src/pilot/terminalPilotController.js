@@ -24,7 +24,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
 
   async function openSession() {
     session = await runtime.createSession({
-      tools: core.tools,
+      tools: core.v1Tools ?? core.tools,
       getInvocationContext: async ({ toolCallId }) => ({
         actorType: 'agent',
         permissions: { memoryRead: true, memoryPropose: true, stateWrite: true, actionWrite: true },
@@ -47,10 +47,13 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       if (!session || sessionClosed) await openSession();
       return { runtimeSessionId: session.id };
     },
-    async halt() {
-      if (!sessionClosed && session) {
+    async halt(runToHalt) {
+      const persistedSessionId = runToHalt?.runtime_session_id;
+      if (!sessionClosed && session && (!persistedSessionId || session.id === persistedSessionId)) {
         sessionClosed = true;
         await session.close();
+      } else if (persistedSessionId) {
+        await runtime.haltSession?.(persistedSessionId);
       }
     }
   };
@@ -80,7 +83,6 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       project = await core.workstreams.findByScenario('career_project');
       if (project) await registry.save(project.id);
     }
-    await openSession();
     if (!project || project.status === 'completed') {
       const input = {
         requestId: idFactory('create_workstream'), scenario: 'career_project', title: '简历投递与记录维护',
@@ -91,21 +93,24 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     await registry.save(project.id);
     if (core.runs) {
       run = await core.runs.findOpen(project.id);
+      if (run?.status === 'running') {
+        run = (await core.runs.pause({ requestId: idFactory('reconcile_run'), runId: run.id, expectedVersion: run.version }, runActor('reconcile_run'), runtimeControl)).data;
+      }
       if (!run) {
+        await openSession();
         run = (await core.runs.create({
           requestId: idFactory('create_run'), workstreamId: project.id,
           scope: '终端连续性试点', runtimeKind: 'pi'
         }, runActor('create_run'))).data;
       }
       if (run.status === 'queued') {
+        if (!session || sessionClosed) await openSession();
         run = (await core.runs.start({ requestId: idFactory('start_run'), runId: run.id, expectedVersion: run.version }, runActor('start_run'), runtimeControl)).data;
-      } else if (run.status === 'running') {
-        run = (await core.runs.pause({ requestId: idFactory('reconcile_run'), runId: run.id, expectedVersion: run.version }, runActor('reconcile_run'), runtimeControl)).data;
-      } else if (run.status !== 'running') {
-        await runtimeControl.halt();
       }
+    } else {
+      await openSession();
     }
-    return { projectId: project.id, sessionId: session.id, ...(run ? { runId: run.id, runStatus: run.status } : {}) };
+    return { projectId: project.id, sessionId: session?.id ?? null, ...(run ? { runId: run.id, runStatus: run.status } : {}) };
   }
 
   async function sendMessage(message) {
@@ -190,9 +195,11 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     }
     if (parsed.name === 'checkpoint') {
       if (!run || !core.checkpoints) return { kind: 'error', code: 'run_unavailable', text: 'Persistent Run 未启用。', sessionId: session?.id };
+      project = await core.workstreams.get(project.id);
       const checkpoint = (await core.checkpoints.create({
         requestId: idFactory('manual_checkpoint'), workstreamId: project.id, runId: run.id,
-        stateVersion: run.version, stateDigest: digestInput({ runId: run.id, status: run.status, version: run.version }),
+        runVersion: run.version, stateVersion: project.version,
+        stateDigest: digestInput({ workstreamId: project.id, stateVersion: project.version, runId: run.id, runVersion: run.version, status: run.status }),
         label: 'manual'
       }, runActor('manual_checkpoint'))).data;
       run = await core.runs.get(run.id);

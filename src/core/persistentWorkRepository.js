@@ -21,15 +21,18 @@ export function createPersistentWorkRepository(store) {
     return auditId;
   };
 
-  const replay = async (tx, operation, requestId, table) => {
-    const audit = await tx.get("SELECT id, entity_id FROM margin_audit_log WHERE operation=? AND request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", operation, requestId);
+  const replay = async (tx, operation, requestId, table, input, actor) => {
+    const audit = await tx.get("SELECT id, entity_id, actor_type, input_digest FROM margin_audit_log WHERE operation=? AND request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", operation, requestId);
     if (!audit) return null;
+    if (audit.actor_type !== actor?.actorType || audit.input_digest !== digestInput(input)) {
+      throw new CoreContractError('idempotency_conflict', 'Request ID was already used with different input or actor');
+    }
     return { auditId: audit.id, data: await tx.get(`SELECT * FROM ${table} WHERE id=?`, audit.entity_id) };
   };
 
   return {
-    getOperationReplay: async (operation, requestId, table) => {
-      const found = await replay(store.db, operation, requestId, table);
+    getOperationReplay: async (operation, requestId, table, input, actor) => {
+      const found = await replay(store.db, operation, requestId, table, input, actor);
       return found;
     },
     getWorkstream: async (id) => mapWorkstream(await store.db.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', id)),
@@ -38,10 +41,28 @@ export function createPersistentWorkRepository(store) {
     getContinuitySnapshot: async (input) => {
       const snapshot = await store.getContinuitySnapshot(input);
       const actions = await store.db.all("SELECT * FROM margin_actions WHERE project_id=? AND status IN ('pending','active') ORDER BY updated_at DESC,id LIMIT 10", input.projectId);
-      return { ...snapshot, actions };
+      return { ...snapshot, project: mapWorkstream(snapshot.project), actions };
     },
+    updateWorkstream: (input, actor) => store.transaction(async (tx) => {
+      const prior = await replay(tx, 'workstream_update', input.requestId, 'margin_projects', input, actor);
+      if (prior) return { ...prior, data: mapWorkstream(prior.data) };
+      const current = await tx.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
+      if (!current) throw new CoreContractError('workstream_not_found','Workstream not found');
+      if (current.version !== input.expectedVersion) throw new CoreContractError('version_conflict','Workstream version conflict');
+      const legacyToWorkstream = { active: 'running', blocked: 'blocked', completed: 'completed', archived: 'completed' };
+      const workstreamToLegacy = { running: 'active', ready: 'active', waiting: 'active', watching: 'active', blocked: 'blocked', needs_owner: 'blocked', paused: 'blocked', completed: 'completed' };
+      const requestedStatus = input.changes.status;
+      const workstreamStatus = requestedStatus === undefined ? current.workstream_status : (legacyToWorkstream[requestedStatus] ?? requestedStatus);
+      const legacyStatus = requestedStatus === undefined ? current.status : (workstreamToLegacy[workstreamStatus] ?? requestedStatus);
+      if (!workstreamToLegacy[workstreamStatus] || !['active','blocked','completed','archived'].includes(legacyStatus)) throw new CoreContractError('invalid_request','Unsupported Workstream status');
+      const now=store.clock(); const nextVersion=current.version+1;
+      await tx.run('UPDATE margin_projects SET goal=?,phase=?,status=?,workstream_status=?,version=?,source_session_id=?,source_event_id=?,updated_at=? WHERE id=?',
+        input.changes.goal ?? current.goal,input.changes.phase ?? current.phase,legacyStatus,workstreamStatus,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,current.id);
+      const auditId=await evidence(tx,{operation:'workstream_update',requestId:input.requestId,actor,workstreamId:current.id,entityType:'workstream',entityId:current.id,version:nextVersion,eventType:workstreamStatus==='completed'?'completed':'updated',input});
+      return {data:mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?',current.id)),auditId};
+    }),
     createWorkstream: (input, actor) => store.transaction(async (tx) => {
-      const prior = await replay(tx, 'workstream_create', input.requestId, 'margin_projects');
+      const prior = await replay(tx, 'workstream_create', input.requestId, 'margin_projects', input, actor);
       if (prior) return { ...prior, data: mapWorkstream(prior.data) };
       const id = store.idFactory('workstream');
       const now = store.clock();
@@ -60,7 +81,7 @@ export function createPersistentWorkRepository(store) {
       return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), auditId };
     }),
     createRun: (input, actor) => store.transaction(async (tx) => {
-      const prior = await replay(tx, 'run_create', input.requestId, 'margin_runs');
+      const prior = await replay(tx, 'run_create', input.requestId, 'margin_runs', input, actor);
       if (prior) return prior;
       const workstream = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
       if (!workstream) throw new CoreContractError('workstream_not_found', 'Workstream not found');
@@ -84,7 +105,7 @@ export function createPersistentWorkRepository(store) {
     findOpenRun: (workstreamId) => store.db.get("SELECT * FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') ORDER BY created_at DESC,id LIMIT 1", workstreamId),
     transitionRun: (input, actor) => store.transaction(async (tx) => {
       const operation = `run_${input.command}`;
-      const prior = await replay(tx, operation, input.requestId, 'margin_runs');
+      const prior = await replay(tx, operation, input.requestId, 'margin_runs', input.requestInput ?? input, actor);
       if (prior) return prior;
       const current = await tx.get('SELECT * FROM margin_runs WHERE id=?', input.runId);
       if (!current) throw new CoreContractError('run_not_found','Run not found');
@@ -102,11 +123,11 @@ export function createPersistentWorkRepository(store) {
       await tx.run(`UPDATE margin_runs SET status=?,runtime_session_id=?,checkpoint_id=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,started_at=?,ended_at=? WHERE id=?`,
         input.status,input.runtimeSessionId ?? current.runtime_session_id,checkpointId,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,startedAt,endedAt,current.id);
       const eventType=input.status==='completed'?'completed':input.status==='failed'?'failed':'updated';
-      const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input});
+      const auditId=await evidence(tx,{operation,requestId:input.requestId,actor,workstreamId:current.workstream_id,entityType:'run',entityId:current.id,version:nextVersion,eventType,input:input.requestInput ?? input});
       return {data:await tx.get('SELECT * FROM margin_runs WHERE id=?',current.id),auditId};
     }),
     createArtifact: (input, actor) => store.transaction(async (tx) => {
-      const prior = await replay(tx, 'artifact_create', input.requestId, 'margin_artifacts');
+      const prior = await replay(tx, 'artifact_create', input.requestId, 'margin_artifacts', input, actor);
       if (prior) return prior;
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId) : null;
       if (input.runId && (!run || run.workstream_id !== input.workstreamId)) throw new CoreContractError('cross_workstream_reference', 'Run belongs to another Workstream');
@@ -117,7 +138,7 @@ export function createPersistentWorkRepository(store) {
       return {data:await tx.get('SELECT * FROM margin_artifacts WHERE id=?',id),auditId};
     }),
     createCheckpoint: (input, actor) => store.transaction(async (tx) => {
-      const prior = await replay(tx, 'checkpoint_create', input.requestId, 'margin_checkpoints');
+      const prior = await replay(tx, 'checkpoint_create', input.requestId, 'margin_checkpoints', input, actor);
       if (prior) return prior;
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?',input.runId) : null;
       if (input.runId && (!run || run.workstream_id !== input.workstreamId)) throw new CoreContractError('cross_workstream_reference','Run belongs to another Workstream');

@@ -117,7 +117,7 @@ export async function openMarginCoreStore({
       }
 
       const project = await db.get(
-        "SELECT * FROM margin_projects WHERE id = ? AND status = 'active' AND deleted_at IS NULL",
+        "SELECT * FROM margin_projects WHERE id = ? AND status NOT IN ('completed','archived') AND workstream_status <> 'completed' AND deleted_at IS NULL",
         projectId
       );
       if (!project) throw new CoreContractError('project_not_found', 'Project not found');

@@ -36,6 +36,37 @@ test('workstream creation rejects unbounded plan fields', async () => {
   } finally { await f.cleanup(); }
 });
 
+test('idempotency rejects a reused request ID with different input', async () => {
+  const f = await fixture();
+  try {
+    await f.core.workstreams.create({ requestId: 'same', title: 'A', goal: '目标 A', scenario: 'career_project' }, actor);
+    await assert.rejects(
+      f.core.workstreams.create({ requestId: 'same', title: 'B', goal: '目标 B', scenario: 'career_project' }, actor),
+      (error) => error.code === 'idempotency_conflict'
+    );
+    await assert.rejects(
+      f.core.workstreams.create({ requestId: 'same', title: 'A', goal: '目标 A', scenario: 'career_project' }, { ...actor, actorType: 'agent' }),
+      (error) => error.code === 'idempotency_conflict'
+    );
+  } finally { await f.cleanup(); }
+});
+
+test('V1 state tool updates legacy and Workstream status as one transaction', async () => {
+  const f = await fixture();
+  try {
+    const workstream = (await f.core.workstreams.create({ requestId: 'w-state', title: 'Margin', goal: '持续推进', scenario: 'career_project' }, actor)).data;
+    const result = await f.core.v1Tools.state_update({
+      requestId: 'update-state', projectId: workstream.id, operation: 'update_project', expectedVersion: workstream.version,
+      changes: { status: 'blocked' }, sourceSessionId: 'pi-session', sourceEventId: 'tool-call'
+    }, { actorType: 'agent', permissions: { stateWrite: true } });
+    assert.equal(result.ok, true);
+    assert.equal((await f.core.workstreams.get(workstream.id)).status, 'blocked');
+    assert.equal((await f.core.store.db.get('SELECT status FROM margin_projects WHERE id=?', workstream.id)).status, 'blocked');
+    const snapshot = await f.core.continuity.snapshot({ projectId: workstream.id, query: '继续', asOf: '2026-08-23T12:00:00.000Z', recentDialogue: [] });
+    assert.equal(snapshot.project.status, 'blocked');
+  } finally { await f.cleanup(); }
+});
+
 test('run artifact and checkpoint remain scoped to one workstream', async () => {
   const f = await fixture();
   try {

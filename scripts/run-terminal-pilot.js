@@ -12,7 +12,7 @@ const TOOLS = ['memory_search', 'memory_propose', 'state_update', 'action_update
 export function sanitizePilotReport(input = {}) {
   return {
     projectId: input.projectId ?? null,
-    sessions: [...new Set(input.sessions ?? [])],
+    sessions: [...new Set(input.sessions ?? [])].filter(Boolean),
     contextDigests: [...new Set(input.contextDigests ?? [])],
     resultCodes: [...new Set(input.resultCodes ?? [])],
     auditIds: [...new Set(input.auditIds ?? [])],
@@ -96,7 +96,7 @@ export async function main({ env = process.env, stdin = process.stdin, stdout = 
       core = await createMarginCore({ enabled: true, dbPath: path.join(dataDir, 'margin-core.sqlite') });
       runtime = await createPiTerminalPilotRuntime({
         repositoryRoot, agentDir: path.join(dataDir, 'agent'), provider, modelId,
-        customProvider: { baseUrl, api, apiKey }, tools: core.tools
+        customProvider: { baseUrl, api, apiKey }, tools: core.v1Tools
       });
       return createTerminalPilotController({
         core, runtime, registry: registry(path.join(dataDir, 'project.json')),
