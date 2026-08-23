@@ -9,6 +9,23 @@ const REPLAY_TABLES = Object.freeze({
   checkpoint: 'margin_checkpoints', needs_owner: 'margin_needs_owner'
 });
 
+function storedNeedsOwnerOptions(value) {
+  let options;
+  try { options = JSON.parse(value); }
+  catch { throw new CoreContractError('storage_failure', 'Stored NeedsOwner options are invalid'); }
+  if (!Array.isArray(options) || options.length > 10 || options.some((option) =>
+    !option || typeof option !== 'object' || Array.isArray(option) ||
+    Object.keys(option).some((key) => !['id', 'label', 'consequenceSummary'].includes(key)) ||
+    typeof option.id !== 'string' || !option.id.trim() || option.id.length > 200 ||
+    typeof option.label !== 'string' || !option.label.trim() || option.label.length > 2_000 ||
+    (option.consequenceSummary !== undefined && option.consequenceSummary !== null &&
+      (typeof option.consequenceSummary !== 'string' || !option.consequenceSummary.trim() || option.consequenceSummary.length > 2_000))
+  ) || new Set(options.map((option) => option.id)).size !== options.length) {
+    throw new CoreContractError('storage_failure', 'Stored NeedsOwner options are invalid');
+  }
+  return options;
+}
+
 function normalizeEvidenceMetadata(actor = {}) {
   const correlationId = actor.correlationId;
   if (correlationId !== undefined && correlationId !== null &&
@@ -275,6 +292,8 @@ export function createPersistentWorkRepository(store) {
     createArtifact: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'artifact_create', input.requestId, 'margin_artifacts', input, actor);
       if (prior) return prior;
+      const workstream = await tx.get('SELECT id FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
+      if (!workstream) throw new CoreContractError('workstream_not_found', 'Workstream not found');
       const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId) : null;
       if (input.runId && (!run || run.workstream_id !== input.workstreamId)) throw new CoreContractError('cross_workstream_reference', 'Run belongs to another Workstream');
       const id = store.idFactory('artifact'); const now = store.clock();
@@ -340,7 +359,10 @@ export function createPersistentWorkRepository(store) {
         const run = await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?', input.runId);
         if (!run || run.workstream_id !== input.workstreamId) throw new CoreContractError('cross_workstream_reference', 'Run belongs to another Workstream');
       }
-      if (!['decision', 'approval', 'input', 'conflict'].includes(input.type) || !input.reason?.trim() || !Array.isArray(input.options)) throw new CoreContractError('invalid_request', 'Valid NeedsOwner input is required');
+      const optionIds = Array.isArray(input.options) ? input.options.map((option) => option?.id) : [];
+      if (!['decision', 'approval', 'input', 'conflict'].includes(input.type) || !input.reason?.trim() || !Array.isArray(input.options) ||
+        input.options.length > 10 || optionIds.some((id) => typeof id !== 'string' || !id.trim() || id.length > 200) ||
+        new Set(optionIds).size !== optionIds.length) throw new CoreContractError('invalid_request', 'Valid NeedsOwner input is required');
       const id = store.idFactory('needs-owner'); const now = store.clock();
       await tx.run(
         `INSERT INTO margin_needs_owner
@@ -359,10 +381,20 @@ export function createPersistentWorkRepository(store) {
       if (!current) throw new CoreContractError('not_found', 'NeedsOwner not found');
       if (current.version !== input.expectedVersion) throw versionConflict(current.version);
       if (current.status !== 'open') throw new CoreContractError('invalid_transition', 'NeedsOwner is not open');
+      const options = storedNeedsOwnerOptions(current.options);
+      const optionId = input.optionId ?? null;
+      if ((options.length > 0 && optionId === null) ||
+        (optionId !== null && !options.some((option) => option.id === optionId))) {
+        throw new CoreContractError('invalid_request', 'A valid NeedsOwner optionId is required');
+      }
+      const resolution = JSON.stringify({
+        optionId,
+        summary: input.resolutionSummary ?? input.resolution ?? null
+      });
       const now = store.clock(); const nextVersion = current.version + 1;
       await tx.run(
         `UPDATE margin_needs_owner SET status='resolved',resolution=?,version=?,source_session_id=?,source_event_id=?,updated_at=?,resolved_at=? WHERE id=?`,
-        input.resolution ?? input.resolutionSummary ?? input.optionId ?? null,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,now,current.id
+        resolution,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,now,current.id
       );
       const replayEvidence = await evidence(tx, { operation: 'needs_owner_resolve', requestId: input.requestId, actor, workstreamId: current.workstream_id, entityType: 'needs_owner', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'resolved' });
       return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', current.id), ...replayEvidence };

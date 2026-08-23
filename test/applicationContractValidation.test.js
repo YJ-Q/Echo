@@ -93,6 +93,17 @@ test('command validators bound list and metadata payloads', () => {
   }, context), hasCode('invalid_request'));
 });
 
+test('NeedsOwner command validation rejects duplicate option IDs', () => {
+  const requestId = 'needs-owner-duplicates';
+  assert.throws(() => validateCommand({
+    type: 'needs_owner.create', requestId, idempotencyKey: 'needs-owner-duplicates-key',
+    payload: {
+      workstreamId: 'workstream-1', type: 'approval', reason: 'Choose once',
+      options: [{ id: 'same', label: 'First' }, { id: 'same', label: 'Second' }]
+    }
+  }, { ...context, requestId }), hasCode('invalid_request'));
+});
+
 test('checkpoint create uses state and run versions rather than expectedVersion', () => {
   const command = {
     type: 'checkpoint.create', requestId: 'request-1', idempotencyKey: 'checkpoint-1',

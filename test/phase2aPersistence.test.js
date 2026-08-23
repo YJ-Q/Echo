@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createMarginCore } from '../src/core/createMarginCore.js';
+import { toNeedsOwnerDTO } from '../src/contracts/dtoMappers.js';
 
 const actor = {
   actorType: 'user', subjectId: 'phase2a-user', sourceSessionId: 'phase2a-session', sourceEventId: 'phase2a-event'
@@ -76,6 +77,110 @@ test('NeedsOwner create replays the same request and rejects changed input or su
       f.core.repository.createNeedsOwner(input, { ...actor, subjectId: 'another-user' }),
       (error) => error.code === 'idempotency_conflict'
     );
+  } finally { await f.cleanup(); }
+});
+
+test('NeedsOwner create rejects duplicate option IDs without state or evidence writes', async () => {
+  const f = await fixture();
+  try {
+    const input = {
+      ...needsOwnerInput(f.workstream.id),
+      options: [
+        { id: 'approve', label: 'Approve' },
+        { id: 'approve', label: 'Approve another way' }
+      ]
+    };
+    const before = {
+      rows: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_needs_owner')).count,
+      events: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count,
+      audits: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_audit_log')).count
+    };
+    await assert.rejects(
+      f.core.repository.createNeedsOwner(input, actor),
+      (error) => error.code === 'invalid_request'
+    );
+    assert.deepEqual({
+      rows: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_needs_owner')).count,
+      events: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count,
+      audits: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_audit_log')).count
+    }, before);
+  } finally { await f.cleanup(); }
+});
+
+test('NeedsOwner resolve transaction rejects missing and unknown required option IDs', async () => {
+  const f = await fixture();
+  try {
+    const created = await f.core.repository.createNeedsOwner(needsOwnerInput(f.workstream.id), actor);
+    const eventsBefore = (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events WHERE entity_id=?', created.data.id)).count;
+    await assert.rejects(
+      f.core.repository.resolveNeedsOwner({
+        requestId: 'resolve-missing-option', needsOwnerId: created.data.id,
+        expectedVersion: created.data.version, resolutionSummary: 'Approved'
+      }, actor),
+      (error) => error.code === 'invalid_request'
+    );
+    await assert.rejects(
+      f.core.repository.resolveNeedsOwner({
+        requestId: 'resolve-unknown-option', needsOwnerId: created.data.id,
+        expectedVersion: created.data.version, optionId: 'unknown', resolutionSummary: 'Approved'
+      }, actor),
+      (error) => error.code === 'invalid_request'
+    );
+    const unchanged = await f.core.repository.getNeedsOwner(created.data.id);
+    assert.equal(unchanged.status, 'open');
+    assert.equal(unchanged.version, 1);
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events WHERE entity_id=?', created.data.id)).count, eventsBefore);
+  } finally { await f.cleanup(); }
+});
+
+test('NeedsOwner resolve rejects malformed persisted bounded options without writes', async () => {
+  const f = await fixture();
+  try {
+    const created = await f.core.repository.createNeedsOwner(needsOwnerInput(f.workstream.id), actor);
+    await f.core.store.db.run(
+      'UPDATE margin_needs_owner SET options=? WHERE id=?',
+      JSON.stringify([{ id: 'approve', label: '', consequenceSummary: null }]), created.data.id
+    );
+    const eventsBefore = (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events WHERE entity_id=?', created.data.id)).count;
+    await assert.rejects(
+      f.core.repository.resolveNeedsOwner({
+        requestId: 'resolve-malformed-options', needsOwnerId: created.data.id,
+        expectedVersion: created.data.version, optionId: 'approve', resolutionSummary: 'Approved'
+      }, actor),
+      (error) => error.code === 'storage_failure'
+    );
+    const unchanged = await f.core.repository.getNeedsOwner(created.data.id);
+    assert.equal(unchanged.status, 'open');
+    assert.equal(unchanged.version, 1);
+    assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events WHERE entity_id=?', created.data.id)).count, eventsBefore);
+  } finally { await f.cleanup(); }
+});
+
+test('NeedsOwner resolution persists and maps a frozen reconstructable option and summary', async () => {
+  const f = await fixture();
+  try {
+    const created = await f.core.repository.createNeedsOwner(needsOwnerInput(f.workstream.id), actor);
+    const resolved = await f.core.repository.resolveNeedsOwner({
+      requestId: 'resolve-reconstructable', needsOwnerId: created.data.id,
+      expectedVersion: created.data.version, optionId: 'approve', resolutionSummary: 'Approved after review'
+    }, actor);
+    assert.deepEqual(JSON.parse(resolved.data.resolution), {
+      optionId: 'approve', summary: 'Approved after review'
+    });
+    const dto = toNeedsOwnerDTO(resolved.data);
+    assert.deepEqual(dto.resolution, { optionId: 'approve', summary: 'Approved after review' });
+    assert.equal(Object.isFrozen(dto.resolution), true);
+
+    const noOptions = await f.core.repository.createNeedsOwner({
+      ...needsOwnerInput(f.workstream.id, 'create-no-options'), options: []
+    }, actor);
+    const noSelection = await f.core.repository.resolveNeedsOwner({
+      requestId: 'resolve-no-options', needsOwnerId: noOptions.data.id,
+      expectedVersion: noOptions.data.version, resolutionSummary: 'Acknowledged'
+    }, actor);
+    assert.deepEqual(JSON.parse(noSelection.data.resolution), {
+      optionId: null, summary: 'Acknowledged'
+    });
   } finally { await f.cleanup(); }
 });
 

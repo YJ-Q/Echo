@@ -11,14 +11,15 @@ const runtimeControl = {
   async halt(run) { this.calls.push(`halt:${run.id}`); }
 };
 
-async function fixture() {
+async function fixture(options = {}) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-contract-commands-'));
   let number = 0;
   const core = await createMarginCore({
     enabled: true,
     dbPath: path.join(directory, 'core.sqlite'),
     clock: () => '2026-08-24T00:00:00.000Z',
-    idFactory: (kind = 'id') => `${kind}-${++number}`
+    idFactory: (kind = 'id') => `${kind}-${++number}`,
+    ...options
   });
   runtimeControl.calls = [];
   const gateway = core.createApplicationContract({ runtimeControl });
@@ -508,5 +509,182 @@ test('checkpoint.create rejects runVersion without runId before state or evidenc
     assert.equal(rejected.error.code, 'invalid_request');
     assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_checkpoints')).count, 0);
     assert.equal((await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count, eventsBefore);
+  } finally { await f.cleanup(); }
+});
+
+test('pause and stop retries reuse the Runtime operation key after post-halt persistence failure', async (t) => {
+  for (const operation of ['pause', 'stop']) {
+    await t.test(operation, async () => {
+      let failNextRunEvidence = false;
+      const f = await fixture({
+        beforeEvidenceWrite({ entityType }) {
+          if (failNextRunEvidence && entityType === 'run') {
+            failNextRunEvidence = false;
+            throw new Error('post-halt evidence failure');
+          }
+        }
+      });
+      try {
+        const workstream = (await f.gateway.execute(
+          command('workstream.create', `${operation}-w-call`, `${operation}-w-key`, {
+            title: `${operation} retry`, goal: 'Deduplicate Runtime halt', scenario: 'career_project'
+          }),
+          context(`${operation}-w-call`, ['workstream:write'])
+        )).data;
+        const created = (await executeHost(f,
+          command('run.create', `${operation}-r-call`, `${operation}-r-key`, {
+            workstreamId: workstream.id, workerKind: 'pi', scope: `${operation} once`
+          }),
+          ['run:control']
+        )).data;
+        const started = (await executeHost(f,
+          command('run.start', `${operation}-start-call`, `${operation}-start-key`, { runId: created.id }, created.version),
+          ['run:control']
+        )).data;
+
+        const invocations = [];
+        const effectiveHalts = [];
+        const completed = new Set();
+        const idempotentRuntime = {
+          async activate() { throw new Error('activate is not expected'); },
+          async halt(run, descriptor) {
+            invocations.push({ runId: run.id, descriptor });
+            const identity = descriptor
+              ? JSON.stringify([descriptor.operation, descriptor.key, descriptor.runtimeReference])
+              : `missing-descriptor-${invocations.length}`;
+            if (!completed.has(identity)) {
+              completed.add(identity);
+              effectiveHalts.push({ runId: run.id, descriptor });
+            }
+          }
+        };
+        const gateway = f.core.createApplicationContract({ runtimeControl: idempotentRuntime });
+        const businessKey = `${operation}-stable-runtime-key`;
+        const firstCommand = command(
+          `run.${operation}`, `${operation}-retry-call-1`, businessKey, { runId: started.id }, started.version
+        );
+        failNextRunEvidence = true;
+        const first = await gateway.execute(
+          firstCommand,
+          f.core.bindHostContext(context(`${operation}-retry-call-1`, ['run:control']))
+        );
+        assert.deepEqual(first.error, { code: 'storage_failure', retryable: true });
+        assert.equal((await f.core.repository.getRun(started.id)).status, 'running');
+
+        const retry = await gateway.execute(
+          { ...firstCommand, requestId: `${operation}-retry-call-2` },
+          f.core.bindHostContext(context(`${operation}-retry-call-2`, ['run:control']))
+        );
+        assert.equal(retry.ok, true);
+        assert.equal(retry.data.status, operation === 'pause' ? 'paused' : 'cancelled');
+        assert.equal(invocations.length, 2);
+        assert.equal(effectiveHalts.length, 1);
+        const expectedDescriptor = {
+          operation: `run.${operation}`,
+          key: businessKey,
+          runtimeReference: { kind: 'pi', id: started.runtimeReference.id }
+        };
+        assert.deepEqual(invocations.map((call) => call.descriptor), [expectedDescriptor, expectedDescriptor]);
+        assert.equal((await f.core.store.db.get(
+          'SELECT COUNT(*) count FROM margin_audit_log WHERE operation=? AND entity_id=?',
+          `run_${operation}`, started.id
+        )).count, 1);
+      } finally { await f.cleanup(); }
+    });
+  }
+});
+
+test('start retry reuses one effective Runtime activation after post-activation persistence failure', async () => {
+  let failNextRunEvidence = false;
+  const f = await fixture({
+    beforeEvidenceWrite({ entityType }) {
+      if (failNextRunEvidence && entityType === 'run') {
+        failNextRunEvidence = false;
+        throw new Error('post-activation evidence failure');
+      }
+    }
+  });
+  try {
+    const workstream = (await f.gateway.execute(
+      command('workstream.create', 'activate-w-call', 'activate-w-key', {
+        title: 'Activate retry', goal: 'Deduplicate Runtime activation', scenario: 'career_project'
+      }),
+      context('activate-w-call', ['workstream:write'])
+    )).data;
+    const created = (await executeHost(f,
+      command('run.create', 'activate-r-call', 'activate-r-key', {
+        workstreamId: workstream.id, workerKind: 'pi', scope: 'Activate once'
+      }),
+      ['run:control']
+    )).data;
+
+    const invocations = [];
+    const effectiveActivations = [];
+    const results = new Map();
+    const halts = [];
+    const idempotentRuntime = {
+      async activate(run, descriptor) {
+        invocations.push({ runId: run.id, descriptor });
+        const identity = descriptor
+          ? JSON.stringify([descriptor.operation, descriptor.key, descriptor.runtimeReference])
+          : `missing-descriptor-${invocations.length}`;
+        if (!results.has(identity)) {
+          effectiveActivations.push({ runId: run.id, descriptor });
+          results.set(identity, { runtimeSessionId: `idempotent-${run.id}` });
+        }
+        return results.get(identity);
+      },
+      async halt(run, descriptor) { halts.push({ runId: run.id, descriptor }); }
+    };
+    const gateway = f.core.createApplicationContract({ runtimeControl: idempotentRuntime });
+    const firstCommand = command('run.start', 'activate-retry-call-1', 'activate-stable-runtime-key', {
+      runId: created.id
+    }, created.version);
+    failNextRunEvidence = true;
+    const first = await gateway.execute(
+      firstCommand,
+      f.core.bindHostContext(context('activate-retry-call-1', ['run:control']))
+    );
+    assert.deepEqual(first.error, { code: 'storage_failure', retryable: true });
+    assert.equal((await f.core.repository.getRun(created.id)).status, 'queued');
+
+    const retry = await gateway.execute(
+      { ...firstCommand, requestId: 'activate-retry-call-2' },
+      f.core.bindHostContext(context('activate-retry-call-2', ['run:control']))
+    );
+    assert.equal(retry.ok, true);
+    assert.equal(retry.data.status, 'running');
+    assert.equal(retry.data.runtimeReference.id, `idempotent-${created.id}`);
+    assert.equal(invocations.length, 2);
+    assert.equal(effectiveActivations.length, 1);
+    const expectedDescriptor = {
+      operation: 'run.start', key: 'activate-stable-runtime-key', runtimeReference: null
+    };
+    assert.deepEqual(invocations.map((call) => call.descriptor), [expectedDescriptor, expectedDescriptor]);
+    assert.deepEqual(halts, []);
+  } finally { await f.cleanup(); }
+});
+
+test('artifact.create without runId returns workstream_not_found before foreign-key write', async () => {
+  const f = await fixture();
+  try {
+    const before = {
+      artifacts: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_artifacts')).count,
+      events: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count,
+      audits: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_audit_log')).count
+    };
+    const response = await f.gateway.execute(
+      command('artifact.create', 'missing-artifact-call', 'missing-artifact-key', {
+        workstreamId: 'missing-workstream', type: 'report', title: 'Missing owner',
+        resourceReference: { uri: 'margin://artifact/missing', contentHash: 'missing-hash' }
+      }),
+      context('missing-artifact-call', ['artifact:write'])
+    );
+    assert.deepEqual(response.error, { code: 'workstream_not_found', retryable: false });
+    assert.deepEqual({
+      artifacts: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_artifacts')).count,
+      events: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_events')).count,
+      audits: (await f.core.store.db.get('SELECT COUNT(*) count FROM margin_audit_log')).count
+    }, before);
   } finally { await f.cleanup(); }
 });

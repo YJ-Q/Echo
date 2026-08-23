@@ -20,7 +20,9 @@ function fixture({ discoverExisting = false, activeTask = true, persistentRun = 
     runtimeReference: { kind: 'pi', id: 'persisted-session' }, checkpoint: null
   } : null;
   calls.currentRun = () => run;
-  core.createApplicationContract = ({ runtimeControl }) => ({
+  core.createApplicationContract = ({ runtimeControl }) => {
+    calls.runtimeControl = runtimeControl;
+    return ({
     async query(request) {
       if (request.type === 'workstream.get') return { ok: true, data: request.payload.workstreamId === project.id ? project : null };
       if (request.type === 'workstream.list') return { ok: true, data: { items: discoverExisting ? [project] : [], nextCursor: null } };
@@ -56,7 +58,8 @@ function fixture({ discoverExisting = false, activeTask = true, persistentRun = 
       }
       return { ok: true, data: run };
     }
-  });
+    });
+  };
   let next = 0;
   const runtime = {
     async haltSession(id) { calls.haltedSessions.push(id); return { halted: true }; },
@@ -96,6 +99,23 @@ test('controller grants the exact Core permission for proposing memory', async (
   await controller.start();
   assert.equal(invocationContext.permissions.memoryPropose, true);
   assert.equal('memoryWrite' in invocationContext.permissions, false);
+});
+
+test('terminal Runtime adapter makes repeated and already-halted persisted references successful no-ops', async () => {
+  const f = fixture({ persistentRun: true, existingRunStatus: 'paused' });
+  const controller = createTerminalPilotController({
+    core: f.core, runtime: f.runtime, registry: f.registry,
+    clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1`
+  });
+  await controller.start();
+  const persistedRun = f.calls.currentRun();
+  const descriptor = {
+    operation: 'run.stop', key: 'stable-stop-key', runtimeReference: persistedRun.runtimeReference
+  };
+  await f.calls.runtimeControl.halt(persistedRun, descriptor);
+  await f.calls.runtimeControl.halt(persistedRun, descriptor);
+  await f.calls.runtimeControl.halt(persistedRun, { ...descriptor, key: 'later-stop-key' });
+  assert.deepEqual(f.calls.haltedSessions, ['persisted-session']);
 });
 
 test('controller makes partial write failures explicit even when assistant prose is optimistic', async () => {

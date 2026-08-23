@@ -183,15 +183,23 @@ export async function openMarginCoreStore({
     return auditId;
   }
 
+  function legacyWorkstreamTitle(input = {}) {
+    for (const candidate of [input.title, input.goal]) {
+      if (typeof candidate === 'string' && candidate.trim()) return candidate.trim().slice(0, 2_000);
+    }
+    throw new CoreContractError('invalid_request', 'Project title or goal is required');
+  }
+
   store.createProject = (input, context) => store.transaction(async (tx) => {
     const now = clock();
     const id = idFactory('project');
+    const title = legacyWorkstreamTitle(input);
     await tx.run(
       `INSERT INTO margin_projects
-       (id, scenario, goal, phase, status, version, source_session_id, source_event_id, created_at, updated_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, NULL)`,
+       (id, scenario, goal, phase, status, version, source_session_id, source_event_id, created_at, updated_at, deleted_at, title)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, NULL, ?)`,
       id, input.scenario, input.goal, input.phase, input.status || 'active',
-      context.sourceSessionId, context.sourceEventId, now, now
+      context.sourceSessionId, context.sourceEventId, now, now, title
     );
     await writeEvidence(tx, { entityType: 'project', entityId: id, projectId: id, eventType: 'created', entityVersion: 1, operation: 'create_project' }, context);
     return tx.get('SELECT * FROM margin_projects WHERE id = ?', id);

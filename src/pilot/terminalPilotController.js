@@ -24,6 +24,9 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
   let sessionClosed = false;
   let gatewayRequestSequence = 0;
   let businessCommandSequence = 0;
+  const pendingCommandKeys = new Map();
+  const runtimeOperations = new Map();
+  const haltedRuntimeReferences = new Set();
   const correlationId = idFactory('terminal_correlation');
 
   async function openSession() {
@@ -38,22 +41,44 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     });
     sessionClosed = false;
     if (!session?.id || !session?.send || !session?.close) throw new TypeError('invalid_pilot_session');
+    haltedRuntimeReferences.delete(session.id);
     return session;
   }
 
+  function runtimeOperation(kind, runValue, descriptor, effect) {
+    if (!descriptor?.operation || !descriptor?.key) return effect();
+    const reference = descriptor.runtimeReference ?? null;
+    const identity = JSON.stringify([kind, descriptor.operation, descriptor.key, reference, runValue?.id ?? null]);
+    if (runtimeOperations.has(identity)) return runtimeOperations.get(identity);
+    const pending = Promise.resolve().then(effect).catch((error) => {
+      runtimeOperations.delete(identity);
+      throw error;
+    });
+    runtimeOperations.set(identity, pending);
+    return pending;
+  }
+
   const runtimeControl = {
-    async activate() {
-      if (!session || sessionClosed) await openSession();
-      return { runtimeSessionId: session.id };
+    activate(runToActivate, descriptor) {
+      return runtimeOperation('activate', runToActivate, descriptor, async () => {
+        if (!session || sessionClosed) await openSession();
+        return { runtimeSessionId: session.id };
+      });
     },
-    async halt(runToHalt) {
-      const persistedSessionId = runToHalt?.runtimeReference?.id ?? runToHalt?.runtime_session_id;
-      if (!sessionClosed && session && (!persistedSessionId || session.id === persistedSessionId)) {
-        sessionClosed = true;
-        await session.close();
-      } else if (persistedSessionId) {
-        await runtime.haltSession?.(persistedSessionId);
-      }
+    halt(runToHalt, descriptor) {
+      return runtimeOperation('halt', runToHalt, descriptor, async () => {
+        const persistedSessionId = descriptor?.runtimeReference?.id ?? runToHalt?.runtimeReference?.id ?? runToHalt?.runtime_session_id;
+        if (persistedSessionId && haltedRuntimeReferences.has(persistedSessionId)) return { halted: true, noOp: true };
+        if (!sessionClosed && session && (!persistedSessionId || session.id === persistedSessionId)) {
+          sessionClosed = true;
+          await session.close();
+          haltedRuntimeReferences.add(persistedSessionId ?? session.id);
+        } else if (persistedSessionId) {
+          await runtime.haltSession?.(persistedSessionId);
+          haltedRuntimeReferences.add(persistedSessionId);
+        }
+        return { halted: true };
+      });
     }
   };
   const gateway = core.createApplicationContract({ runtimeControl });
@@ -97,14 +122,19 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
 
   async function execute(type, payload, capabilities, { expectedVersion, host = false } = {}) {
     const currentRequestId = requestId(type);
+    const intent = JSON.stringify([type, payload, expectedVersion ?? null]);
+    const stableCommandKey = pendingCommandKeys.get(intent) ?? idempotencyKey(type);
+    pendingCommandKeys.set(intent, stableCommandKey);
     const command = {
       type,
       requestId: currentRequestId,
-      idempotencyKey: idempotencyKey(type),
+      idempotencyKey: stableCommandKey,
       ...(expectedVersion === undefined ? {} : { expectedVersion }),
       payload
     };
-    return dataOf(await gateway.execute(command, context(currentRequestId, capabilities, host)));
+    const response = await gateway.execute(command, context(currentRequestId, capabilities, host));
+    if (response?.ok) pendingCommandKeys.delete(intent);
+    return dataOf(response);
   }
 
   async function findPilotWorkstream() {

@@ -5,7 +5,8 @@ const optionalBoundedString = (value, max = 2_000) => value === undefined || val
 const plain = (value) => value && typeof value === 'object' && !Array.isArray(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
 function validOptions(options) {
-  return Array.isArray(options) && options.length <= 10 && options.every((option) =>
+  return Array.isArray(options) && options.length <= 10 &&
+    new Set(options.map((option) => option?.id)).size === options.length && options.every((option) =>
     plain(option) && Object.keys(option).every((key) => ['id', 'label', 'consequenceSummary'].includes(key)) &&
     boundedString(option.id, 200) && boundedString(option.label) && optionalBoundedString(option.consequenceSummary)
   );

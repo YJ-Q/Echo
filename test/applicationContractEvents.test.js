@@ -262,3 +262,78 @@ test('event actor is anonymous unless audit identity, aggregate scope, project s
     for (const event of forgedEvents) assert.deepEqual(event.actor, { type: null, subjectId: null });
   } finally { await f.cleanup(); }
 });
+
+test('legacy Project and governed Decision evidence maps safely across cursor pages and restart', async () => {
+  const f = await fixture();
+  try {
+    const legacyEvidence = {
+      requestId: 'legacy-project-create', actorType: 'user', sourceSessionId: 'legacy-session',
+      sourceEventId: 'legacy-project-event', inputDigest: 'a'.repeat(64), permissionDecision: 'allowed'
+    };
+    const project = await f.core.store.createProject({
+      scenario: 'career_project', goal: 'Legacy Event Workstream', phase: 'legacy'
+    }, legacyEvidence);
+    await f.core.store.updateProject(project.id, { phase: 'updated' }, project.version, {
+      ...legacyEvidence, requestId: 'legacy-project-update', sourceEventId: 'legacy-project-update-event'
+    });
+
+    const toolContext = {
+      actorType: 'user', subjectId: 'governed-decision-writer', permissions: { stateWrite: true }
+    };
+    const first = await f.core.v1Tools.state_update({
+      requestId: 'decision-create', projectId: project.id, operation: 'replace_decision',
+      decisionKey: 'format', content: 'PDF', sourceSessionId: 'decision-session', sourceEventId: 'decision-create-event'
+    }, toolContext);
+    const second = await f.core.v1Tools.state_update({
+      requestId: 'decision-replace', projectId: project.id, operation: 'replace_decision',
+      decisionKey: 'format', content: 'DOCX', previousDecisionId: first.data.id, expectedVersion: first.data.version,
+      sourceSessionId: 'decision-session', sourceEventId: 'decision-replace-event'
+    }, toolContext);
+    const revoked = await f.core.v1Tools.state_update({
+      requestId: 'decision-revoke', projectId: project.id, operation: 'revoke_decision',
+      decisionId: second.data.id, expectedVersion: second.data.version,
+      sourceSessionId: 'decision-session', sourceEventId: 'decision-revoke-event'
+    }, toolContext);
+    assert.equal(revoked.ok, true);
+
+    const gateway = f.core.createApplicationContract();
+    const firstPage = await gateway.events(
+      eventList('legacy-event-page-1', 0, 2, { workstreamId: project.id }),
+      context('legacy-event-page-1', ['event:read'])
+    );
+    assert.equal(firstPage.ok, true);
+    assert.equal(firstPage.data.items.length, 2);
+
+    const restarted = await f.restart();
+    const afterRestart = restarted.createApplicationContract();
+    const items = [...firstPage.data.items];
+    let afterCursor = firstPage.data.nextCursor;
+    let hasMore = firstPage.data.hasMore;
+    let pageNumber = 2;
+    while (hasMore) {
+      const requestId = `legacy-event-page-${pageNumber++}`;
+      const page = await afterRestart.events(
+        eventList(requestId, afterCursor, 2, { workstreamId: project.id }),
+        context(requestId, ['event:read'])
+      );
+      assert.equal(page.ok, true);
+      items.push(...page.data.items);
+      afterCursor = page.data.nextCursor;
+      hasMore = page.data.hasMore;
+    }
+
+    assert.deepEqual(items.map((event) => event.eventType), [
+      'workstream.created', 'workstream.updated', 'decision.created',
+      'decision.superseded', 'decision.created', 'decision.revoked'
+    ]);
+    assert.deepEqual(items.map((event) => event.aggregateType), [
+      'workstream', 'workstream', 'decision', 'decision', 'decision', 'decision'
+    ]);
+    assert.deepEqual(items.map((event) => event.cursor), [...items.map((event) => event.cursor)].sort((a, b) => a - b));
+    assert.equal(new Set(items.map((event) => event.cursor)).size, items.length);
+    assert.ok(items.every((event) => event.workstreamId === project.id));
+    assert.ok(items.every((event) => event.actor.type === null && event.actor.subjectId === null));
+    assert.equal(JSON.stringify(items).includes('payload'), false);
+    assert.ok(items.every((event) => Object.keys(event.data).length === 0));
+  } finally { await f.cleanup(); }
+});

@@ -18,7 +18,7 @@ Phase 2A 在现有 Persistent Core 上增加最小可执行 Contract，用来证
 
 明确不实现 HTTP Server、REST/GraphQL 部署层、React/Web UI、飞书 Adapter、Scheduler、Codex Worker、DeepSeek Harness 或完整审批平台。
 
-成功标准：Surface 只持有 Gateway；Gateway 返回的数据在进程重启前后都来自同一个 Persistent Core；没有 Surface、Event 或 Activity shadow state；Contract 不导入 Pi 类型。
+成功标准：Surface 对 Phase 2A Contract-governed resources 只持有 Gateway；Gateway 返回的数据在进程重启前后都来自同一个 Persistent Core；没有 Surface、Event 或 Activity shadow state；Contract 不导入 Pi 类型。Runtime `v1Tools`、continuity 与 memory confirmation 仍是独立的既有治理边界，不伪装成 Contract resource API。
 
 ## 2. Component boundary
 
@@ -140,7 +140,8 @@ Query 同样需要 Context，以便未来做主体隔离和审计，但 Phase 2A
 3. 同 `idempotencyKey + actor.subjectId + command.type + canonical payload` 返回首次成功结果，不重复 Runtime 或持久副作用；
 4. 相同 key 携带不同 payload、command、Workstream scope 或主体返回 `idempotency_conflict`；
 5. 修改已有 aggregate 必须提交 `expectedVersion`，不匹配返回 `version_conflict`；
-6. SQLite 事务与 Phase 1 optimistic version 仍是唯一并发机制，不增加分布式锁。
+6. SQLite 事务与 Phase 1 optimistic version 仍是唯一并发机制，不增加分布式锁；
+7. 每次 Runtime `activate/halt` 回调都接收冻结 descriptor `{ operation, key, runtimeReference }`，其中 `key` 是同一 Run Command 的稳定 `idempotencyKey`。Runtime Adapter 必须让重复 `(operation,key,runtimeReference)` 调用只产生一次有效副作用并重放同一结果；SQLite 与 Runtime 不构成分布式事务。
 
 Phase 2A 将 `idempotencyKey` 映射到现有 repository request-id replay 机制。Gateway `requestId` 保留为调用证据；若底层暂时只能接受一个键，则用 idempotencyKey 作为 Service request ID，并把 Gateway requestId/correlationId 写入 Audit metadata。Contract tests 必须证明重复 start/pause/resume/stop/checkpoint/artifact/resolve 不产生重复副作用。
 
@@ -239,7 +240,7 @@ Contract 不读取 `uri` 指向的正文。若 Artifact 来自 Runtime，只暴�
   consequenceSummary: null,
   contextSummary: null,
   status: 'open' | 'resolved' | 'cancelled',
-  resolution: null,
+  resolution: { optionId: 'option-id' | null, summary: 'safe summary' | null } | null,
   version,
   createdAt,
   resolvedAt: null
@@ -247,6 +248,7 @@ Contract 不读取 `uri` 指向的正文。若 Artifact 来自 Runtime，只暴�
 ```
 
 NeedsOwner 不包含聊天正文或隐藏推理。`reason/contextSummary` 是面向用户的安全摘要；options 最大 10 项。
+option ID 必须唯一。options 非空时 resolve 必须选择其中一个 `optionId`；options 为空时 `optionId` 固定为 `null`。resolution 同时保留选择与摘要，以便重启后无损重建。
 
 ### 5.5 DecisionDTO
 
@@ -381,7 +383,7 @@ Query 形状：
 - `needs_owner.resolved`
 - `needs_owner.cancelled`
 
-未知内部事件不会原样透传，也不动态生成 Event Type。Mapper 只按明确白名单把已知 legacy Workstream/Run 事件映射到上述类型；无法安全、确定映射的记录不进入 Surface stream，并写入结构化诊断。Phase 2A 新写入的 Run transition event payload 必须记录 command/status，使 pause/resume/stop 可以确定映射。
+未知内部事件不会原样透传，也不动态生成 Event Type。Mapper 只按明确白名单把已知 legacy `project`/Workstream/Run 事件映射到上述类型；Decision `created/superseded/revoked` 可由不可变 entity/event identity 安全映射，即使历史 payload 为 `{}`。无法安全、确定映射的记录不进入 Surface stream，并写入结构化诊断；无法证明 Audit 关联时 actor 必须匿名。Phase 2A 新写入的 Run transition event payload 必须记录 command/status，使 pause/resume/stop 可以确定映射。
 
 ### 8.3 Stable cursor
 
@@ -470,6 +472,8 @@ JSON 字段采用 bounded object/list validator。NeedsOwner 的 create/resolve 
 
 这些字段是产品已冻结 DTO 所必需的最小增量，不增加 DayPlan、Scheduler、Workspace 或 Worker 配置表。
 
+Migration 005 是兼容性 backfill，不修改已发布的 v1–v4 checksum：它把历史 blank/whitespace Workstream title 确定性填充为 bounded legacy goal（仅对异常空 goal 使用基于 ID 的安全 fallback）。legacy `store.createProject()` 同时从 bounded title/goal 写入非空 title，防止升级后再次产生不可映射行。Migration 005 不增加表或列。
+
 ## 11. Gateway routing
 
 `createMarginApplicationContract({ services, eventReader, runtimeControl, authorization })` 返回：
@@ -536,6 +540,8 @@ Phase 2A 使用手写、可组合 validator，避免新增大型 schema framewor
 | 幂等 | 同 key 同 command 只产生一次 Event/Audit/副作用；冲突重用被拒 |
 | 乐观并发 | stale expectedVersion 返回 `version_conflict` |
 | Event 顺序 | 同时刻多 event、重启、分页后 cursor 连续且无重漏 |
+| Legacy upgrade | populated v1/v2/v3 保留同一 Workstream ID/version，经最终 schema、Gateway 与 CLI restart 可读 |
+| Runtime 幂等 | post-activate/post-halt SQLite failure 首次诚实失败；同 key retry 可重复 callback 但 Adapter 只执行一次有效副作用 |
 | 隐私 | Event/Activity/DTO 不含隐藏推理、prompt、凭据或 Runtime object |
 
 完整回归继续要求：`npm test`、`npm run validate:stage1`、`npm run audit:pi`、`git diff --check`。
@@ -557,7 +563,7 @@ Phase 2B 不得绕过 Gateway，不得在浏览器保存权威 Workstream/Run �
 
 ## 16. Implementation status
 
-本规格的 Phase 2A 范围已完成：Contract types/validation/DTO、Migration 004、Gateway commands/queries、Event cursor/Activity projection、CLI persistence migration 和真实 SQLite restart E2E 均已有可执行测试。最终实现没有新增 Command、DTO 字段、transport、Scheduler、Worker 或 UI。
+本规格的 Phase 2A 范围已完成：Contract types/validation/DTO、Migration 004 与兼容性 Migration 005、Gateway commands/queries、Event cursor/Activity projection、CLI persistence migration 和真实 SQLite restart E2E 均已有可执行测试。最终 fix wave 没有新增 Command、transport、Scheduler、Worker 或 UI；NeedsOwner 的既有 `resolution` 字段被收紧为可重建的闭合对象。
 
 有一项实现层表达差异：`run.pause`/`run.stop` 自动产生的恢复 checkpoint 与 Run 状态和 `run.paused`/`run.stopped` 事件在同一 SQLite 事务中提交，不另外产生 `checkpoint.created`；显式 `checkpoint.create` 仍产生独立的 `checkpoint.created`。这避免把一个 Run transition 表达为两个可独立消费的业务动作，同时保留 checkpoint 的持久恢复语义。
 

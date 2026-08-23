@@ -55,7 +55,7 @@ test('failed runtime activation leaves a run queued', async () => {
   } finally { await core.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
-test('persistence failure after activation rolls back and compensates with runtime halt', async () => {
+test('persistence failure after activation rolls back SQLite without invalidating same-key Runtime retry', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-control-compensate-'));
   let rejectRunEvidence = false;
   const core = await createMarginCore({
@@ -82,7 +82,7 @@ test('persistence failure after activation rolls back and compensates with runti
       ),
       /evidence unavailable/
     );
-    assert.deepEqual(calls, [`activate:${run.id}`, `halt:${run.id}`]);
+    assert.deepEqual(calls, [`activate:${run.id}`]);
     assert.equal((await core.runs.get(run.id)).status, 'queued');
     assert.equal((await core.store.db.get("SELECT COUNT(*) count FROM margin_audit_log WHERE operation='run_start'")).count, 0);
   } finally { await core.close(); await rm(directory, { recursive: true, force: true }); }

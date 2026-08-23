@@ -38,6 +38,7 @@ Gateway 接受闭合的 Command / Query，返回经过显式映射和校验的 D
 - Margin aggregate ID 是主标识；Pi / Codex 等 ID 只出现在 `runtimeReference`。
 - DTO 只保存 Artifact 引用、metadata 和 preview metadata，不传输大文件正文。
 - Activity、Event 和错误响应禁止包含 Chain-of-Thought、隐藏推理、Pi 原始 Session 或内部异常堆栈。
+- Runtime Adapter 的 `activate/halt` 必须接收 `{ operation, key, runtimeReference }` 幂等 descriptor，并保证重复 tuple 只有一次有效副作用。Runtime callback 与 SQLite transaction 之间没有分布式原子性；持久化失败后的同 key retry 是收敛机制，不得宣称为单一事务。
 
 ## Minimal persistence increment
 
@@ -49,6 +50,8 @@ Phase 2A 允许一个 additive migration：
 - 增加只负责给现有 `margin_events` 分配稳定 sequence 的 cursor index/table 与事务内触发器。
 
 cursor index 不是第二份 Event Log；它只把 sequence 映射到现有 event ID。NeedsOwner 是一等应用对象，不从聊天消息推导。
+
+已发布的 Migration 004 checksum 保持不变。最终修复新增无 schema 形状变化的 Migration 005：从 legacy goal 回填 blank/whitespace Workstream title，并修复 legacy `createProject()` 后续写入。v1–v3 checksum 同样保持不变。
 
 ## Alternatives
 
@@ -68,8 +71,8 @@ HTTP 认证、REST/GraphQL、SSE/WebSocket、飞书签名验证、Scheduler leas
 
 ## Implementation evidence
 
-Phase 2A 最终实现保持本 ADR 的边界：`MarginApplicationContract` 是 Surface 的唯一持久业务入口，Application Services 与 `PersistentWorkRepository` 继续使用同一 SQLite，Contract 自身不保存 aggregate 或 cursor 状态。Migration 004 是唯一 schema 增量；CLI 的 Workstream、Run 与 Checkpoint 路径已迁移到 Gateway。
+Phase 2A 最终实现保持本 ADR 的边界：`MarginApplicationContract` 是 Surface 访问 Phase 2A Contract-governed resources 的唯一入口，Application Services 与 `PersistentWorkRepository` 继续使用同一 SQLite，Contract 自身不保存 aggregate 或 cursor 状态。Runtime `v1Tools`、continuity 与 memory confirmation 仍是独立治理边界。Migration 004 是唯一 schema 形状增量，Migration 005 是 checksum-safe 数据兼容 backfill；CLI 的 Workstream、Run 与 Checkpoint 路径已迁移到 Gateway。
 
-真实重启验收覆盖 Workstream 创建、Run 创建/启动、Artifact、显式与暂停 checkpoint、NeedsOwner、暂停、关闭并重开同一数据库、恢复、解决 NeedsOwner、停止，以及 Event/Activity 读取。验收确认重启前后 ID、version 与 `runtimeReference` 一致，Event cursor 持久、唯一、严格递增，且数据库没有 Activity 表。完整证据见 `docs/validation/phase_2a_acceptance_report.md`。
+真实重启验收覆盖 Workstream 创建、Run 创建/启动、Artifact、显式与暂停 checkpoint、NeedsOwner、暂停、关闭并重开同一数据库、恢复、解决 NeedsOwner、停止，以及 Event/Activity 读取。最终修复另覆盖 populated v1/v2/v3 升级、历史 cursor backfill、legacy Project/Decision 安全 Event 映射、Runtime post-callback 持久化失败重试与 NeedsOwner option 语义。验收确认重启前后 ID、version 与 `runtimeReference` 一致，Event cursor 持久、唯一、严格递增，且数据库没有 Activity 表。完整证据见 `docs/validation/phase_2a_acceptance_report.md`。
 
 Phase 0/1 的历史边界不变：Pi Stage 0/1 的审计与 fixture 证据仍独立保留；Persistent Core、host-owned Run control、checkpoint 与 restart recovery 仍是 Phase 1 基线。Phase 2A 没有把 Live Pi、HTTP、Web、飞书、Scheduler 或 Worker 纳入实现范围。

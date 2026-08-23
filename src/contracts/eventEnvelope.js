@@ -23,8 +23,17 @@ const EVENT_TYPE_BY_EVIDENCE = new Map([
   ['needs_owner|cancelled|needs_owner_cancel', 'needs_owner.cancelled']
 ]);
 
+const EVENT_TYPE_BY_LEGACY_IDENTITY = new Map([
+  ['project|created', 'workstream.created'],
+  ['project|updated', 'workstream.updated'],
+  ['project|completed', 'workstream.updated'],
+  ['decision|created', 'decision.created'],
+  ['decision|superseded', 'decision.superseded'],
+  ['decision|revoked', 'decision.revoked']
+]);
+
 const AGGREGATE_TYPES = Object.freeze({
-  workstream: 'workstream', run: 'run', artifact: 'artifact', checkpoint: 'checkpoint',
+  project: 'workstream', workstream: 'workstream', run: 'run', artifact: 'artifact', checkpoint: 'checkpoint',
   decision: 'decision', needs_owner: 'needs_owner'
 });
 
@@ -79,7 +88,8 @@ function safeActor(row) {
 }
 
 function eventTypeFor(row, payload) {
-  const type = EVENT_TYPE_BY_EVIDENCE.get(`${row.entity_type}|${row.event_type}|${payload.command}`);
+  const type = EVENT_TYPE_BY_EVIDENCE.get(`${row.entity_type}|${row.event_type}|${payload.command}`) ??
+    EVENT_TYPE_BY_LEGACY_IDENTITY.get(`${row.entity_type}|${row.event_type}`);
   if (!type || !EVENT_TYPES.includes(type)) return null;
   const statusByType = {
     'run.started': 'running', 'run.progressed': 'running', 'run.paused': 'paused',

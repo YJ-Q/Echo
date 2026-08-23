@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function contractOnlyCoreFixture({ workstreamPages, workstreamGetFailure } = {}) {
+function contractOnlyCoreFixture({ workstreamPages, workstreamGetFailure, failFirstRunControl } = {}) {
   const calls = [];
   const hostBindings = [];
   const workstream = {
@@ -11,6 +11,7 @@ function contractOnlyCoreFixture({ workstreamPages, workstreamGetFailure } = {})
   };
   const pages = workstreamPages?.(workstream) ?? [[workstream]];
   let run = null;
+  let runControlFailed = false;
   const core = {
     calls,
     hostBindings,
@@ -54,13 +55,27 @@ function contractOnlyCoreFixture({ workstreamPages, workstreamGetFailure } = {})
           } else if (command.type === 'run.create') {
             run = { id: 'run-1', workstreamId: workstream.id, workerKind: 'pi', status: 'queued', version: 1, runtimeReference: null };
           } else if (command.type === 'run.start' || command.type === 'run.resume') {
-            const active = await runtimeControl.activate(run);
+            const active = await runtimeControl.activate(run, {
+              operation: command.type, key: command.idempotencyKey, runtimeReference: run.runtimeReference
+            });
             run = { ...run, status: 'running', version: run.version + 1, runtimeReference: { kind: 'pi', id: active.runtimeSessionId } };
           } else if (command.type === 'run.pause') {
-            await runtimeControl.halt(run);
+            await runtimeControl.halt(run, {
+              operation: command.type, key: command.idempotencyKey, runtimeReference: run.runtimeReference
+            });
+            if (failFirstRunControl === command.type && !runControlFailed) {
+              runControlFailed = true;
+              return { ok: false, error: { code: 'storage_failure', retryable: true }, meta: { requestId: command.requestId } };
+            }
             run = { ...run, status: 'paused', version: run.version + 1 };
           } else if (command.type === 'run.stop') {
-            await runtimeControl.halt(run);
+            await runtimeControl.halt(run, {
+              operation: command.type, key: command.idempotencyKey, runtimeReference: run.runtimeReference
+            });
+            if (failFirstRunControl === command.type && !runControlFailed) {
+              runControlFailed = true;
+              return { ok: false, error: { code: 'storage_failure', retryable: true }, meta: { requestId: command.requestId } };
+            }
             run = { ...run, status: 'cancelled', version: run.version + 1 };
           } else if (command.type === 'checkpoint.create') {
             return { ok: true, data: { id: 'checkpoint-1' }, meta: { requestId: command.requestId } };
@@ -143,4 +158,18 @@ test('/checkpoint returns a stable failure without writing when Workstream refre
     kind: 'error', code: 'storage_failure', text: 'Checkpoint 保存失败，请重试。'
   });
   assert.equal(core.calls.some((call) => call.type === 'checkpoint.create'), false);
+});
+
+test('terminal retries a failed Run command with the same business idempotency key', async () => {
+  const core = contractOnlyCoreFixture({ failFirstRunControl: 'run.pause' });
+  const controller = createTerminalPilotController(dependencies(core));
+  await controller.start();
+  const first = await controller.handle('/pause');
+  const retry = await controller.handle('/pause');
+  assert.deepEqual({ kind: first.kind, code: first.code }, { kind: 'error', code: 'storage_failure' });
+  assert.equal(retry.runStatus, 'paused');
+  const pauseCommands = core.calls.filter((call) => call.type === 'run.pause').map((call) => call.command);
+  assert.equal(pauseCommands.length, 2);
+  assert.equal(pauseCommands[0].idempotencyKey, pauseCommands[1].idempotencyKey);
+  assert.notEqual(pauseCommands[0].requestId, pauseCommands[1].requestId);
 });

@@ -27,7 +27,7 @@ test('migration is idempotent and checksum-bound', async (t) => {
   const fixture = await createMarginCoreTestDb();
   t.after(() => fixture.cleanup());
   await fixture.store.migrate();
-  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 4);
+  assert.equal((await fixture.store.db.get('SELECT COUNT(*) count FROM margin_schema_migrations')).count, 5);
   await fixture.store.db.run("UPDATE margin_schema_migrations SET checksum = 'drift' WHERE version = 1");
   await assert.rejects(fixture.store.migrate(), /checksum mismatch/u);
 });

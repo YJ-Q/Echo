@@ -62,7 +62,7 @@ export function toNeedsOwnerDTO(row) {
   if (options.length > 10) throw storageFailure('Persisted options exceed bound');
   return deepFreeze({
     id: string(row.id, 'id'), workstreamId: string(row.workstream_id ?? row.workstreamId, 'workstreamId'), runId: nullableString(row.run_id ?? row.runId), type: enumValue(row.type, NEEDS_OWNER_TYPES, 'type'), reason: string(row.reason, 'reason'), options,
-    consequenceSummary: nullableString(row.consequence_summary ?? row.consequenceSummary), contextSummary: nullableString(row.context_summary ?? row.contextSummary), status: enumValue(row.status, NEEDS_OWNER_STATUSES, 'status'), resolution: nullableString(row.resolution), version: integer(row.version, 'version'), createdAt: nullableString(row.created_at ?? row.createdAt), resolvedAt: nullableString(row.resolved_at ?? row.resolvedAt)
+    consequenceSummary: nullableString(row.consequence_summary ?? row.consequenceSummary), contextSummary: nullableString(row.context_summary ?? row.contextSummary), status: enumValue(row.status, NEEDS_OWNER_STATUSES, 'status'), resolution: needsOwnerResolution(row.resolution), version: integer(row.version, 'version'), createdAt: nullableString(row.created_at ?? row.createdAt), resolvedAt: nullableString(row.resolved_at ?? row.resolvedAt)
   });
 }
 
@@ -76,6 +76,14 @@ function clonePersistedJson(value, label) { try { return boundedJsonClone(value,
 function jsonArray(value, label) { const parsed = clonePersistedJson(parse(value, label), label); if (!Array.isArray(parsed)) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
 function jsonStringArray(value, label, max = 20) { const parsed = jsonArray(value, label); if (parsed.length > max || parsed.some((item) => typeof item !== 'string' || !item.trim() || item.length > 2_000)) throw storageFailure(`Invalid persisted ${label}`); return parsed; }
 function jsonObject(value, label) { const parsed = parse(value, label); if (!plain(parsed)) throw storageFailure(`Invalid persisted ${label}`); return clonePersistedJson(parsed, label); }
+function needsOwnerResolution(value) {
+  if (value === undefined || value === null) return null;
+  const parsed = jsonObject(value, 'resolution');
+  if (Object.keys(parsed).length !== 2 || !Object.hasOwn(parsed, 'optionId') || !Object.hasOwn(parsed, 'summary')) {
+    throw storageFailure('Invalid persisted resolution');
+  }
+  return { optionId: nullableString(parsed.optionId), summary: nullableString(parsed.summary) };
+}
 function jsonNullable(value, label) { if (value === undefined || value === null) return null; return clonePersistedJson(parse(value, label), label); }
 function string(value, label) { if (typeof value !== 'string' || !value.trim()) throw storageFailure(`Invalid persisted ${label}`); return value; }
 function nullableString(value) { return value === undefined || value === null ? null : string(value, 'string'); }

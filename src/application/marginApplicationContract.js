@@ -78,12 +78,12 @@ function actorFor(context, toActor) {
 function runtimeBoundary(runtimeControl) {
   if (!runtimeControl?.activate || !runtimeControl?.halt) return runtimeControl;
   return {
-    async activate(run) {
-      try { return await runtimeControl.activate(run); }
+    async activate(run, descriptor) {
+      try { return await runtimeControl.activate(run, descriptor); }
       catch { throw new CoreContractError('runtime_unavailable', 'Runtime activation is unavailable'); }
     },
-    async halt(run) {
-      try { return await runtimeControl.halt(run); }
+    async halt(run, descriptor) {
+      try { return await runtimeControl.halt(run, descriptor); }
       catch { throw new CoreContractError('runtime_unavailable', 'Runtime halt is unavailable'); }
     }
   };

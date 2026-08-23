@@ -8,33 +8,33 @@ export function createRunService({ repository, authorization }) {
   const control = async (command, input, actor, runtimeControl) => {
     authorize(actor);
     if (!input?.requestId || !input?.runId || !Number.isInteger(input.expectedVersion)) throw new CoreContractError('invalid_request','Valid Run control input is required');
-    let activatedRun;
-    try {
-      const result = await repository.coordinateRunTransition(
-        { ...input, command, requestInput: input },
-        actor,
-        async (current) => {
-          if (!runtimeControl?.activate || !runtimeControl?.halt) throw new CoreContractError('runtime_control_required','Host runtime control is required');
-          let status;
-          try { status=transitionRun(current,{type:command}).status; }
-          catch (error) {
-            if (error?.code === 'invalid_run_transition') throw new CoreContractError('invalid_transition','Invalid Run transition');
-            throw error;
-          }
-          if (command==='start' || command==='resume') {
-            const activated=await runtimeControl.activate(current);
-            activatedRun={...current,...activated};
-            return {status,runtimeSessionId:activated?.runtimeSessionId,checkpoint:false};
-          }
-          await runtimeControl.halt(current);
-          return {status,checkpoint:['pause','stop','complete'].includes(command)};
+    const result = await repository.coordinateRunTransition(
+      { ...input, command, requestInput: input },
+      actor,
+      async (current) => {
+        if (!runtimeControl?.activate || !runtimeControl?.halt) throw new CoreContractError('runtime_control_required','Host runtime control is required');
+        let status;
+        try { status=transitionRun(current,{type:command}).status; }
+        catch (error) {
+          if (error?.code === 'invalid_run_transition') throw new CoreContractError('invalid_transition','Invalid Run transition');
+          throw error;
         }
-      );
-      return {ok:true,...result};
-    } catch (error) {
-      if (activatedRun) await runtimeControl.halt(activatedRun).catch(()=>{});
-      throw error;
-    }
+        const descriptor = Object.freeze({
+          operation: `run.${command}`,
+          key: input.requestId,
+          runtimeReference: current.runtime_session_id
+            ? Object.freeze({ kind: current.runtime_kind, id: current.runtime_session_id })
+            : null
+        });
+        if (command==='start' || command==='resume') {
+          const activated=await runtimeControl.activate(current, descriptor);
+          return {status,runtimeSessionId:activated?.runtimeSessionId,checkpoint:false};
+        }
+        await runtimeControl.halt(current, descriptor);
+        return {status,checkpoint:['pause','stop','complete'].includes(command)};
+      }
+    );
+    return {ok:true,...result};
   };
   return {
     async create(input, actor) {
