@@ -1,4 +1,4 @@
-const COMMANDS = new Set(['state', 'memory', 'new', 'exit', 'confirm-memory']);
+const COMMANDS = new Set(['state', 'status', 'memory', 'new', 'exit', 'confirm-memory', 'pause', 'resume', 'stop', 'checkpoint']);
 
 export function parseTerminalInput(input) {
   const text = String(input ?? '').trim();

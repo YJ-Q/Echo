@@ -39,5 +39,6 @@ test('run artifact and checkpoint remain scoped to one workstream', async () => 
     const checkpoint = (await f.core.checkpoints.create({ requestId: 'c1', workstreamId: workstream.id, runId: run.id, runVersion: run.version, stateVersion: workstream.version, stateDigest: 'digest-1', note: '开始前' }, actor)).data;
     assert.equal(artifact.workstream_id, workstream.id);
     assert.equal(checkpoint.run_id, run.id);
+    assert.equal((await f.core.runs.get(run.id)).checkpoint_id, checkpoint.id);
   } finally { await f.cleanup(); }
 });

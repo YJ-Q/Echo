@@ -25,7 +25,7 @@ export async function runTerminalLoop({ controller, lines, write }) {
   const started = await controller.start();
   const evidence = { projectId: started.projectId, sessions: [started.sessionId], contextDigests: [], resultCodes: [], auditIds: [] };
   write('Margin 终端试点：仅本地记录，不访问招聘网站、邮箱或文件。');
-  write('命令：/state  /memory  /new  /exit');
+  write('命令：/state  /status  /pause  /resume  /stop  /checkpoint  /memory  /new  /exit');
   try {
     for await (const line of lines) {
       const result = await controller.handle(line);

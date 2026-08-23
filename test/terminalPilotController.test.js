@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function fixture({ discoverExisting = false, activeTask = true } = {}) {
+function fixture({ discoverExisting = false, activeTask = true, persistentRun = false } = {}) {
   const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [] };
   const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'active' };
   const snapshot = { project, activeTask: { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' }, decisions: [], memories: [], recentDialogue: [] };
@@ -20,6 +20,22 @@ function fixture({ discoverExisting = false, activeTask = true } = {}) {
     tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} },
     async confirmMemory(input, context) { calls.confirmed = { input, context }; return { memory: { id: input.memoryId, version: 3 }, auditId: 'audit-confirm' }; }
   };
+  if (persistentRun) {
+    let run = null;
+    core.runs = {
+      async findOpen() { return run; },
+      async create() { run = { id: 'run-1', workstream_id: project.id, status: 'queued', version: 1 }; return { ok: true, data: run, auditId: 'audit-run-create' }; },
+      async start(input, _actor, control) { const active = await control.activate(run); run = { ...run, status: 'running', version: run.version + 1, runtime_session_id: active.runtimeSessionId }; return { ok: true, data: run, auditId: 'audit-run-start' }; },
+      async pause(_input, _actor, control) { await control.halt(run); run = { ...run, status: 'paused', version: run.version + 1, checkpoint_id: 'checkpoint-pause' }; return { ok: true, data: run, auditId: 'audit-pause' }; },
+      async resume(input, _actor, control) { const active = await control.activate(run); run = { ...run, status: 'running', version: run.version + 1, runtime_session_id: active.runtimeSessionId }; return { ok: true, data: run, auditId: 'audit-resume' }; },
+      async stop(_input, _actor, control) { await control.halt(run); run = { ...run, status: 'cancelled', version: run.version + 1, checkpoint_id: 'checkpoint-stop' }; return { ok: true, data: run, auditId: 'audit-stop' }; },
+      async get() { return run; }
+    };
+    core.checkpoints = {
+      async create() { return { ok: true, data: { id: 'checkpoint-manual' }, auditId: 'audit-checkpoint' }; },
+      async latest() { return run?.checkpoint_id ? { id: run.checkpoint_id } : null; }
+    };
+  }
   let next = 0;
   const runtime = {
     async createSession() {
@@ -161,4 +177,28 @@ test('/exit closes exactly once and provider failure is sanitized', async () => 
   await controller.handle('/exit');
   await controller.close();
   assert.equal(controller.closed, true);
+});
+
+test('terminal is a client of persistent Run start pause resume checkpoint and stop controls', async () => {
+  const f = fixture({ persistentRun: true });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  const started = await controller.start();
+  assert.equal(started.runId, 'run-1');
+  assert.match((await controller.handle('/status')).text, /running.*run-1/s);
+  assert.match((await controller.handle('/pause')).text, /paused/);
+  assert.equal(f.calls.sessions[0].closed, true);
+  assert.match((await controller.handle('/resume')).text, /running/);
+  assert.equal(f.calls.sessions.length, 2);
+  assert.match((await controller.handle('/checkpoint')).text, /checkpoint-manual/);
+  assert.match((await controller.handle('/stop')).text, /cancelled/);
+  assert.equal(f.calls.sessions[1].closed, true);
+});
+
+test('closing the terminal pauses a running persistent Run', async () => {
+  const f = fixture({ persistentRun: true });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  await controller.close();
+  assert.equal((await f.core.runs.get()).status, 'paused');
+  assert.equal(f.calls.sessions[0].closed, true);
 });

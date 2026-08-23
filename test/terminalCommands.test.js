@@ -7,6 +7,9 @@ test('parseTerminalInput recognizes the closed command set and messages', () => 
   assert.deepEqual(parseTerminalInput('/memory'), { type: 'command', name: 'memory' });
   assert.deepEqual(parseTerminalInput('/new'), { type: 'command', name: 'new' });
   assert.deepEqual(parseTerminalInput('/exit'), { type: 'command', name: 'exit' });
+  for (const name of ['status', 'pause', 'resume', 'stop', 'checkpoint']) {
+    assert.deepEqual(parseTerminalInput(`/${name}`), { type: 'command', name });
+  }
   assert.deepEqual(parseTerminalInput('/confirm-memory memory-1 2'), { type: 'command', name: 'confirm-memory', args: ['memory-1', '2'] });
   assert.deepEqual(parseTerminalInput('/delete'), { type: 'unknown_command', name: 'delete' });
   assert.deepEqual(parseTerminalInput('   '), { type: 'empty' });

@@ -24,6 +24,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     throw new TypeError('invalid_terminal_pilot_dependencies');
   }
   let project;
+  let run;
   let session;
   let lastPlan;
   let closed = false;
@@ -43,6 +44,24 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (!session?.id || !session?.send || !session?.close) throw new TypeError('invalid_pilot_session');
     return session;
   }
+
+  const runActor = (operation) => ({
+    actorType: 'user', sourceSessionId: session?.id ?? `host-${operation}`,
+    sourceEventId: idFactory(`${operation}_event`)
+  });
+
+  const runtimeControl = {
+    async activate() {
+      if (!session || sessionClosed) await openSession();
+      return { runtimeSessionId: session.id };
+    },
+    async halt() {
+      if (!sessionClosed && session) {
+        sessionClosed = true;
+        await session.close();
+      }
+    }
+  };
 
   async function snapshot(query = CONTINUE_QUERY) {
     const base = await core.store.getContinuitySnapshot({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
@@ -83,10 +102,29 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       await core.store.createTask(task, evidence(idFactory, session.id, 'create_task', task));
     }
     await registry.save(project.id);
-    return { projectId: project.id, sessionId: session.id };
+    if (core.runs) {
+      run = await core.runs.findOpen(project.id);
+      if (!run) {
+        run = (await core.runs.create({
+          requestId: idFactory('create_run'), workstreamId: project.id,
+          scope: '终端连续性试点', runtimeKind: 'pi'
+        }, runActor('create_run'))).data;
+      }
+      if (run.status === 'queued') {
+        run = (await core.runs.start({ requestId: idFactory('start_run'), runId: run.id, expectedVersion: run.version }, runActor('start_run'), runtimeControl)).data;
+      } else if (run.status === 'running') {
+        run = (await core.runs.pause({ requestId: idFactory('reconcile_run'), runId: run.id, expectedVersion: run.version }, runActor('reconcile_run'), runtimeControl)).data;
+      } else if (run.status !== 'running') {
+        await runtimeControl.halt();
+      }
+    }
+    return { projectId: project.id, sessionId: session.id, ...(run ? { runId: run.id, runStatus: run.status } : {}) };
   }
 
   async function sendMessage(message) {
+    if (core.runs && run?.status !== 'running') {
+      return { kind: 'error', code: 'run_not_running', text: '当前 Run 未运行，请先使用 /resume。', sessionId: session?.id, runId: run?.id };
+    }
     try {
       const { plan } = await planned(message);
       const response = await session.send({ context: { ...plan, writeRouting: routeContinuityInput(message) }, message });
@@ -118,12 +156,22 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
   }
 
   async function close() {
-    if (!sessionClosed && session) {
-      sessionClosed = true;
-      await session.close();
-    }
+    if (closed) return;
     closed = true;
-    await runtime.close?.();
+    let failure;
+    try {
+      if (core.runs && run?.status === 'running') {
+        run = (await core.runs.pause({ requestId: idFactory('close_pause'), runId: run.id, expectedVersion: run.version }, runActor('close_pause'), runtimeControl)).data;
+      }
+    } catch (error) { failure = error; }
+    try {
+      if (!sessionClosed && session) {
+        sessionClosed = true;
+        await session.close();
+      }
+    } catch (error) { failure ??= error; }
+    try { await runtime.close?.(); } catch (error) { failure ??= error; }
+    if (failure) throw failure;
   }
 
   async function handle(input) {
@@ -131,7 +179,38 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (parsed.type === 'empty') return { kind: 'empty', text: '', sessionId: session?.id };
     if (parsed.type === 'unknown_command') return { kind: 'error', code: 'unknown_command', text: `未知命令：/${parsed.name}`, sessionId: session?.id };
     if (parsed.type === 'message') return sendMessage(parsed.text);
-    if (parsed.name === 'exit') { await close(); return { kind: 'exit', text: '已安全退出。', sessionId: session?.id }; }
+    if (parsed.name === 'exit') {
+      if (core.runs && run?.status === 'running') {
+        run = (await core.runs.pause({ requestId: idFactory('exit_pause'), runId: run.id, expectedVersion: run.version }, runActor('exit_pause'), runtimeControl)).data;
+      }
+      await close();
+      return { kind: 'exit', text: '已安全退出。', sessionId: session?.id, ...(run ? { runId: run.id, runStatus: run.status } : {}) };
+    }
+    if (parsed.name === 'status') {
+      if (!run) return { kind: 'status', text: 'Persistent Run 未启用。', sessionId: session?.id };
+      run = await core.runs.get(run.id);
+      return { kind: 'status', text: `Run ${run.status}: ${run.id} (v${run.version})${run.checkpoint_id ? ` checkpoint=${run.checkpoint_id}` : ''}`, sessionId: session?.id, runId: run.id, runStatus: run.status };
+    }
+    if (parsed.name === 'pause' || parsed.name === 'resume' || parsed.name === 'stop') {
+      if (!run) return { kind: 'error', code: 'run_unavailable', text: 'Persistent Run 未启用。', sessionId: session?.id };
+      const method = core.runs[parsed.name];
+      try {
+        run = (await method({ requestId: idFactory(`${parsed.name}_run`), runId: run.id, expectedVersion: run.version }, runActor(`${parsed.name}_run`), runtimeControl)).data;
+        return { kind: 'run_control', text: `Run ${run.id}: ${run.status}`, sessionId: session?.id, runId: run.id, runStatus: run.status };
+      } catch (error) {
+        return { kind: 'error', code: error?.code ?? 'run_control_failed', text: `Run 控制失败：${error?.code ?? 'run_control_failed'}`, sessionId: session?.id, runId: run.id };
+      }
+    }
+    if (parsed.name === 'checkpoint') {
+      if (!run || !core.checkpoints) return { kind: 'error', code: 'run_unavailable', text: 'Persistent Run 未启用。', sessionId: session?.id };
+      const checkpoint = (await core.checkpoints.create({
+        requestId: idFactory('manual_checkpoint'), workstreamId: project.id, runId: run.id,
+        stateVersion: run.version, stateDigest: digestInput({ runId: run.id, status: run.status, version: run.version }),
+        label: 'manual'
+      }, runActor('manual_checkpoint'))).data;
+      run = await core.runs.get(run.id);
+      return { kind: 'checkpoint', text: `Checkpoint ${checkpoint.id} 已保存。`, sessionId: session?.id, runId: run.id, checkpointId: checkpoint.id };
+    }
     if (parsed.name === 'state') return { kind: 'state', text: formatState(await snapshot()), sessionId: session.id };
     if (parsed.name === 'memory') { if (!lastPlan) await planned(); return { kind: 'memory', text: formatMemory(lastPlan), sessionId: session.id }; }
     if (parsed.name === 'confirm-memory') {
@@ -151,6 +230,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
         return { kind: 'error', code: error?.code ?? 'invalid_confirmation', text: '记忆确认失败，请检查编号和版本。', sessionId: session.id };
       }
     }
+    if (core.runs && run?.status !== 'running') return { kind: 'error', code: 'run_not_running', text: '当前 Run 未运行，请先使用 /resume。', sessionId: session?.id, runId: run?.id };
     const previousSessionId = session.id;
     sessionClosed = true;
     await session.close();

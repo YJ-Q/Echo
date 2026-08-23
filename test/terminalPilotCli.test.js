@@ -14,7 +14,7 @@ test('terminal loop advertises local-only scope and closes on exit', async () =>
   };
   const result = await runTerminalLoop({ controller, lines: ['/state', '/exit'], write: (text) => output.push(text) });
   assert.match(output.join('\n'), /仅本地记录/);
-  assert.match(output.join('\n'), /\/state.*\/memory.*\/new.*\/exit/s);
+  assert.match(output.join('\n'), /\/state.*\/status.*\/pause.*\/resume.*\/stop.*\/checkpoint.*\/memory.*\/new.*\/exit/s);
   assert.deepEqual(calls, ['/state', '/exit', 'close']);
   assert.equal(result.projectId, 'project-1');
 });
