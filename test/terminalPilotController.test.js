@@ -4,19 +4,18 @@ import { createTerminalPilotController } from '../src/pilot/terminalPilotControl
 
 function fixture({ discoverExisting = false, activeTask = true, persistentRun = false } = {}) {
   const calls = { created: 0, taskCreated: 0, sessions: [], saved: null, queries: [] };
-  const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'active' };
-  const snapshot = { project, activeTask: { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' }, decisions: [], memories: [], recentDialogue: [] };
+  const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'running' };
+  const snapshot = { project, activeTask: activeTask ? { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' } : null, decisions: [], memories: [], recentDialogue: [], actions: [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }] };
   const core = {
-    store: {
-      async getProject(id) { return id === project.id ? project : null; },
-      async findActiveProjectByScenario() { return discoverExisting ? project : null; },
-      async findActiveTaskByProject() { return activeTask ? snapshot.activeTask : null; },
-      async createProject() { calls.created += 1; return project; },
-      async createTask() { calls.taskCreated += 1; return snapshot.activeTask; },
-      async getContinuitySnapshot(input) { calls.queries.push(input); return snapshot; },
-      db: { async all() { return [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }]; } }
+    workstreams: {
+      async get(id) { return id === project.id ? project : null; },
+      async findByScenario() { return discoverExisting ? project : null; },
+      async create() { calls.created += 1; return { ok: true, data: project, auditId: 'audit-project' }; }
     },
-    async planContext() { return { projectId: project.id, selected: [], excluded: [], digest: 'digest-1' }; },
+    continuity: {
+      async snapshot(input) { calls.queries.push(input); return snapshot; },
+      async plan() { return { projectId: project.id, selected: [], excluded: [], digest: 'digest-1' }; }
+    },
     tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} },
     async confirmMemory(input, context) { calls.confirmed = { input, context }; return { memory: { id: input.memoryId, version: 3 }, auditId: 'audit-confirm' }; }
   };
@@ -108,12 +107,12 @@ test('controller discovers an existing pilot project when the registry is missin
   assert.equal(f.calls.saved, 'project-1');
 });
 
-test('controller repairs a discovered pilot project whose initial task was not committed', async () => {
+test('controller does not create a legacy task projection for a Workstream', async () => {
   const f = fixture({ discoverExisting: true, activeTask: false });
   const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
   await controller.start();
   assert.equal(f.calls.created, 0);
-  assert.equal(f.calls.taskCreated, 1);
+  assert.equal(f.calls.taskCreated, 0);
   assert.equal(f.calls.saved, 'project-1');
 });
 

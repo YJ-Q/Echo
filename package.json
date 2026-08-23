@@ -4,8 +4,9 @@
   "description": "Margin - a memory-driven second-self personal AI companion.",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "npm run pilot:terminal",
+    "dev": "npm run pilot:terminal",
+    "legacy:api": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe src/server.js",
     "test": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe --test \"test/*.test.js\"",
     "audit:pi": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/audit-pi-baseline.js",
     "spike:pi": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-pi-sdk-spike.js",
@@ -15,7 +16,9 @@
     "validate:stage1": "node scripts/validate-stage1-fixtures.js",
     "backup": "node scripts/backup-data.js",
     "export:data": "node scripts/backup-data.js --format=json",
-    "import:data": "node scripts/import-data.js"
+    "import:data": "node scripts/import-data.js",
+    "inventory:legacy": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/inventory-legacy-data.js",
+    "export:legacy": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/export-legacy-data.js"
   },
   "keywords": [
     "margin",

@@ -18,10 +18,14 @@ All notable changes to Margin will be documented in this file.
 - terminal-first workspace cleanup decision, implementation plan, and auditable cleanup report
 - local interactive job-application continuity pilot with `/state`, `/memory`, `/new`, and `/exit`
 - runtime-neutral pilot controller and restricted Pi Session adapter
+- runtime-neutral Workstream and Run state machines, versioned Run/Artifact/Checkpoint schema, and transaction-backed Application Services
+- host-owned persistent Run start, status, pause, resume, stop, and checkpoint controls with restart recovery
+- read-only legacy Echo inventory and explicit approval-gated export tooling
 
 ### Changed
 
 - the compatibility Express runtime is API-only and no longer serves static frontend assets
+- the terminal client now consumes the unified Application Core and is the default entry point; the frozen Express/Echo API is explicitly deprecated
 - the test command uses the pinned Node 22.23.1 runtime so Pi tests are reproducible on Windows
 
 ### Removed

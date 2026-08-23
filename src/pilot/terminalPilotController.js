@@ -5,14 +5,6 @@ import { routeContinuityInput } from '../continuity/memoryWriteRouter.js';
 const GOAL = '持续完成简历投递并维护投递记录';
 const CONTINUE_QUERY = '继续简历投递和投递记录维护';
 
-function evidence(idFactory, sessionId, operation, input) {
-  return {
-    requestId: idFactory('request'), actorType: 'user', sourceSessionId: sessionId,
-    sourceEventId: idFactory('event'), inputDigest: digestInput(input),
-    permissionDecision: 'allowed', operation
-  };
-}
-
 function classify(error) {
   return error?.code === 'PI_MODEL_UNAVAILABLE' || String(error?.code).startsWith('PI_')
     ? 'provider_unavailable'
@@ -20,7 +12,7 @@ function classify(error) {
 }
 
 export function createTerminalPilotController({ core, runtime, registry, clock, idFactory }) {
-  if (!core?.store || !core?.tools || !runtime?.createSession || !registry || !clock || !idFactory) {
+  if (!core?.workstreams || !core?.continuity || !core?.tools || !runtime?.createSession || !registry || !clock || !idFactory) {
     throw new TypeError('invalid_terminal_pilot_dependencies');
   }
   let project;
@@ -64,16 +56,13 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
   };
 
   async function snapshot(query = CONTINUE_QUERY) {
-    const base = await core.store.getContinuitySnapshot({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
-    const actions = core.store.db?.all
-      ? await core.store.db.all("SELECT * FROM margin_actions WHERE project_id = ? AND status IN ('pending','active') ORDER BY updated_at DESC LIMIT 10", project.id)
-      : [];
-    return { ...base, task: base.activeTask, tasks: base.activeTask ? [base.activeTask] : [], actions };
+    const base = await core.continuity.snapshot({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
+    return { ...base, task: base.activeTask, tasks: base.activeTask ? [base.activeTask] : [], actions: base.actions ?? [] };
   }
 
   async function planned(query = CONTINUE_QUERY) {
     const current = await snapshot(query);
-    const basePlan = await core.planContext({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
+    const basePlan = await core.continuity.plan({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
     const actionEntries = current.actions.slice(0, 5).map((action) => ({
       sourceType: 'margin_action', entityType: 'action', entityId: action.id,
       version: action.version, sourceSessionId: action.source_session_id ?? null,
@@ -86,20 +75,18 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
 
   async function start() {
     const savedId = await registry.load();
-    project = savedId ? await core.store.getProject(savedId) : null;
-    if (!project || project.status !== 'active') {
-      project = await core.store.findActiveProjectByScenario?.('career_project') ?? null;
+    project = savedId ? await core.workstreams.get(savedId) : null;
+    if (!project || project.status === 'completed') {
+      project = await core.workstreams.findByScenario('career_project');
       if (project) await registry.save(project.id);
     }
     await openSession();
-    if (!project || project.status !== 'active') {
-      const input = { scenario: 'career_project', goal: GOAL, phase: 'pilot', status: 'active' };
-      project = await core.store.createProject(input, evidence(idFactory, session.id, 'create_project', input));
-    }
-    const activeTask = await core.store.findActiveTaskByProject?.(project.id);
-    if (!activeTask) {
-      const task = { projectId: project.id, title: '推进简历投递', currentStep: '记录下一次投递', blocker: null, completionCondition: '投递记录已更新', status: 'active' };
-      await core.store.createTask(task, evidence(idFactory, session.id, 'create_task', task));
+    if (!project || project.status === 'completed') {
+      const input = {
+        requestId: idFactory('create_workstream'), scenario: 'career_project', title: '简历投递与记录维护',
+        goal: GOAL, currentPlan: ['继续投递并维护结构化记录'], nextAction: '记录下一次投递'
+      };
+      project = (await core.workstreams.create(input, runActor('create_workstream'))).data;
     }
     await registry.save(project.id);
     if (core.runs) {

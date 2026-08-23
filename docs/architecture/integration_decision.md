@@ -1,14 +1,14 @@
 # ADR：Pi 集成方式
 
-状态：阶段 0 已采纳，生产接入待验证。日期：2026-08-20。
+状态：Phase 1 已采纳为默认通用 Runtime，仍由 Adapter 隔离。更新：2026-08-23。
 
 ## Context
 
-Margin 当前是 JS ESM 的 Express/Electron/SQLite 应用，已有自己的聊天与记忆链路。目标是复用 Pi 的 Agent 运行时，同时让 Margin 对结构化项目状态、跨 Session 记忆、安全控制和评测负责。
+Margin 是 JS ESM/SQLite 的 Persistent Core 与终端客户端。目标是复用 Pi 的 Agent 运行时，同时让 Margin 对 Workstream、Run、结构化状态、跨 Session 记忆、安全控制和评测负责。
 
 ## Decision
 
-首选直接集成 `AgentSessionRuntime` SDK。使用 `createAgentSessionServices` 与 `createAgentSessionFromServices` 构造 runtime factory，由 `AgentSessionRuntime` 负责新建、恢复、分支和运行时替换。阶段 0 与现有 `chatService.js` 隔离，只允许 `margin_spike_echo`，Pi 内置工具默认关闭。
+首选直接集成 `AgentSessionRuntime` SDK。使用 `createAgentSessionServices` 与 `createAgentSessionFromServices` 构造 runtime factory，由 `AgentSessionRuntime` 负责 Session 生命周期。Phase 1 通过 Runtime Adapter 和 `activate/halt` 宿主控制与 Persistent Core 隔离；Pi 内置工具默认关闭，只注册四个 Margin 工具。
 
 ## Alternatives 与否决方案
 

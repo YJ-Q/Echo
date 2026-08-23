@@ -26,6 +26,16 @@ test('workstream creation is idempotent and writes one event', async () => {
   } finally { await f.cleanup(); }
 });
 
+test('workstream creation rejects unbounded plan fields', async () => {
+  const f = await fixture();
+  try {
+    await assert.rejects(
+      f.core.workstreams.create({ requestId: 'invalid-plan', title: 'Margin', goal: '持续推进', scenario: 'career_project', currentPlan: 'free-form' }, actor),
+      (error) => error.code === 'invalid_request'
+    );
+  } finally { await f.cleanup(); }
+});
+
 test('run artifact and checkpoint remain scoped to one workstream', async () => {
   const f = await fixture();
   try {

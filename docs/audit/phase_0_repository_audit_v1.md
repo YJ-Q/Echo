@@ -1,5 +1,7 @@
 # Phase 0 — Margin V1 Repository Audit
 
+> Historical audit. The two-write-path conclusion is superseded for V1 by `docs/architecture/phase_1_persistent_core.md`; the legacy database remains frozen pending the disposition process rather than acting as V1 state.
+
 日期：2026-08-23
 范围：只读审计、Gap Analysis 与规划；未修改生产代码或数据。
 

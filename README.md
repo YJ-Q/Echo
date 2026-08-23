@@ -8,7 +8,7 @@ Its brand language is centered on paper, ink, margin notes, and continuation:
 - a companion that remembers the live line, not just the task list
 - a product that helps the user continue from the last trace, without making them feel managed
 
-The current repository is centered on the backend MVP:
+The current repository is centered on the terminal-first Persistent Core MVP:
 
 - conversation and memory storage
 - state aggregation
@@ -25,7 +25,7 @@ For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
 
 The repository is currently running a terminal-first pilot of the Pi + Margin continuity path. Pi provides its terminal UI, Agent runtime, sessions, branching, compaction, SDK, and RPC mode; it does not include a reusable desktop web interface for Margin. The obsolete Margin Electron/static frontend has therefore been removed while continuity behavior is validated.
 
-The legacy backend remains functional and test-covered as a temporary compatibility and data-migration surface. It serves APIs only; it does not serve a bundled webpage.
+The legacy backend remains test-covered as a frozen, deprecated data-compatibility surface. It is no longer the default entry point and does not receive new V1 behavior.
 
 Implemented:
 
@@ -83,9 +83,9 @@ Start the local job-application continuity pilot after configuring the same prov
 npm run pilot:terminal
 ```
 
-Available commands are `/state`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session and asks it to resume the same local project. Proposed durable memories remain unavailable to recall until the user confirms the displayed memory identifier and version through `/confirm-memory`.
+Available commands are `/state`, `/status`, `/pause`, `/resume`, `/stop`, `/checkpoint`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session while preserving the Workstream and Run. Proposed durable memories remain unavailable to recall until the user confirms the displayed memory identifier and version through `/confirm-memory`.
 
-The pilot database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
+The authoritative V1 database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the frozen legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
 
 Pi is not the final runtime decision. This pilot gathers evidence before comparing Pi Agent, DeepSeek Harness, and the Codex open-source project under the same continuity scenario.
 
@@ -112,16 +112,16 @@ On Windows PowerShell, the equivalent is:
 Copy-Item .env.example .env
 ```
 
-Start the backend:
+Start the Persistent Core terminal client:
 
 ```bash
 npm run dev
 ```
 
-Default local URL:
+The deprecated API can be started explicitly only for compatibility or migration checks:
 
-```text
-http://localhost:3000
+```bash
+npm run legacy:api
 ```
 
 ## Environment

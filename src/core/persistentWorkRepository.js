@@ -33,7 +33,13 @@ export function createPersistentWorkRepository(store) {
       return found;
     },
     getWorkstream: async (id) => mapWorkstream(await store.db.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', id)),
+    findWorkstreamByScenario: async (scenario) => mapWorkstream(await store.db.get("SELECT * FROM margin_projects WHERE scenario=? AND workstream_status <> 'completed' AND deleted_at IS NULL ORDER BY updated_at DESC,id LIMIT 1", scenario)),
     listWorkstreams: async () => Promise.all((await store.db.all('SELECT * FROM margin_projects WHERE deleted_at IS NULL ORDER BY updated_at DESC,id')).map(mapWorkstream)),
+    getContinuitySnapshot: async (input) => {
+      const snapshot = await store.getContinuitySnapshot(input);
+      const actions = await store.db.all("SELECT * FROM margin_actions WHERE project_id=? AND status IN ('pending','active') ORDER BY updated_at DESC,id LIMIT 10", input.projectId);
+      return { ...snapshot, actions };
+    },
     createWorkstream: (input, actor) => store.transaction(async (tx) => {
       const prior = await replay(tx, 'workstream_create', input.requestId, 'margin_projects');
       if (prior) return { ...prior, data: mapWorkstream(prior.data) };
@@ -47,6 +53,9 @@ export function createPersistentWorkRepository(store) {
         id, input.scenario, input.goal, actor.sourceSessionId, actor.sourceEventId, now, now,
         input.title, input.workspacePath ?? null, input.autonomyLevel ?? 0
       );
+      if (input.currentPlan?.length || input.nextAction) {
+        await tx.run('UPDATE margin_projects SET current_plan=?,next_action=? WHERE id=?', json(input.currentPlan), input.nextAction ?? null, id);
+      }
       const auditId = await evidence(tx, { operation: 'workstream_create', requestId: input.requestId, actor, workstreamId: id, entityType: 'workstream', entityId: id, version: 1, eventType: 'created', input });
       return { data: mapWorkstream(await tx.get('SELECT * FROM margin_projects WHERE id=?', id)), auditId };
     }),

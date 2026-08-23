@@ -1,5 +1,7 @@
 # Margin V1 最小增量架构
 
+> Phase 1 update (2026-08-23): Tasks 1–5 implement the authoritative Persistent Core described in `phase_1_persistent_core.md`. The Phase 0 directory proposal remains directional; the current SQLite implementation stays under `src/core/` to avoid a cosmetic large-scale move.
+
 ## 核心边界
 
 - `domain/`：Workstream、Run、Artifact、Checkpoint、Decision、Event、DayPlan 的底座无关对象和状态机。
