@@ -19,8 +19,15 @@ export function createWorkstreamService({ repository }) {
       if (input.changes.autonomyLevel !== undefined && (!Number.isInteger(input.changes.autonomyLevel) || input.changes.autonomyLevel < 0)) throw new CoreContractError('invalid_request','autonomyLevel must be a non-negative integer');
       return { ok: true, ...await repository.updateWorkstream(input, actor) };
     },
-    get: repository.getWorkstream,
+    async get(id) {
+      if (typeof id !== 'string' || !id.trim()) throw new CoreContractError('invalid_request','workstreamId is required');
+      return repository.getWorkstream(id);
+    },
     findByScenario: repository.findWorkstreamByScenario,
-    list: repository.listWorkstreams
+    async list(input) {
+      if (input === undefined) return repository.listWorkstreams();
+      if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100)) throw new CoreContractError('invalid_request','limit must be an integer from 1 to 100');
+      return repository.listWorkstreamsPage(input);
+    }
   };
 }

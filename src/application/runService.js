@@ -1,6 +1,12 @@
 import { CoreContractError } from '../core/contracts.js';
 import { transitionRun } from '../domain/run.js';
 
+function versionConflict(actual) {
+  const error = new CoreContractError('version_conflict','Run version conflict');
+  error.details = { actual };
+  return error;
+}
+
 export function createRunService({ repository, authorization }) {
   const authorize = (actor) => {
     if (actor?.actorType !== 'user' || authorization?.(actor) !== true) throw new CoreContractError('permission_denied','Run control is host-user owned');
@@ -14,8 +20,13 @@ export function createRunService({ repository, authorization }) {
     if (prior) return {ok:true,...prior};
     const current=await repository.getRun(input.runId);
     if (!current) throw new CoreContractError('run_not_found','Run not found');
-    if (current.version !== input.expectedVersion) throw new CoreContractError('version_conflict','Run version conflict');
-    const status=transitionRun(current,{type:command}).status;
+    if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+    let status;
+    try { status=transitionRun(current,{type:command}).status; }
+    catch (error) {
+      if (error?.code === 'invalid_run_transition') throw new CoreContractError('invalid_transition','Invalid Run transition');
+      throw error;
+    }
     if (command==='start' || command==='resume') {
       const activated=await runtimeControl.activate(current);
       try {
@@ -34,8 +45,15 @@ export function createRunService({ repository, authorization }) {
       if (!input?.requestId || !input?.workstreamId || !input?.scope?.trim() || !input?.runtimeKind) throw new CoreContractError('invalid_request','Valid Run input is required');
       return { ok: true, ...await repository.createRun(input, actor) };
     },
-    get: repository.getRun,
+    async get(id) {
+      if (typeof id !== 'string' || !id.trim()) throw new CoreContractError('invalid_request','runId is required');
+      return repository.getRun(id);
+    },
     findOpen: repository.findOpenRun,
+    async list(input = {}) {
+      if (!input.workstreamId || (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))) throw new CoreContractError('invalid_request','Valid Run list input is required');
+      return repository.listRuns(input);
+    },
     start: (input,actor,runtime) => control('start',input,actor,runtime),
     pause: (input,actor,runtime) => control('pause',input,actor,runtime),
     resume: (input,actor,runtime) => control('resume',input,actor,runtime),

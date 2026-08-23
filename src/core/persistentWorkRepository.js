@@ -4,6 +4,10 @@ import { transitionWorkstream } from '../domain/workstream.js';
 const json = (value) => JSON.stringify(value ?? []);
 const jsonObject = (value) => JSON.stringify(value ?? {});
 const SURFACE_KINDS = new Set(['cli', 'web', 'feishu', 'scheduler', 'worker']);
+const REPLAY_TABLES = Object.freeze({
+  workstream: 'margin_projects', run: 'margin_runs', artifact: 'margin_artifacts',
+  checkpoint: 'margin_checkpoints', needs_owner: 'margin_needs_owner'
+});
 
 function normalizeEvidenceMetadata(actor = {}) {
   const correlationId = actor.correlationId;
@@ -80,25 +84,50 @@ export function createPersistentWorkRepository(store) {
        VALUES (?,?,?,?,?,?,?, ?,?,?)`,
       store.idFactory('event'), entityType, entityId, workstreamId, eventType, version, payload, actor.sourceSessionId, actor.sourceEventId, now
     );
+    const replayTable = REPLAY_TABLES[entityType];
+    const replayData = replayTable ? await tx.get(`SELECT * FROM ${replayTable} WHERE id=?`, entityId) : undefined;
+    let replayRelated;
+    if (entityType === 'workstream') {
+      replayRelated = {
+        latestCheckpoint: await tx.get('SELECT * FROM margin_checkpoints WHERE workstream_id=? ORDER BY created_at DESC,id DESC LIMIT 1', entityId) ?? null,
+        activeRun: await tx.get("SELECT * FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') ORDER BY created_at DESC,id LIMIT 1", entityId) ?? null
+      };
+    } else if (entityType === 'run') {
+      replayRelated = {
+        checkpoint: await tx.get('SELECT * FROM margin_checkpoints WHERE run_id=? ORDER BY created_at DESC,id DESC LIMIT 1', entityId) ?? null
+      };
+    }
     await tx.run(
       `INSERT INTO margin_audit_log
        (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
        VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,?,?)`,
       auditId, operation, requestId, actor.actorType, workstreamId, entityType, entityId, digestInput(input),
-      JSON.stringify({ actorSubjectId: actor.subjectId ?? null, correlationId: metadata.correlationId, surfaceKind: metadata.surfaceKind }), now
+      JSON.stringify({
+        actorSubjectId: actor.subjectId ?? null,
+        correlationId: metadata.correlationId,
+        surfaceKind: metadata.surfaceKind,
+        gatewayRequestId: actor.sourceEventId,
+        ...(replayData ? { replayData } : {}),
+        ...(replayRelated ? { replayRelated } : {})
+      }), now
     );
     return auditId;
   };
 
   const replay = async (tx, operation, requestId, table, input, actor) => {
-    const audit = await tx.get("SELECT id, entity_id, actor_type, input_digest, metadata FROM margin_audit_log WHERE operation=? AND request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", operation, requestId);
+    const audit = await tx.get("SELECT id, operation, entity_id, actor_type, input_digest, metadata FROM margin_audit_log WHERE request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", requestId);
     if (!audit) return null;
-    let recordedSubject = null;
-    try { recordedSubject = JSON.parse(audit.metadata || '{}').actorSubjectId ?? null; } catch { throw new CoreContractError('idempotency_conflict', 'Stored idempotency identity is invalid'); }
-    if (audit.actor_type !== actor?.actorType || recordedSubject !== (actor?.subjectId ?? null) || audit.input_digest !== digestInput(input)) {
+    let auditMetadata;
+    try { auditMetadata = JSON.parse(audit.metadata || '{}'); } catch { throw new CoreContractError('idempotency_conflict', 'Stored idempotency identity is invalid'); }
+    const recordedSubject = auditMetadata.actorSubjectId ?? null;
+    if (audit.operation !== operation || audit.actor_type !== actor?.actorType || recordedSubject !== (actor?.subjectId ?? null) || audit.input_digest !== digestInput(input)) {
       throw new CoreContractError('idempotency_conflict', 'Request ID was already used with different input or actor');
     }
-    return { auditId: audit.id, data: await tx.get(`SELECT * FROM ${table} WHERE id=?`, audit.entity_id) };
+    return {
+      auditId: audit.id,
+      data: auditMetadata.replayData ?? await tx.get(`SELECT * FROM ${table} WHERE id=?`, audit.entity_id),
+      ...(Object.hasOwn(auditMetadata, 'replayRelated') ? { replayContext: auditMetadata.replayRelated } : {})
+    };
   };
 
   const mutation = async (actor, work) => {
@@ -114,6 +143,14 @@ export function createPersistentWorkRepository(store) {
     getWorkstream: async (id) => mapWorkstream(await store.db.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', id)),
     findWorkstreamByScenario: async (scenario) => mapWorkstream(await store.db.get("SELECT * FROM margin_projects WHERE scenario=? AND workstream_status <> 'completed' AND deleted_at IS NULL ORDER BY updated_at DESC,id LIMIT 1", scenario)),
     listWorkstreams: async () => Promise.all((await store.db.all('SELECT * FROM margin_projects WHERE deleted_at IS NULL ORDER BY updated_at DESC,id')).map(mapWorkstream)),
+    listWorkstreamsPage: async (input = {}) => {
+      const page = pageInput(input);
+      const where = listWhere({ ...input, cursor: page.cursor }, { status: 'workstream_status' });
+      const deleted = where.clause ? `${where.clause} AND deleted_at IS NULL` : 'WHERE deleted_at IS NULL';
+      const rows = await store.db.all(`SELECT * FROM margin_projects ${deleted} ORDER BY updated_at DESC,id DESC LIMIT ?`, ...where.values, page.limit + 1);
+      const result = nextPage(rows, page.limit);
+      return { ...result, items: result.items.map(mapWorkstream) };
+    },
     getContinuitySnapshot: async (input) => {
       const snapshot = await store.getContinuitySnapshot(input);
       const actions = await store.db.all("SELECT * FROM margin_actions WHERE project_id=? AND status IN ('pending','active') ORDER BY updated_at DESC,id LIMIT 10", input.projectId);
@@ -124,7 +161,7 @@ export function createPersistentWorkRepository(store) {
       if (prior) return { ...prior, data: mapWorkstream(prior.data) };
       const current = await tx.get('SELECT * FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
       if (!current) throw new CoreContractError('workstream_not_found','Workstream not found');
-      if (current.version !== input.expectedVersion) throw new CoreContractError('version_conflict','Workstream version conflict');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
       const legacyToWorkstream = { active: 'running', blocked: 'blocked', completed: 'completed', archived: 'completed' };
       const workstreamToLegacy = { running: 'active', ready: 'active', waiting: 'active', watching: 'active', blocked: 'blocked', needs_owner: 'blocked', paused: 'blocked', completed: 'completed' };
       const requestedStatus = input.changes.status;
@@ -244,8 +281,12 @@ export function createPersistentWorkRepository(store) {
     createCheckpoint: (input, actor) => mutation(actor, async (tx) => {
       const prior = await replay(tx, 'checkpoint_create', input.requestId, 'margin_checkpoints', input, actor);
       if (prior) return prior;
-      const run = input.runId ? await tx.get('SELECT workstream_id FROM margin_runs WHERE id=?',input.runId) : null;
+      const workstream = await tx.get('SELECT id,version FROM margin_projects WHERE id=? AND deleted_at IS NULL', input.workstreamId);
+      if (!workstream) throw new CoreContractError('workstream_not_found','Workstream not found');
+      if (workstream.version !== input.stateVersion) throw versionConflict(workstream.version);
+      const run = input.runId ? await tx.get('SELECT workstream_id,version FROM margin_runs WHERE id=?',input.runId) : null;
       if (input.runId && (!run || run.workstream_id !== input.workstreamId)) throw new CoreContractError('cross_workstream_reference','Run belongs to another Workstream');
+      if (run && run.version !== input.runVersion) throw versionConflict(run.version);
       const id=store.idFactory('checkpoint'); const now=store.clock();
       await tx.run(`INSERT INTO margin_checkpoints VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,id,input.workstreamId,input.runId ?? null,input.runVersion ?? null,input.stateVersion,input.stateDigest,input.gitRef ?? null,input.note ?? '',actor.actorType,actor.sourceSessionId,actor.sourceEventId,now);
       await tx.run('UPDATE margin_projects SET last_checkpoint_id=?,updated_at=? WHERE id=?',id,now,input.workstreamId);
