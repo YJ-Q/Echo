@@ -15,6 +15,17 @@ All notable changes to Margin will be documented in this file.
 - default-off Margin Core with additive versioned project, task, decision, memory, event, action, audit, and migration storage
 - governed `memory_search`, `memory_propose`, `state_update`, and `action_update` handlers with explicit permissions and confirmation gates
 - isolated Stage 3 continuity planner facade, four-tool Pi adapter, deterministic cross-session harness, and optional credential-gated live smoke command
+- terminal-first workspace cleanup decision, implementation plan, and auditable cleanup report
+
+### Changed
+
+- the compatibility Express runtime is API-only and no longer serves static frontend assets
+- the test command uses the pinned Node 22.23.1 runtime so Pi tests are reproducible on Windows
+
+### Removed
+
+- obsolete Electron shell, static Margin frontend, desktop launchers, and Electron dependency
+- UI-centred case-study site, screenshots, generated PDFs, frontend mocks, build scripts, and artifact-only tests
 
 ### Security
 

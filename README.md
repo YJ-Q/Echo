@@ -21,9 +21,11 @@ See [docs/VOICE.md](docs/VOICE.md) for Margin's voice rules and [docs/API_CONTRA
 For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
 For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
 
-## Current Status
+## Current Status: Terminal-first Pilot
 
-The backend MVP is functional and test-covered.
+The repository is currently running a terminal-first pilot of the Pi + Margin continuity path. Pi provides its terminal UI, Agent runtime, sessions, branching, compaction, SDK, and RPC mode; it does not include a reusable desktop web interface for Margin. The obsolete Margin Electron/static frontend has therefore been removed while continuity behavior is validated.
+
+The legacy backend remains functional and test-covered as a temporary compatibility and data-migration surface. It serves APIs only; it does not serve a bundled webpage.
 
 Implemented:
 
@@ -45,7 +47,7 @@ Still worth improving before a polished open-source `1.0`:
 - richer provider configuration
 - frontend rebuild on top of the stabilized backend
 
-## Pi Stage 0 Development Verification
+## Pi Continuity Development Verification
 
 Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries. The Stage 0 live spike passed on 2026-08-20 with the `yapi` provider and `gpt-5.6-terra`; this is technical feasibility evidence only, not a production or user-value claim.
 
@@ -64,6 +66,14 @@ For the YAPI-compatible endpoint, the spike recognizes `yapi` with `https://yapi
 The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. User/project extensions, skills, prompt templates, themes, and context files are also disabled, and the spike uses an isolated agent directory under ignored local data. Authentication must be supplied through the environment for the selected provider; credentials are not read from the user's normal Pi directory or stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
 
 See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.
+
+Run the isolated cross-session continuity path:
+
+```powershell
+npm run spike:pi-continuity
+```
+
+This command is the current terminal validation entry point, not a production chat client. It requires the configured model credential and keeps Pi's built-in high-risk tools disabled.
 
 ## Quick Start
 
