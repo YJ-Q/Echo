@@ -15,6 +15,7 @@ export function sanitizePilotReport(input = {}) {
     sessions: [...new Set(input.sessions ?? [])],
     contextDigests: [...new Set(input.contextDigests ?? [])],
     resultCodes: [...new Set(input.resultCodes ?? [])],
+    auditIds: [...new Set(input.auditIds ?? [])],
     tools: TOOLS,
     safety: { localOnly: true, builtinToolsDisabled: true, externalWritesDisabled: true }
   };
@@ -22,7 +23,7 @@ export function sanitizePilotReport(input = {}) {
 
 export async function runTerminalLoop({ controller, lines, write }) {
   const started = await controller.start();
-  const evidence = { projectId: started.projectId, sessions: [started.sessionId], contextDigests: [], resultCodes: [] };
+  const evidence = { projectId: started.projectId, sessions: [started.sessionId], contextDigests: [], resultCodes: [], auditIds: [] };
   write('Margin 终端试点：仅本地记录，不访问招聘网站、邮箱或文件。');
   write('命令：/state  /memory  /new  /exit');
   try {
@@ -31,6 +32,7 @@ export async function runTerminalLoop({ controller, lines, write }) {
       if (result.sessionId) evidence.sessions.push(result.sessionId);
       if (result.trace?.contextDigest) evidence.contextDigests.push(result.trace.contextDigest);
       if (result.trace?.resultCodes) evidence.resultCodes.push(...result.trace.resultCodes);
+      if (result.trace?.toolResults) evidence.auditIds.push(...result.trace.toolResults.map((item) => item.auditId).filter(Boolean));
       if (result.code) evidence.resultCodes.push(result.code);
       if (result.text) write(result.text);
       if (result.kind === 'exit') break;

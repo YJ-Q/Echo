@@ -22,10 +22,11 @@ test('terminal loop advertises local-only scope and closes on exit', async () =>
 test('sanitized report excludes prompts, credentials, and assistant text', () => {
   const report = sanitizePilotReport({
     projectId: 'project-1', sessions: ['session-1', 'session-2'], contextDigests: ['digest-1'],
-    resultCodes: ['allowed'], apiKey: 'secret', messages: ['private'], assistantText: 'private reply'
+    resultCodes: ['allowed'], auditIds: ['audit-1'], apiKey: 'secret', messages: ['private'], assistantText: 'private reply'
   });
   assert.deepEqual(report.sessions, ['session-1', 'session-2']);
   assert.deepEqual(report.tools, ['memory_search', 'memory_propose', 'state_update', 'action_update']);
+  assert.deepEqual(report.auditIds, ['audit-1']);
   assert.doesNotMatch(JSON.stringify(report), /secret|private/);
   assert.equal(report.safety.localOnly, true);
   assert.equal(report.safety.builtinToolsDisabled, true);

@@ -91,7 +91,11 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       );
       return {
         kind: 'message', text: [response?.text ?? '', ...confirmations].filter(Boolean).join('\n'), sessionId: session.id,
-        trace: { sessionId: session.id, projectId: project.id, contextDigest: plan.digest, resultCodes: response?.resultCodes ?? [] }
+        trace: {
+          sessionId: session.id, projectId: project.id, contextDigest: plan.digest,
+          resultCodes: response?.resultCodes ?? [],
+          toolResults: (response?.toolResults ?? []).map(({ toolName, code, auditId }) => ({ toolName, code, auditId }))
+        }
       };
     } catch (error) {
       const code = classify(error);
