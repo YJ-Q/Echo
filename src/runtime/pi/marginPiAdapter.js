@@ -71,10 +71,15 @@ export function toPiToolResult(result) {
   };
 }
 
-function createExecutor({ toolName, handler, getInvocationContext }) {
+function createExecutor({ toolName, handler, getInvocationContext, onToolResult }) {
   return async (toolCallId, params) => {
     try {
       const trusted = await getInvocationContext({ toolName, toolCallId });
+      if (trusted?.projectId && params.projectId !== trusted.projectId) {
+        const denied = errorResult('cross_project_reference');
+        onToolResult?.({ toolName, code: 'cross_project_reference', auditId: undefined });
+        return denied;
+      }
       const input = {
         ...params,
         sourceSessionId: trusted?.sourceSessionId,
@@ -85,34 +90,38 @@ function createExecutor({ toolName, handler, getInvocationContext }) {
         permissions: trusted.permissions,
         confirmations: trusted.confirmations ?? []
       } : { actorType: 'agent', permissions: {}, confirmations: [] };
-      return toPiToolResult(await handler(input, context));
+      const result = toPiToolResult(await handler(input, context));
+      onToolResult?.({ toolName, code: result.details.code, auditId: result.details.auditId });
+      return result;
     } catch {
-      return errorResult('adapter_execution_failed');
+      const failed = errorResult('adapter_execution_failed');
+      onToolResult?.({ toolName, code: 'adapter_execution_failed', auditId: undefined });
+      return failed;
     }
   };
 }
 
-export function createMarginPiExtension({ tools, getInvocationContext }) {
+export function createMarginPiExtension({ tools, getInvocationContext, onToolResult }) {
   return async (pi) => {
     pi.registerTool(defineTool({
       name: 'memory_search', label: 'Margin Memory Search', description: 'Search confirmed Margin memories for a project.',
       parameters: memorySearchParameters,
-      execute: createExecutor({ toolName: 'memory_search', handler: tools.memory_search, getInvocationContext })
+      execute: createExecutor({ toolName: 'memory_search', handler: tools.memory_search, getInvocationContext, onToolResult })
     }));
     pi.registerTool(defineTool({
       name: 'memory_propose', label: 'Margin Memory Propose', description: 'Propose a durable Margin memory for review.',
       parameters: memoryProposeParameters,
-      execute: createExecutor({ toolName: 'memory_propose', handler: tools.memory_propose, getInvocationContext })
+      execute: createExecutor({ toolName: 'memory_propose', handler: tools.memory_propose, getInvocationContext, onToolResult })
     }));
     pi.registerTool(defineTool({
       name: 'state_update', label: 'Margin State Update', description: 'Apply a governed update to Margin project state.',
       parameters: stateUpdateParameters,
-      execute: createExecutor({ toolName: 'state_update', handler: tools.state_update, getInvocationContext })
+      execute: createExecutor({ toolName: 'state_update', handler: tools.state_update, getInvocationContext, onToolResult })
     }));
     pi.registerTool(defineTool({
       name: 'action_update', label: 'Margin Action Update', description: 'Create or transition a governed Margin action.',
       parameters: actionUpdateParameters,
-      execute: createExecutor({ toolName: 'action_update', handler: tools.action_update, getInvocationContext })
+      execute: createExecutor({ toolName: 'action_update', handler: tools.action_update, getInvocationContext, onToolResult })
     }));
   };
 }

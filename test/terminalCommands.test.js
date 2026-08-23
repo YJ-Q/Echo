@@ -7,6 +7,7 @@ test('parseTerminalInput recognizes the closed command set and messages', () => 
   assert.deepEqual(parseTerminalInput('/memory'), { type: 'command', name: 'memory' });
   assert.deepEqual(parseTerminalInput('/new'), { type: 'command', name: 'new' });
   assert.deepEqual(parseTerminalInput('/exit'), { type: 'command', name: 'exit' });
+  assert.deepEqual(parseTerminalInput('/confirm-memory memory-1 2'), { type: 'command', name: 'confirm-memory', args: ['memory-1', '2'] });
   assert.deepEqual(parseTerminalInput('/delete'), { type: 'unknown_command', name: 'delete' });
   assert.deepEqual(parseTerminalInput('   '), { type: 'empty' });
   assert.deepEqual(parseTerminalInput('  今天投递了示例公司  '), { type: 'message', text: '今天投递了示例公司' });
@@ -27,10 +28,11 @@ test('formatState exposes identifiers and versions without dumping objects', () 
 test('formatMemory reports provenance and an explicit empty recall', () => {
   assert.equal(formatMemory({ selected: [] }), '未召回相关内容');
   const text = formatMemory({ selected: [{
-    kind: 'memory', entityId: 'memory-1', entityVersion: 2,
-    sourceSessionId: 'session-a', selectionReason: 'query_match', content: '偏好远程岗位'
+    entityType: 'memory', entityId: 'memory-1', version: 2,
+    sourceSessionId: 'session-a', reason: 'confirmed_memory', content: '偏好远程岗位', confirmationStatus: 'confirmed'
   }] });
   assert.match(text, /memory-1.*v2/s);
   assert.match(text, /session-a/);
-  assert.match(text, /query_match/);
+  assert.match(text, /confirmed_memory/);
+  assert.match(text, /confirmed/);
 });

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
+import { EventEmitter } from 'node:events';
 import test from 'node:test';
 import { runInteractiveLoop, runTerminalLoop, sanitizePilotReport } from '../scripts/run-terminal-pilot.js';
 
@@ -42,4 +43,16 @@ test('interactive input is buffered while the controller is still starting', asy
   }), 10));
   await runInteractiveLoop({ controllerPromise, input, output });
   assert.deepEqual(seen, ['/state', '/exit']);
+});
+
+test('SIGINT closes the controller once', async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const signals = new EventEmitter();
+  let closes = 0;
+  const controller = { async start() { return { projectId: 'p', sessionId: 's' }; }, async handle() { return {}; }, async close() { closes += 1; } };
+  const running = runInteractiveLoop({ controllerPromise: Promise.resolve(controller), input, output, signalSource: signals });
+  setTimeout(() => signals.emit('SIGINT'), 10);
+  await running;
+  assert.equal(closes, 1);
 });

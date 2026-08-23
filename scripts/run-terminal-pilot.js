@@ -41,8 +41,10 @@ export async function runTerminalLoop({ controller, lines, write }) {
   return evidence;
 }
 
-export async function runInteractiveLoop({ controllerPromise, input, output }) {
+export async function runInteractiveLoop({ controllerPromise, input, output, signalSource }) {
   const readline = createInterface({ input, output, terminal: Boolean(input.isTTY) });
+  const onSigint = () => readline.close();
+  signalSource?.once?.('SIGINT', onSigint);
   try {
     const bufferedLines = input.isTTY ? null : (async () => {
       const values = [];
@@ -53,6 +55,7 @@ export async function runInteractiveLoop({ controllerPromise, input, output }) {
     const lines = bufferedLines ? await bufferedLines : readline;
     return await runTerminalLoop({ controller, lines, write: (text) => output.write(`${text}\n`) });
   } finally {
+    signalSource?.off?.('SIGINT', onSigint);
     readline.close();
   }
 }
@@ -98,7 +101,7 @@ export async function main({ env = process.env, stdin = process.stdin, stdout = 
         clock: () => new Date().toISOString(), idFactory: (prefix) => `${prefix}-${randomUUID()}`
       });
     })();
-    const evidence = await runInteractiveLoop({ controllerPromise, input: stdin, output: stdout });
+    const evidence = await runInteractiveLoop({ controllerPromise, input: stdin, output: stdout, signalSource: process });
     await atomicJson(path.join(dataDir, 'report.json'), sanitizePilotReport(evidence));
     return 0;
   } finally {

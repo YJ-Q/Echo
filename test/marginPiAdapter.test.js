@@ -97,6 +97,22 @@ test('defaults missing host context to a deny-all agent context and tool-call ev
   assert.equal(result.isError, true);
 });
 
+test('rejects a model project id outside the host-selected project', async () => {
+  let called = false;
+  const results = [];
+  const registered = await registerAdapter({
+    tools: Object.fromEntries(toolNames.map((name) => [name, async () => { called = true; return { ok: true, data: {} }; }])),
+    getInvocationContext: async () => ({ actorType: 'agent', projectId: 'selected-project', permissions: { memoryRead: true }, sourceSessionId: 'session' }),
+    onToolResult: (result) => results.push(result)
+  });
+  const result = await registered.find((tool) => tool.name === 'memory_search').execute('call-scope', {
+    requestId: 'request', projectId: 'forged-project', query: 'q', asOf: '2026-08-23T00:00:00.000Z'
+  });
+  assert.equal(called, false);
+  assert.equal(result.details.code, 'cross_project_reference');
+  assert.deepEqual(results, [{ toolName: 'memory_search', code: 'cross_project_reference', auditId: undefined }]);
+});
+
 test('converts stable Core successes and errors to Pi results', () => {
   const success = toPiToolResult({ ok: true, data: { id: 'memory-1' }, auditId: 'audit-success' });
   const failure = toPiToolResult({ ok: false, error: { code: 'permission_denied', retryable: false }, auditId: 'audit-failure' });

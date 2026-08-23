@@ -11,8 +11,8 @@ export function buildPiTerminalPilotOptions(extensionFactory) {
   return { policy: buildContinuityToolPolicy(), resources: buildContinuityResourceOptions(extensionFactory) };
 }
 
-function providerExtension({ provider, modelId, customProvider, tools, getInvocationContext }) {
-  const margin = createMarginPiExtension({ tools, getInvocationContext });
+function providerExtension({ provider, modelId, customProvider, tools, getInvocationContext, onToolResult }) {
+  const margin = createMarginPiExtension({ tools, getInvocationContext, onToolResult });
   return async (pi) => {
     if (customProvider) {
       pi.registerProvider(provider, {
@@ -36,9 +36,11 @@ export async function createPiTerminalPilotRuntime({
     settingsManager: dependencies.settingsManager ?? SettingsManager
   };
   let invocationContextProvider = getInvocationContext ?? (async () => undefined);
+  let currentToolResults = [];
   const extension = providerExtension({
     provider, modelId, customProvider, tools,
-    getInvocationContext: (input) => invocationContextProvider(input)
+    getInvocationContext: (input) => invocationContextProvider(input),
+    onToolResult: (result) => currentToolResults.push(result)
   });
   const options = buildPiTerminalPilotOptions(extension);
   const services = await deps.createServices({
@@ -66,13 +68,19 @@ export async function createPiTerminalPilotRuntime({
       return {
         id: session.sessionId,
         async send({ context, message }) {
+          currentToolResults = [];
           await session.sendCustomMessage({
             customType: 'margin_terminal_pilot_context',
             content: JSON.stringify({ digest: context.digest, selected: context.selected }),
             display: false, details: { digest: context.digest }
           }, { triggerTurn: false });
           await session.prompt(message);
-          return { text: session.getLastAssistantText?.() ?? '', resultCodes: ['allowed'] };
+          const toolResults = currentToolResults.map((item) => ({ ...item }));
+          return {
+            text: session.getLastAssistantText?.() ?? '',
+            resultCodes: toolResults.length ? toolResults.map((item) => item.code) : ['no_tool_call'],
+            toolResults
+          };
         },
         async close() {
           if (disposed) return;

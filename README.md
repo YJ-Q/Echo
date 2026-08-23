@@ -83,7 +83,7 @@ Start the local job-application continuity pilot after configuring the same prov
 npm run pilot:terminal
 ```
 
-Available commands are `/state`, `/memory`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session and asks it to resume the same local project.
+Available commands are `/state`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session and asks it to resume the same local project. Proposed durable memories remain unavailable to recall until the user confirms the displayed memory identifier and version through `/confirm-memory`.
 
 The pilot database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
 

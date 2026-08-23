@@ -25,6 +25,7 @@ test('README describes the terminal-first pilot without a bundled desktop UI', a
   assert.doesNotMatch(readme, /npm run desktop|run-margin-desktop\.cmd|run-echo-desktop\.cmd/);
   assert.match(readme, /npm run pilot:terminal/);
   assert.match(readme, /\/state.*\/memory.*\/new.*\/exit/s);
+  assert.match(readme, /\/confirm-memory <memoryId> <version>/);
   assert.match(readme, /data\/terminal-pilot\/margin-core\.sqlite/);
   assert.match(readme, /Pi is not the final runtime decision/i);
 });

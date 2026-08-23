@@ -53,13 +53,24 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
 
   async function planned(query = CONTINUE_QUERY) {
     const current = await snapshot(query);
-    lastPlan = await core.planContext({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
+    const basePlan = await core.planContext({ projectId: project.id, query, asOf: clock(), recentDialogue: [] });
+    const actionEntries = current.actions.slice(0, 5).map((action) => ({
+      sourceType: 'margin_action', entityType: 'action', entityId: action.id,
+      version: action.version, sourceSessionId: action.source_session_id ?? null,
+      reason: 'open_action', content: action.title, status: action.status
+    }));
+    const selected = [...basePlan.selected, ...actionEntries].slice(0, 12);
+    lastPlan = { ...basePlan, selected, digest: digestInput({ selected, excluded: basePlan.excluded }) };
     return { current, plan: lastPlan };
   }
 
   async function start() {
     const savedId = await registry.load();
     project = savedId ? await core.store.getProject(savedId) : null;
+    if (!project || project.status !== 'active') {
+      project = await core.store.findActiveProjectByScenario?.('career_project') ?? null;
+      if (project) await registry.save(project.id);
+    }
     await openSession();
     if (!project || project.status !== 'active') {
       const input = { scenario: 'career_project', goal: GOAL, phase: 'pilot', status: 'active' };
@@ -75,8 +86,11 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     try {
       const { plan } = await planned(message);
       const response = await session.send({ context: plan, message });
+      const confirmations = (response?.toolResults ?? []).map((item) =>
+        `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}]`
+      );
       return {
-        kind: 'message', text: response?.text ?? '', sessionId: session.id,
+        kind: 'message', text: [response?.text ?? '', ...confirmations].filter(Boolean).join('\n'), sessionId: session.id,
         trace: { sessionId: session.id, projectId: project.id, contextDigest: plan.digest, resultCodes: response?.resultCodes ?? [] }
       };
     } catch (error) {
@@ -102,6 +116,23 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (parsed.name === 'exit') { await close(); return { kind: 'exit', text: '已安全退出。', sessionId: session?.id }; }
     if (parsed.name === 'state') return { kind: 'state', text: formatState(await snapshot()), sessionId: session.id };
     if (parsed.name === 'memory') { if (!lastPlan) await planned(); return { kind: 'memory', text: formatMemory(lastPlan), sessionId: session.id }; }
+    if (parsed.name === 'confirm-memory') {
+      const [memoryId, versionText] = parsed.args ?? [];
+      const expectedVersion = Number(versionText);
+      if (!memoryId || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
+        return { kind: 'error', code: 'invalid_confirmation', text: '用法：/confirm-memory <memoryId> <version>', sessionId: session.id };
+      }
+      try {
+        const confirmation = await core.confirmMemory({ memoryId, expectedVersion }, {
+          requestId: idFactory('confirm_request'), actorType: 'user', sourceSessionId: session.id,
+          sourceEventId: idFactory('confirm_event'),
+          trustedConfirmation: { ref: idFactory('confirmation'), action: 'confirm_memory', memoryId, projectId: project.id, actorType: 'user' }
+        });
+        return { kind: 'confirmation', code: 'memory_confirmed', text: `已确认记忆 ${memoryId} v${confirmation.memory.version}`, sessionId: session.id, auditId: confirmation.auditId };
+      } catch (error) {
+        return { kind: 'error', code: error?.code ?? 'invalid_confirmation', text: '记忆确认失败，请检查编号和版本。', sessionId: session.id };
+      }
+    }
     const previousSessionId = session.id;
     sessionClosed = true;
     await session.close();

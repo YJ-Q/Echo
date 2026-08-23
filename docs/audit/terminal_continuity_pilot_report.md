@@ -8,7 +8,7 @@ Status: automated implementation verification complete; hands-on provider run re
 
 The terminal pilot supports one local `career_project` for resume delivery and job-application tracking. Natural-language messages use an adapter-neutral controller. The first runtime adapter uses Pi and registers exactly `memory_search`, `memory_propose`, `state_update`, and `action_update`.
 
-The slash commands are `/state`, `/memory`, `/new`, and `/exit`. `/new` closes the current Pi Session, creates a distinct Session, delivers a fresh bounded Margin context, and asks for the current status and next step.
+The slash commands are `/state`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. `/new` closes the current Pi Session, creates a distinct Session, delivers a fresh bounded Margin context including open actions, and asks for the current status and next step. Memory confirmation is a host-owned terminal operation; the model cannot forge it.
 
 ## Safety boundary
 
@@ -37,6 +37,8 @@ A YAPI-backed `gpt-5.6-terra` run completed on 2026-08-23 using the API key from
 - safety flags: local-only, built-in tools disabled, external writes disabled.
 
 The run used read-only user instructions. Session B described the same active job-application task and next step after the Session boundary. This is a single technical smoke result, not a continuity success-rate or memory-quality measurement.
+
+A second focused run exercised the missing action-continuity path after review. Session `01a02d9c-ba11-70ae-980e-3f08cb8b794d` used natural language to invoke `action_update`, creating pending action `8f3933ec-fd7d-401c-8587-cdf5a17c8f29` with audit `a13182af-f936-4250-9756-8d11b4f47083`. After `/new`, Session `01a02d9c-e0a8-7be4-afe4-311621601511` received a context digest that included the open action, described it as pending, and `/state` displayed the same action ID and version. The sanitized result codes were `allowed` and `no_tool_call`; no-tool turns are no longer mislabeled as successful tool calls.
 
 ## Claim boundary
 

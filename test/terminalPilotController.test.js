@@ -2,20 +2,22 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
 
-function fixture() {
+function fixture({ discoverExisting = false } = {}) {
   const calls = { created: 0, sessions: [], saved: null, queries: [] };
   const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'active' };
   const snapshot = { project, activeTask: { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' }, decisions: [], memories: [], recentDialogue: [] };
   const core = {
     store: {
       async getProject(id) { return id === project.id ? project : null; },
+      async findActiveProjectByScenario() { return discoverExisting ? project : null; },
       async createProject() { calls.created += 1; return project; },
       async createTask() { return snapshot.activeTask; },
       async getContinuitySnapshot(input) { calls.queries.push(input); return snapshot; },
-      db: { async all() { return []; } }
+      db: { async all() { return [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }]; } }
     },
     async planContext() { return { projectId: project.id, selected: [], excluded: [], digest: 'digest-1' }; },
-    tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} }
+    tools: { memory_search() {}, memory_propose() {}, state_update() {}, action_update() {} },
+    async confirmMemory(input, context) { calls.confirmed = { input, context }; return { memory: { id: input.memoryId, version: 3 }, auditId: 'audit-confirm' }; }
   };
   let next = 0;
   const runtime = {
@@ -39,8 +41,16 @@ test('controller creates the pilot project and handles messages without leaking 
   assert.equal(f.calls.saved, 'project-1');
   const result = await controller.handle('今天投递了示例公司');
   assert.equal(result.text, '回复-session-1');
-  assert.equal(result.trace.contextDigest, 'digest-1');
+  assert.match(result.trace.contextDigest, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(JSON.stringify(result.trace), /示例公司/);
+});
+
+test('controller discovers an existing pilot project when the registry is missing', async () => {
+  const f = fixture({ discoverExisting: true });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  assert.equal(f.calls.created, 0);
+  assert.equal(f.calls.saved, 'project-1');
 });
 
 test('/new creates a distinct session while state and memory remain model-free', async () => {
@@ -56,6 +66,17 @@ test('/new creates a distinct session while state and memory remain model-free',
   assert.equal(renewed.sessionId, 'session-2');
   assert.equal(f.calls.sessions[0].closed, true);
   assert.notEqual(renewed.previousSessionId, renewed.sessionId);
+  assert.equal(f.calls.sessions[1].contexts[0].selected.some((item) => item.entityType === 'action' && item.entityId === 'action-1'), true);
+});
+
+test('/confirm-memory uses the host confirmation path', async () => {
+  const f = fixture();
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  const result = await controller.handle('/confirm-memory memory-1 2');
+  assert.equal(result.code, 'memory_confirmed');
+  assert.equal(f.calls.confirmed.input.memoryId, 'memory-1');
+  assert.equal(f.calls.confirmed.context.trustedConfirmation.actorType, 'user');
 });
 
 test('/exit closes exactly once and provider failure is sanitized', async () => {
