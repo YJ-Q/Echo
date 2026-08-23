@@ -1,0 +1,95 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline/promises';
+import { createMarginCore } from '../src/core/createMarginCore.js';
+import { createTerminalPilotController } from '../src/pilot/terminalPilotController.js';
+import { createPiTerminalPilotRuntime } from '../src/runtime/pi/piTerminalPilotRuntime.js';
+
+const TOOLS = ['memory_search', 'memory_propose', 'state_update', 'action_update'];
+
+export function sanitizePilotReport(input = {}) {
+  return {
+    projectId: input.projectId ?? null,
+    sessions: [...new Set(input.sessions ?? [])],
+    contextDigests: [...new Set(input.contextDigests ?? [])],
+    resultCodes: [...new Set(input.resultCodes ?? [])],
+    tools: TOOLS,
+    safety: { localOnly: true, builtinToolsDisabled: true, externalWritesDisabled: true }
+  };
+}
+
+export async function runTerminalLoop({ controller, lines, write }) {
+  const started = await controller.start();
+  const evidence = { projectId: started.projectId, sessions: [started.sessionId], contextDigests: [], resultCodes: [] };
+  write('Margin 终端试点：仅本地记录，不访问招聘网站、邮箱或文件。');
+  write('命令：/state  /memory  /new  /exit');
+  try {
+    for await (const line of lines) {
+      const result = await controller.handle(line);
+      if (result.sessionId) evidence.sessions.push(result.sessionId);
+      if (result.trace?.contextDigest) evidence.contextDigests.push(result.trace.contextDigest);
+      if (result.trace?.resultCodes) evidence.resultCodes.push(...result.trace.resultCodes);
+      if (result.code) evidence.resultCodes.push(result.code);
+      if (result.text) write(result.text);
+      if (result.kind === 'exit') break;
+    }
+  } finally {
+    await controller.close();
+  }
+  return evidence;
+}
+
+async function atomicJson(file, value) {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  await rename(temporary, file);
+}
+
+function registry(file) {
+  return {
+    async load() { try { return JSON.parse(await readFile(file, 'utf8')).projectId ?? null; } catch (error) { if (error.code === 'ENOENT') return null; throw error; } },
+    async save(projectId) { await atomicJson(file, { projectId }); }
+  };
+}
+
+export async function main({ env = process.env, stdin = process.stdin, stdout = process.stdout } = {}) {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const dataDir = path.join(repositoryRoot, 'data', 'terminal-pilot');
+  const provider = env.MARGIN_PI_PROVIDER ?? 'yapi';
+  const modelId = env.MARGIN_PI_MODEL ?? 'gpt-5.6-terra';
+  const baseUrl = env.MARGIN_PI_BASE_URL ?? (provider === 'yapi' ? 'https://yapi.click/v1' : undefined);
+  const api = env.MARGIN_PI_API ?? (provider === 'yapi' ? 'openai-responses' : undefined);
+  const keyName = env.MARGIN_PI_API_KEY_ENV ?? (provider === 'yapi' ? 'YAPI_API_KEY' : undefined);
+  const apiKey = keyName ? env[keyName] : undefined;
+  if (!provider || !modelId || !baseUrl || !api || !apiKey) {
+    stdout.write('pi_credentials_required\n');
+    return 3;
+  }
+  await mkdir(path.join(dataDir, 'agent'), { recursive: true });
+  const core = await createMarginCore({ enabled: true, dbPath: path.join(dataDir, 'margin-core.sqlite') });
+  let runtime;
+  let readline;
+  try {
+    runtime = await createPiTerminalPilotRuntime({
+      repositoryRoot, agentDir: path.join(dataDir, 'agent'), provider, modelId,
+      customProvider: { baseUrl, api, apiKey }, tools: core.tools
+    });
+    const controller = createTerminalPilotController({
+      core, runtime, registry: registry(path.join(dataDir, 'project.json')),
+      clock: () => new Date().toISOString(), idFactory: (prefix) => `${prefix}-${randomUUID()}`
+    });
+    readline = createInterface({ input: stdin, output: stdout, terminal: Boolean(stdin.isTTY) });
+    const evidence = await runTerminalLoop({ controller, lines: readline, write: (text) => stdout.write(`${text}\n`) });
+    await atomicJson(path.join(dataDir, 'report.json'), sanitizePilotReport(evidence));
+    return 0;
+  } finally {
+    readline?.close();
+    await runtime?.close?.();
+    await core.close();
+  }
+}
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) process.exitCode = await main();
