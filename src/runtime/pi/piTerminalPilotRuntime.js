@@ -7,6 +7,14 @@ import { buildContinuityResourceOptions, buildContinuityToolPolicy, CONTINUITY_T
 const sameTools = (actual) => Array.isArray(actual) && actual.length === CONTINUITY_TOOL_NAMES.length &&
   CONTINUITY_TOOL_NAMES.every((name) => actual.includes(name));
 
+const PILOT_OPERATION_RULES = [
+  '状态或行动发生变化时调用相应工具；不得只在回复中声称已经记录。',
+  '更新已有 project、task 或 action 时，必须使用上下文中的 entityId 和 version 作为 expectedVersion。',
+  '完成旧行动后，如用户已给出明确下一步，应创建对应的 pending、internal_write 行动。',
+  '长期信息只能通过 memory_propose 提出候选；不得声称候选已经确认。',
+  '任何工具返回非 allowed 时，必须明确说明对应更新失败，不得声称全部更新成功。'
+].join(' ');
+
 export function buildPiTerminalPilotOptions(extensionFactory) {
   return { policy: buildContinuityToolPolicy(), resources: buildContinuityResourceOptions(extensionFactory) };
 }
@@ -71,7 +79,7 @@ export async function createPiTerminalPilotRuntime({
           currentToolResults = [];
           await session.sendCustomMessage({
             customType: 'margin_terminal_pilot_context',
-            content: JSON.stringify({ digest: context.digest, selected: context.selected }),
+            content: JSON.stringify({ digest: context.digest, selected: context.selected, operationRules: PILOT_OPERATION_RULES }),
             display: false, details: { digest: context.digest }
           }, { triggerTurn: false });
           await session.prompt(message);

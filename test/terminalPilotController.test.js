@@ -46,6 +46,41 @@ test('controller creates the pilot project and handles messages without leaking 
   assert.doesNotMatch(JSON.stringify(result.trace), /示例公司/);
 });
 
+test('controller grants the exact Core permission for proposing memory', async () => {
+  const f = fixture();
+  let invocationContext;
+  f.runtime.createSession = async (options) => {
+    invocationContext = await options.getInvocationContext({ toolCallId: 'call-1' });
+    return { id: 'session-permissions', async send() { return { text: 'ok' }; }, async close() {} };
+  };
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  assert.equal(invocationContext.permissions.memoryPropose, true);
+  assert.equal('memoryWrite' in invocationContext.permissions, false);
+});
+
+test('controller makes partial write failures explicit even when assistant prose is optimistic', async () => {
+  const f = fixture();
+  f.runtime.createSession = async () => ({
+    id: 'session-partial',
+    async send() {
+      return {
+        text: '状态已经全部更新。', resultCodes: ['allowed', 'invalid_request'],
+        toolResults: [
+          { toolName: 'action_update', code: 'allowed', auditId: 'audit-ok' },
+          { toolName: 'state_update', code: 'invalid_request', auditId: 'audit-failed' }
+        ]
+      };
+    },
+    async close() {}
+  });
+  const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });
+  await controller.start();
+  const result = await controller.handle('更新进度');
+  assert.match(result.text, /部分更新未写入/);
+  assert.match(result.text, /state_update=invalid_request/);
+});
+
 test('controller discovers an existing pilot project when the registry is missing', async () => {
   const f = fixture({ discoverExisting: true });
   const controller = createTerminalPilotController({ core: f.core, runtime: f.runtime, registry: f.registry, clock: () => '2026-08-23T00:00:00.000Z', idFactory: (p) => `${p}-1` });

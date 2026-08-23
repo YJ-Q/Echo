@@ -39,6 +39,9 @@ test('runtime creates isolated sessions and sends hidden context before promptin
   assert.equal(response.text, '已恢复');
   assert.deepEqual(response.resultCodes, ['no_tool_call']);
   assert.equal(records.find((r) => r.message).message.display, false);
+  const hiddenContext = JSON.parse(records.find((r) => r.message).message.content);
+  assert.match(hiddenContext.operationRules, /expectedVersion/);
+  assert.match(hiddenContext.operationRules, /不得声称/);
   assert.equal(records.find((r) => r.prompt).prompt, '继续');
   await session.close();
   assert.equal(records.at(-1).disposed, true);

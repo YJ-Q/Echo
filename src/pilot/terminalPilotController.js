@@ -33,7 +33,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       tools: core.tools,
       getInvocationContext: async ({ toolCallId }) => ({
         actorType: 'agent',
-        permissions: { memoryRead: true, memoryWrite: true, stateWrite: true, actionWrite: true },
+        permissions: { memoryRead: true, memoryPropose: true, stateWrite: true, actionWrite: true },
         confirmations: [], sourceSessionId: session?.id, sourceEventId: toolCallId,
         projectId: project?.id
       })
@@ -94,8 +94,12 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
         const confirmation = item.confirmationRequired ? ' 需确认' : '';
         return `[工具 ${item.toolName}: ${item.code}${item.auditId ? ` audit=${item.auditId}` : ''}${entity}${confirmation}]`;
       });
+      const failures = (response?.toolResults ?? []).filter((item) => item.code !== 'allowed');
+      const writeWarning = failures.length
+        ? `注意：部分更新未写入（${failures.map((item) => `${item.toolName}=${item.code}`).join('，')}）。以下模型表述不能作为写入成功凭证。`
+        : '';
       return {
-        kind: 'message', text: [response?.text ?? '', ...confirmations].filter(Boolean).join('\n'), sessionId: session.id,
+        kind: 'message', text: [writeWarning, response?.text ?? '', ...confirmations].filter(Boolean).join('\n'), sessionId: session.id,
         trace: {
           sessionId: session.id, projectId: project.id, contextDigest: plan.digest,
           resultCodes: response?.resultCodes ?? [],
