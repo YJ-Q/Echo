@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createMarginCore } from '../src/core/createMarginCore.js';
 
-const actor = { actorType: 'user', sourceSessionId: 'host-session', sourceEventId: 'host-event' };
+const actor = { actorType: 'user', subjectId: 'test-user', sourceSessionId: 'host-session', sourceEventId: 'host-event' };
 
 async function fixture() {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-persistent-'));
@@ -48,6 +48,10 @@ test('idempotency rejects a reused request ID with different input', async () =>
       f.core.workstreams.create({ requestId: 'same', title: 'A', goal: '目标 A', scenario: 'career_project' }, { ...actor, actorType: 'agent' }),
       (error) => error.code === 'idempotency_conflict'
     );
+    await assert.rejects(
+      f.core.workstreams.create({ requestId: 'same', title: 'A', goal: '目标 A', scenario: 'career_project' }, { ...actor, subjectId: 'other-user' }),
+      (error) => error.code === 'idempotency_conflict'
+    );
   } finally { await f.cleanup(); }
 });
 
@@ -55,6 +59,15 @@ test('V1 state tool updates legacy and Workstream status as one transaction', as
   const f = await fixture();
   try {
     const workstream = (await f.core.workstreams.create({ requestId: 'w-state', title: 'Margin', goal: '持续推进', scenario: 'career_project' }, actor)).data;
+    for (const [requestId, context] of [['denied-empty', {}], ['denied-false', { actorType: 'agent', permissions: { stateWrite: false } }]]) {
+      const denied = await f.core.v1Tools.state_update({
+        requestId, projectId: workstream.id, operation: 'update_project', expectedVersion: workstream.version,
+        changes: { status: 'blocked' }, sourceSessionId: 'pi-session', sourceEventId: requestId
+      }, context);
+      assert.equal(denied.error.code, 'permission_denied');
+      assert.ok(denied.auditId);
+    }
+    assert.equal((await f.core.workstreams.get(workstream.id)).version, 1);
     const result = await f.core.v1Tools.state_update({
       requestId: 'update-state', projectId: workstream.id, operation: 'update_project', expectedVersion: workstream.version,
       changes: { status: 'blocked' }, sourceSessionId: 'pi-session', sourceEventId: 'tool-call'
@@ -67,13 +80,33 @@ test('V1 state tool updates legacy and Workstream status as one transaction', as
   } finally { await f.cleanup(); }
 });
 
+test('V1 state tool cannot complete a Workstream while its Run is open', async () => {
+  const f = await fixture();
+  const runtime = { async activate() { return { runtimeSessionId: 'runtime-open' }; }, async halt() {} };
+  try {
+    const workstream = (await f.core.workstreams.create({ requestId: 'w-open', title: 'Margin', goal: '持续推进', scenario: 'career_project' }, actor)).data;
+    const hostActor = f.core.bindHostActor(actor);
+    let run = (await f.core.runs.create({ requestId: 'r-open', workstreamId: workstream.id, scope: '执行', runtimeKind: 'pi' }, hostActor)).data;
+    run = (await f.core.runs.start({ requestId: 'r-start', runId: run.id, expectedVersion: run.version }, hostActor, runtime)).data;
+    const denied = await f.core.v1Tools.state_update({
+      requestId: 'complete-open', projectId: workstream.id, operation: 'update_project', expectedVersion: workstream.version,
+      changes: { status: 'completed' }, sourceSessionId: 'pi-session', sourceEventId: 'complete-call'
+    }, { actorType: 'agent', permissions: { stateWrite: true } });
+    assert.equal(denied.error.code, 'open_run_conflict');
+    assert.equal((await f.core.workstreams.get(workstream.id)).status, 'running');
+    assert.equal((await f.core.runs.get(run.id)).status, 'running');
+    await f.core.runs.stop({ requestId: 'r-stop', runId: run.id, expectedVersion: run.version }, hostActor, runtime);
+  } finally { await f.cleanup(); }
+});
+
 test('run artifact and checkpoint remain scoped to one workstream', async () => {
   const f = await fixture();
   try {
     const workstream = (await f.core.workstreams.create({ requestId: 'w1', title: 'Margin', goal: '持续推进', scenario: 'career_project' }, actor)).data;
-    const run = (await f.core.runs.create({ requestId: 'run1', workstreamId: workstream.id, scope: '完成 Phase 1', runtimeKind: 'pi' }, actor)).data;
+    const hostActor = f.core.bindHostActor(actor);
+    const run = (await f.core.runs.create({ requestId: 'run1', workstreamId: workstream.id, scope: '完成 Phase 1', runtimeKind: 'pi' }, hostActor)).data;
     await assert.rejects(
-      f.core.runs.create({ requestId: 'run2', workstreamId: workstream.id, scope: '重复 Run', runtimeKind: 'pi' }, actor),
+      f.core.runs.create({ requestId: 'run2', workstreamId: workstream.id, scope: '重复 Run', runtimeKind: 'pi' }, hostActor),
       (error) => error.code === 'open_run_exists'
     );
     const artifact = (await f.core.artifacts.create({ requestId: 'a1', workstreamId: workstream.id, runId: run.id, type: 'document', title: '报告', uri: 'docs/report.md', contentHash: 'abc123' }, actor)).data;

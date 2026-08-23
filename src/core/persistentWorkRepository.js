@@ -1,4 +1,5 @@
 import { CoreContractError, digestInput } from './contracts.js';
+import { transitionWorkstream } from '../domain/workstream.js';
 
 const json = (value) => JSON.stringify(value ?? []);
 
@@ -15,16 +16,19 @@ export function createPersistentWorkRepository(store) {
     await tx.run(
       `INSERT INTO margin_audit_log
        (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
-       VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,'{}',?)`,
-      auditId, operation, requestId, actor.actorType, workstreamId, entityType, entityId, digestInput(input), now
+       VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,?,?)`,
+      auditId, operation, requestId, actor.actorType, workstreamId, entityType, entityId, digestInput(input),
+      JSON.stringify({ actorSubjectId: actor.subjectId ?? null }), now
     );
     return auditId;
   };
 
   const replay = async (tx, operation, requestId, table, input, actor) => {
-    const audit = await tx.get("SELECT id, entity_id, actor_type, input_digest FROM margin_audit_log WHERE operation=? AND request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", operation, requestId);
+    const audit = await tx.get("SELECT id, entity_id, actor_type, input_digest, metadata FROM margin_audit_log WHERE operation=? AND request_id=? AND result_code='allowed' ORDER BY created_at LIMIT 1", operation, requestId);
     if (!audit) return null;
-    if (audit.actor_type !== actor?.actorType || audit.input_digest !== digestInput(input)) {
+    let recordedSubject = null;
+    try { recordedSubject = JSON.parse(audit.metadata || '{}').actorSubjectId ?? null; } catch { throw new CoreContractError('idempotency_conflict', 'Stored idempotency identity is invalid'); }
+    if (audit.actor_type !== actor?.actorType || recordedSubject !== (actor?.subjectId ?? null) || audit.input_digest !== digestInput(input)) {
       throw new CoreContractError('idempotency_conflict', 'Request ID was already used with different input or actor');
     }
     return { auditId: audit.id, data: await tx.get(`SELECT * FROM ${table} WHERE id=?`, audit.entity_id) };
@@ -55,6 +59,14 @@ export function createPersistentWorkRepository(store) {
       const workstreamStatus = requestedStatus === undefined ? current.workstream_status : (legacyToWorkstream[requestedStatus] ?? requestedStatus);
       const legacyStatus = requestedStatus === undefined ? current.status : (workstreamToLegacy[workstreamStatus] ?? requestedStatus);
       if (!workstreamToLegacy[workstreamStatus] || !['active','blocked','completed','archived'].includes(legacyStatus)) throw new CoreContractError('invalid_request','Unsupported Workstream status');
+      if (workstreamStatus !== current.workstream_status) {
+        const commands = { blocked: 'block', completed: 'complete', paused: 'pause', waiting: 'wait', watching: 'watch', needs_owner: 'needs_owner', ready: 'ready', running: current.workstream_status === 'ready' ? 'start' : 'resume' };
+        try {
+          if (transitionWorkstream({ status: current.workstream_status }, { type: commands[workstreamStatus] }).status !== workstreamStatus) throw new Error('invalid');
+        } catch { throw new CoreContractError('invalid_workstream_transition','Invalid Workstream transition'); }
+        const openRun = await tx.get("SELECT id FROM margin_runs WHERE workstream_id=? AND status IN ('queued','running','paused','needs_owner') LIMIT 1", current.id);
+        if (openRun) throw new CoreContractError('open_run_conflict','Stop or complete the open Run before changing Workstream status');
+      }
       const now=store.clock(); const nextVersion=current.version+1;
       await tx.run('UPDATE margin_projects SET goal=?,phase=?,status=?,workstream_status=?,version=?,source_session_id=?,source_event_id=?,updated_at=? WHERE id=?',
         input.changes.goal ?? current.goal,input.changes.phase ?? current.phase,legacyStatus,workstreamStatus,nextVersion,actor.sourceSessionId,actor.sourceEventId,now,current.id);

@@ -1,9 +1,9 @@
 import { CoreContractError } from '../core/contracts.js';
 import { transitionRun } from '../domain/run.js';
 
-export function createRunService({ repository }) {
+export function createRunService({ repository, authorization }) {
   const authorize = (actor) => {
-    if (actor?.actorType !== 'user') throw new CoreContractError('permission_denied','Run control is host-user owned');
+    if (actor?.actorType !== 'user' || authorization?.(actor) !== true) throw new CoreContractError('permission_denied','Run control is host-user owned');
   };
   const control = async (command, input, actor, runtimeControl) => {
     authorize(actor);

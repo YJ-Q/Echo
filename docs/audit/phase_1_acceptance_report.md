@@ -14,7 +14,7 @@ The V1 Source of Truth is `data/terminal-pilot/margin-core.sqlite`. The old `dat
 - Workstream owns durable goal/plan/next action and references checkpoints.
 - Run belongs to one Workstream and references only the current external runtime Session ID.
 - Pi Session remains replaceable runtime context; it does not own Workstream state.
-- Start/resume and pause/stop are host-owned and coordinated with runtime activation/halt.
+- Start/resume and pause/stop require a Core-bound host capability and are coordinated with runtime activation/halt.
 - Pause, stop, complete and terminal close leave a durable checkpoint; terminal close pauses a running Run.
 - `/status`, `/pause`, `/resume`, `/stop`, `/checkpoint` call Application Services, not SQLite.
 
@@ -34,7 +34,7 @@ Pi `0.84.2` remains the default general runtime behind the existing adapter. Cor
 
 ## Verification
 
-- Full regression: 285/285 passed.
+- Full regression: 286/286 passed.
 - Frozen Stage 1 fixtures: 10/10, manifest bound.
 - Pi baseline audit: passed for package/runtime `0.84.2`, MIT, Node `22.23.1`.
 - `git diff --check`: passed.

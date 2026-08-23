@@ -30,12 +30,18 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
     action_update: action.actionUpdate
   };
   const workstreams = createWorkstreamService({ repository });
+  const hostControlCapability = Symbol('margin-host-run-control');
+  const bindHostActor = (actor) => {
+    if (actor?.actorType !== 'user' || typeof actor?.subjectId !== 'string' || !actor.subjectId.trim()) throw new TypeError('trusted_host_actor_required');
+    return { ...actor, [hostControlCapability]: true };
+  };
   return {
     enabled: true,
     store,
     repository,
     workstreams,
-    runs: createRunService({ repository }),
+    runs: createRunService({ repository, authorization: (actor) => actor?.[hostControlCapability] === true }),
+    bindHostActor,
     artifacts: createArtifactService({ repository }),
     checkpoints: createCheckpointService({ repository }),
     continuity,

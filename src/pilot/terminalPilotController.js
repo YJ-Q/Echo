@@ -26,7 +26,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     session = await runtime.createSession({
       tools: core.v1Tools ?? core.tools,
       getInvocationContext: async ({ toolCallId }) => ({
-        actorType: 'agent',
+        actorType: 'agent', subjectId: 'local-terminal-user',
         permissions: { memoryRead: true, memoryPropose: true, stateWrite: true, actionWrite: true },
         confirmations: [], sourceSessionId: session?.id, sourceEventId: toolCallId,
         projectId: project?.id
@@ -38,9 +38,10 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
   }
 
   const runActor = (operation) => ({
-    actorType: 'user', sourceSessionId: session?.id ?? `host-${operation}`,
+    actorType: 'user', subjectId: 'local-terminal-user', sourceSessionId: session?.id ?? `host-${operation}`,
     sourceEventId: idFactory(`${operation}_event`)
   });
+  const hostRunActor = (operation) => core.bindHostActor(runActor(operation));
 
   const runtimeControl = {
     async activate() {
@@ -94,18 +95,18 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (core.runs) {
       run = await core.runs.findOpen(project.id);
       if (run?.status === 'running') {
-        run = (await core.runs.pause({ requestId: idFactory('reconcile_run'), runId: run.id, expectedVersion: run.version }, runActor('reconcile_run'), runtimeControl)).data;
+        run = (await core.runs.pause({ requestId: idFactory('reconcile_run'), runId: run.id, expectedVersion: run.version }, hostRunActor('reconcile_run'), runtimeControl)).data;
       }
       if (!run) {
         await openSession();
         run = (await core.runs.create({
           requestId: idFactory('create_run'), workstreamId: project.id,
           scope: '终端连续性试点', runtimeKind: 'pi'
-        }, runActor('create_run'))).data;
+        }, hostRunActor('create_run'))).data;
       }
       if (run.status === 'queued') {
         if (!session || sessionClosed) await openSession();
-        run = (await core.runs.start({ requestId: idFactory('start_run'), runId: run.id, expectedVersion: run.version }, runActor('start_run'), runtimeControl)).data;
+        run = (await core.runs.start({ requestId: idFactory('start_run'), runId: run.id, expectedVersion: run.version }, hostRunActor('start_run'), runtimeControl)).data;
       }
     } else {
       await openSession();
@@ -153,7 +154,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     let failure;
     try {
       if (core.runs && run?.status === 'running') {
-        run = (await core.runs.pause({ requestId: idFactory('close_pause'), runId: run.id, expectedVersion: run.version }, runActor('close_pause'), runtimeControl)).data;
+        run = (await core.runs.pause({ requestId: idFactory('close_pause'), runId: run.id, expectedVersion: run.version }, hostRunActor('close_pause'), runtimeControl)).data;
       }
     } catch (error) { failure = error; }
     try {
@@ -173,7 +174,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
     if (parsed.type === 'message') return sendMessage(parsed.text);
     if (parsed.name === 'exit') {
       if (core.runs && run?.status === 'running') {
-        run = (await core.runs.pause({ requestId: idFactory('exit_pause'), runId: run.id, expectedVersion: run.version }, runActor('exit_pause'), runtimeControl)).data;
+        run = (await core.runs.pause({ requestId: idFactory('exit_pause'), runId: run.id, expectedVersion: run.version }, hostRunActor('exit_pause'), runtimeControl)).data;
       }
       await close();
       return { kind: 'exit', text: '已安全退出。', sessionId: session?.id, ...(run ? { runId: run.id, runStatus: run.status } : {}) };
@@ -187,7 +188,7 @@ export function createTerminalPilotController({ core, runtime, registry, clock, 
       if (!run) return { kind: 'error', code: 'run_unavailable', text: 'Persistent Run 未启用。', sessionId: session?.id };
       const method = core.runs[parsed.name];
       try {
-        run = (await method({ requestId: idFactory(`${parsed.name}_run`), runId: run.id, expectedVersion: run.version }, runActor(`${parsed.name}_run`), runtimeControl)).data;
+        run = (await method({ requestId: idFactory(`${parsed.name}_run`), runId: run.id, expectedVersion: run.version }, hostRunActor(`${parsed.name}_run`), runtimeControl)).data;
         return { kind: 'run_control', text: `Run ${run.id}: ${run.status}`, sessionId: session?.id, runId: run.id, runStatus: run.status };
       } catch (error) {
         return { kind: 'error', code: error?.code ?? 'run_control_failed', text: `Run 控制失败：${error?.code ?? 'run_control_failed'}`, sessionId: session?.id, runId: run.id };

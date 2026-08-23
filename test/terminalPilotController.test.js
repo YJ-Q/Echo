@@ -7,6 +7,7 @@ function fixture({ discoverExisting = false, activeTask = true, persistentRun = 
   const project = { id: 'project-1', version: 1, goal: '持续完成简历投递并维护投递记录', phase: 'pilot', status: 'running' };
   const snapshot = { project, activeTask: activeTask ? { id: 'task-1', version: 1, title: '推进投递', current_step: '记录下一次投递' } : null, decisions: [], memories: [], recentDialogue: [], actions: [{ id: 'action-1', version: 2, title: '投递示例公司', status: 'pending', source_session_id: 'session-1' }] };
   const core = {
+    bindHostActor(actor) { return { ...actor, hostBound: true }; },
     workstreams: {
       async get(id) { return id === project.id ? project : null; },
       async findByScenario() { return discoverExisting ? project : null; },

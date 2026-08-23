@@ -106,7 +106,7 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult,
         sourceEventId: trusted?.sourceEventId ?? toolCallId
       };
       const context = trusted ? {
-        actorType: trusted.actorType,
+        actorType: trusted.actorType, ...(trusted.subjectId ? { subjectId: trusted.subjectId } : {}),
         permissions: trusted.permissions,
         confirmations: trusted.confirmations ?? []
       } : { actorType: 'agent', permissions: {}, confirmations: [] };

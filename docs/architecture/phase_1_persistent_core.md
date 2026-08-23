@@ -29,7 +29,9 @@ Pi Agent `0.84.2` remains behind `src/runtime/pi/`. The Application Core knows o
 - `activate(run) -> { runtimeSessionId }`
 - `halt(run)`
 
-Start/resume activates runtime before committing `running`; a failed commit triggers compensating halt. Pause/stop halt runtime before committing the stable state and checkpoint. Closing the terminal automatically pauses a running Run. Run control requires a user-host actor; agent/system callers are denied. This prevents a UI or Session lifecycle from becoming authoritative state.
+Start/resume activates runtime before committing `running`; a failed commit triggers compensating halt. Pause/stop halt runtime before committing the stable state and checkpoint. Closing the terminal automatically pauses a running Run. Run control requires a Core-bound host capability in addition to a user actor; forged user, agent and system callers are denied. Actor subject IDs are retained in audit metadata and idempotency comparison. This prevents a UI or Session lifecycle from becoming authoritative state.
+
+Workstream status changes use the closed domain transition model and are rejected while an open Run exists. A model therefore cannot complete or pause a Workstream while leaving its Run executing.
 
 Pi is therefore replaceable by a future Codex Worker or another runtime without changing Workstream/Run persistence.
 
