@@ -9,6 +9,7 @@ test('package and application expose an API-only runtime', async () => {
   assert.equal(packageJson.main, undefined);
   assert.equal(packageJson.scripts?.desktop, undefined);
   assert.equal(packageJson.devDependencies?.electron, undefined);
+  assert.equal(packageJson.scripts?.test, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test "test/*.test.js"');
   assert.doesNotMatch(appSource, /express\.static|publicDir/);
   assert.doesNotMatch(appSource, /desktop-style frontend|ui-connected/);
   assert.match(appSource, /Margin API is running\./);

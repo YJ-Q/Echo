@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test \"test/*.test.js\"",
+    "test": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe --test \"test/*.test.js\"",
     "audit:pi": "node scripts/audit-pi-baseline.js",
     "spike:pi": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-pi-sdk-spike.js",
     "spike:pi-continuity": ".\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-pi-continuity-smoke.js",
