@@ -54,9 +54,11 @@ The 16 deleted obsolete UI/product document categories are:
 
 The V1 default database is `data/terminal-pilot/margin-core.sqlite`: `scripts/run-terminal-pilot.js` constructs that exact path before `createMarginCore`. `README.md` and `docs/audit/legacy_data_disposition.md` designate it as the only V1 source of truth for Workstream, Run, Event, Decision, Artifact, Checkpoint, Memory, and Action state.
 
-`data/echo.sqlite` is **frozen legacy by product and development policy**, as documented in `docs/audit/legacy_data_disposition.md`; it is not technically read-only. Old Express is an explicit transition command only (`npm run legacy:api`), and `package.json` maps both `start` and `dev` to `npm run pilot:terminal`. In this checkout, that explicit command opens `data/echo.sqlite` through the writable legacy memory store: no database-path override or `data/margin.sqlite` exists, so `src/config/env.js` falls back to the present legacy database before `src/server.js` configures the store. The retained legacy routes can mutate it. That is an operational risk and technical debt, not V1 behavior. Its removal gate is: completed export, table-by-table user decision, and verification of each approved migration against IDs and counts.
+`data/echo.sqlite` is **frozen legacy by product and development policy**, as documented in `docs/audit/legacy_data_disposition.md`; it is not technically read-only. `package.json` maps the npm `start` and `dev` defaults to `npm run pilot:terminal`; the separate `npm run legacy:api` command launches `src/server.js`. In this checkout, that explicit command opens `data/echo.sqlite` through the writable legacy memory store: no database-path override or `data/margin.sqlite` exists, so `src/config/env.js` falls back to the present legacy database before `src/server.js` configures the store. The retained legacy routes can mutate it.
 
-Static review found no V1 reference to `echo.sqlite` under `src/core/`, `src/application/`, `src/pilot/`, or `scripts/run-terminal-pilot.js`; V1 startup opens one Margin Core database. Thus no V1 code writes both databases and legacy Express is not the default. This is a single-source-of-truth/no-double-write assessment, not deletion of legacy code or data.
+The npm defaults are not the repository's only startup surface. `Dockerfile` retains `CMD ["node", "src/server.js"]`; `docker-compose.yml` does not override that command; `run-margin-local.cmd` directly starts `src/server.js`; and `run-echo-local.cmd` delegates to `run-margin-local.cmd`. Docker configures its legacy server against a writable `/app/data/margin.sqlite`, while the local legacy command in this checkout selects writable `data/echo.sqlite`. These retained, writable legacy-Express entrypoints are operational risk and technical debt. They are intentionally documented here, not changed in the authoritative runtime tree. The removal gate remains: completed export, table-by-table user decision, and verification of each approved migration against IDs and counts.
+
+Static review found no V1 reference to `echo.sqlite` under `src/core/`, `src/application/`, `src/pilot/`, or `scripts/run-terminal-pilot.js`; the V1 npm-default terminal startup opens one Margin Core database. Therefore the V1 npm-default path has no dual-database write. This scoped single-source-of-truth/no-double-write assessment does not claim that every retained Docker or `.cmd` startup surface is terminal-first, and it does not delete legacy code or data.
 
 `src/application/marginApplicationContract.js` returns a frozen Gateway containing only `execute`, `query`, and `events`. In `src/pilot/terminalPilotController.js`, persistent Workstream, Run, and Checkpoint reads and controls use its Gateway-backed `query` and `execute` helpers. `test/terminalApplicationContract.test.js` verifies this routing boundary.
 
@@ -91,6 +93,8 @@ Result: 12 files; 90 tests passed; 0 failed, cancelled, skipped, or todo.
 
 Raw TAP output and command logs are not committed with this report. The PASS counts and durations are execution evidence recorded in the ignored implementer report `.superpowers/sdd/2026-08-24-phase2a-main-integration/task-4-report.md` (focused 2631.4292 ms; full 6651.7534 ms). The exact reproducible commands are recorded above; this clarification does not represent a test rerun.
 
+For final integration-history whitespace evidence, the post-commit command is `git diff --check 88df600..HEAD`. It is run only after this documentation change is committed, together with `git show --check HEAD`, ordinary `git diff --check`, and a clean-status check; no test rerun is required.
+
 ## Known risks and boundary
 
 Legacy Echo/Express code and `data/echo.sqlite` deliberately remain for frozen inventory, export, compatibility, and regression-test value. They remain technical debt until the removal gate is satisfied.
@@ -104,6 +108,10 @@ The accepted Phase 2A runtime and SQLite transaction limitations remain: local S
 - `src/application/marginApplicationContract.js`
 - `src/pilot/terminalPilotController.js`
 - `package.json`
+- `Dockerfile`
+- `docker-compose.yml`
+- `run-margin-local.cmd`
+- `run-echo-local.cmd`
 - `README.md`
 - `docs/audit/legacy_data_disposition.md`
 - `test/apiOnlyRuntime.test.js`

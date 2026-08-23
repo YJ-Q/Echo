@@ -1,6 +1,6 @@
 # Phase 2A Main Integration Design
 
-Date: 2026-08-24  
+Date: 2026-08-24
 Status: approved by the user in the integration instruction of 2026-08-24
 
 ## Goal

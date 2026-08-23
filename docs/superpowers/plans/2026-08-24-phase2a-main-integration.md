@@ -38,7 +38,7 @@ entry; and that `start` points to `pilot:terminal`.
 
 - [ ] **Step 2: Run the test and verify RED**
 
-Run: `node --test test/v1IntegrationBoundary.test.js`  
+Run: `node --test test/v1IntegrationBoundary.test.js`
 Expected: FAIL because commit `49da495` still contains the old frontend and
 desktop dependencies.
 
