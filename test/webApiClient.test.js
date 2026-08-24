@@ -41,6 +41,23 @@ test('API client sends only browser-safe command data and keeps stable error fie
   assert.equal(JSON.stringify(requests[0]).includes('private detail'), false);
 });
 
+test('API client preserves the public idempotency conflict code without private error detail', async () => {
+  const api = createApiClient({
+    async fetchImpl() {
+      return jsonResponse({
+        ok: false,
+        error: { code: 'idempotency_conflict', retryable: false, message: 'private replay fingerprint' },
+        meta: { contractVersion: '1.0', requestId: 'command-idempotency', correlationId: 'correlation-1' }
+      });
+    }
+  });
+
+  const result = await api.command('needs_owner.resolve', { needsOwnerId: 'need-1', optionId: 'approve' });
+
+  assert.deepEqual(result.error, { code: 'idempotency_conflict', retryable: false });
+  assert.equal(JSON.stringify(result).includes('private replay fingerprint'), false);
+});
+
 test('API client generates request IDs, uses each public route, and converts transport failures', async () => {
   const requests = [];
   const api = createApiClient({

@@ -25,3 +25,15 @@
 - No Conversation/composition implementation and no Decision synthesis were added.
 - The browser receives only displayed DTO fields and renders metadata with React text nodes, never raw HTML.
 - The only externally navigable resource scheme is HTTPS; all other references remain non-clickable display text.
+
+## Fix round 1
+
+- Preserved the Contract-public `idempotency_conflict` error code in the browser API envelope instead of degrading it to `storage_failure`.
+- Added the stable NeedsOwner guidance: “请求标识已用于不同内容，请刷新后重试。”, shown after the required authoritative reload.
+- RED/GREEN coverage now verifies sanitized API propagation and the rendered NeedsOwner conflict guidance.
+
+### Fix verification
+
+- Focused API and NeedsOwner tests: 9 passing.
+- `npm run build`: passing.
+- `npm test`: 439 passing, 0 failing.

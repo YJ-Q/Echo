@@ -140,6 +140,28 @@ test('NeedsOwner permits a textual no-option resolution and stale resolution com
   await unmount(view);
 });
 
+test('NeedsOwner shows the stable idempotency conflict guidance after its authoritative reload', async () => {
+  const unresolved = [need('need-conflict', 'ws-1')];
+  const api = {
+    async query(type, payload = {}) {
+      if (type === 'workstream.list') return { ok: true, data: { items: [workstream('ws-1')] }, meta: {} };
+      if (type === 'workstream.get') return { ok: true, data: workstream(payload.workstreamId), meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: unresolved, nextCursor: null }, meta: {} };
+      if (type === 'artifact.list' || type === 'run.list') return { ok: true, data: { items: [], nextCursor: null }, meta: {} };
+      if (type === 'activity.list') return { ok: true, data: { items: [], nextCursor: payload.afterCursor ?? 0, hasMore: false }, meta: {} };
+      throw new Error(`unexpected query ${type}`);
+    },
+    async events(_type, payload) { return { ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} }; },
+    async command() { return { ok: false, error: { code: 'idempotency_conflict', retryable: false }, meta: {} }; }
+  };
+  const view = await mount(api);
+  await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); });
+  await act(async () => { document.querySelector('[data-needs-owner-option="need-conflict"]').value = 'approve'; document.querySelector('[data-needs-owner-option="need-conflict"]').dispatchEvent(new window.Event('change', { bubbles: true })); });
+  await act(async () => { document.querySelector('[data-needs-owner-resolve="need-conflict"]').click(); for (let index = 0; index < 8; index += 1) await Promise.resolve(); });
+  assert.match(document.querySelector('[data-needs-owner-panel]').textContent, /请求标识已用于不同内容，请刷新后重试。/);
+  await unmount(view);
+});
+
 test('Artifacts render Contract fields and only make safe https resource references clickable', async () => {
   const artifacts = [
     artifact('safe', 'https://example.test/report'), artifact('file', 'file:///D:/secret.txt'),

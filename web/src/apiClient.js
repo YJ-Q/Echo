@@ -1,7 +1,7 @@
 const SAFE_ERROR_CODES = new Set([
   'invalid_request', 'permission_denied', 'not_found', 'version_conflict', 'invalid_transition',
   'runtime_unavailable', 'storage_failure', 'transport_unavailable', 'workstream_not_found',
-  'run_not_found', 'cross_workstream_reference', 'run_not_running'
+  'run_not_found', 'cross_workstream_reference', 'run_not_running', 'idempotency_conflict'
 ]);
 
 const PRIVATE_FIELD = (key) => {
