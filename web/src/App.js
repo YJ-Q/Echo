@@ -17,10 +17,8 @@ export function App({ api = createApiClient() }) {
   const refreshActivity = useCallback(() => setActivityGeneration((generation) => generation + 1), []);
   const refreshAfterInteraction = useCallback(async (id, isTurnCurrent) => {
     await data.refreshAfterInteraction(id, isTurnCurrent);
-    if (isTurnCurrent?.() !== false) {
-      setAuthorityGeneration((generation) => generation + 1);
-      refreshActivity();
-    }
+    setAuthorityGeneration((generation) => generation + 1);
+    refreshActivity();
   }, [data, refreshActivity]);
 
   return createElement('main', { className: 'workbench-shell' },

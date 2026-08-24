@@ -102,7 +102,7 @@ export function useWorkbenchData(api) {
     await refreshWorkstreams();
     if (selectedIdRef.current !== id || isCommandCurrent() !== true) return false;
     return refreshWorkstream(id);
-  }, [refreshWorkstream, refreshWorkstreams, selectedId]);
+  }, [api, refreshWorkstream, refreshWorkstreams, selectedId]);
 
   const refreshAfterNeedsOwnerResolution = useCallback(async (id = selectedId, isCommandCurrent = () => true) => {
     if (selectedIdRef.current !== id || isCommandCurrent() !== true) return false;
@@ -112,9 +112,15 @@ export function useWorkbenchData(api) {
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 
   const refreshAfterInteraction = useCallback(async (id = selectedId, isTurnCurrent = () => true) => {
-    if (selectedIdRef.current !== id || isTurnCurrent() !== true) return false;
+    if (typeof id !== 'string' || !id || !mounted.current) return false;
     await refreshWorkstreams();
-    if (selectedIdRef.current !== id || isTurnCurrent() !== true) return false;
+    if (!mounted.current) return false;
+    if (selectedIdRef.current !== id || isTurnCurrent() !== true) {
+      await api.query('workstream.get', { workstreamId: id }).catch(() => null);
+      const currentId = selectedIdRef.current;
+      if (typeof currentId === 'string' && currentId) await refreshWorkstream(currentId);
+      return false;
+    }
     return refreshWorkstream(id);
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 

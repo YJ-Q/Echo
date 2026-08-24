@@ -8,7 +8,7 @@ const STABLE_CODES = new Set([
 
 const PRIVATE_KEYS = new Set([
   'actor', 'capabilities', 'hostauthority', 'databasepath', 'database', 'runtime',
-  'runtimereference', 'pi', 'prompt', 'reasoning', 'stack'
+  'runtimereference', 'pi', 'prompt', 'reasoning', 'session', 'stack'
 ]);
 
 export const HTTP_ERROR_STATUS = Object.freeze({
@@ -94,5 +94,6 @@ function isPrivateKey(key) {
     || normalized.startsWith('database')
     || normalized.startsWith('hostauthority')
     || normalized.startsWith('runtime')
+    || normalized.startsWith('session')
     || normalized.startsWith('pi');
 }

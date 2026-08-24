@@ -90,3 +90,33 @@ test('interaction HTTP maps stable service failures without exposing internals',
     assert.equal(JSON.stringify(body).includes('private'), false);
   });
 });
+
+test('interaction HTTP strips nested session fields from result DTOs', async () => {
+  const app = createWebHttpAdapter({
+    webGateway: gateway(),
+    interactionService: {
+      async submit() {
+        return {
+          message: 'Safe response',
+          toolResults: [{ toolName: 'tool', code: 'ok', auditId: 'audit-1', sessionId: 'private-session' }],
+          workstream: { id: 'ws-1', title: 'Current', session: 'private-session' },
+          run: { id: 'run-1', status: 'running', sessionToken: 'private-session' },
+          events: { nextCursor: 9, nested: { session_id: 'private-session' } }
+        };
+      }
+    }
+  });
+
+  await withServer(app, async (origin) => {
+    const response = await fetch(`${origin}/api/interactions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ workstreamId: 'ws-1', runId: 'run-1', message: 'Continue', requestId: 'turn-safe' })
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    const serialized = JSON.stringify(body).toLowerCase();
+    assert.equal(serialized.includes('private-session'), false);
+    assert.equal(serialized.includes('session'), false);
+  });
+});

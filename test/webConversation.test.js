@@ -133,6 +133,74 @@ test('App refreshes every authoritative panel and the activity cursor after an i
   await unmount(view);
 });
 
+test('App refreshes global and current authority when an interaction resolves after selection changes', async () => {
+  const turn = deferred();
+  const calls = [];
+  const workstreams = [
+    { id: 'ws-1', title: 'Old workstream', status: 'running', priority: 1, updatedAt: '2026-08-24T00:00:00Z' },
+    { id: 'ws-2', title: 'Current workstream', status: 'running', priority: 2, updatedAt: '2026-08-24T00:01:00Z' }
+  ];
+  const api = {
+    async query(type, payload = {}) {
+      calls.push(['query', type, payload?.workstreamId ?? null, payload?.afterCursor ?? null]);
+      if (type === 'workstream.list') return { ok: true, data: { items: workstreams }, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [] }, meta: {} };
+      if (type === 'workstream.get') {
+        const item = workstreams.find((workstream) => workstream.id === payload.workstreamId);
+        return { ok: true, data: { ...item, currentState: `${item.title} authoritative state` }, meta: {} };
+      }
+      if (type === 'run.list') return { ok: true, data: { items: [{ id: `run-${payload.workstreamId}`, status: 'running' }] }, meta: {} };
+      if (type === 'artifact.list') return { ok: true, data: { items: [] }, meta: {} };
+      if (type === 'activity.list') return { ok: true, data: { items: [], nextCursor: payload.afterCursor + 1 }, meta: {} };
+      return { ok: false, error: { code: 'invalid_request', retryable: false }, meta: {} };
+    },
+    async events(type, payload = {}) {
+      calls.push(['events', type, payload?.workstreamId ?? null, payload?.afterCursor ?? null]);
+      return { ok: true, data: { items: [], nextCursor: payload.afterCursor + 1, hasMore: false }, meta: {} };
+    },
+    interact() {
+      calls.push(['interact', 'interaction.submit', 'ws-1', null]);
+      return turn.promise;
+    }
+  };
+  const view = await mount(React.createElement(App, { api }));
+  try {
+    await act(async () => { await flushEffects(); });
+    await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); await flushEffects(); });
+    await act(async () => {
+      const input = document.querySelector('[data-conversation-input]');
+      input.value = 'Continue old work';
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+      await flushEffects();
+      document.querySelector('[data-conversation-submit]').click();
+      await flushEffects();
+      document.querySelector('[data-workstream-id="ws-2"]').click();
+      await flushEffects();
+    });
+    calls.length = 0;
+
+    await act(async () => {
+      turn.resolve({ ok: true, data: { message: 'Old answer', toolResults: [] }, meta: {} });
+      await flushEffects(10);
+    });
+
+    const summarized = calls.map(([kind, type, workstreamId]) => [kind, type, workstreamId]);
+    assert.equal(document.querySelector('[data-workstream-id="ws-2"]').getAttribute('aria-current'), 'true');
+    assert.match(document.body.textContent, /Current workstream authoritative state/);
+    assert.equal(document.body.textContent.includes('Old workstream authoritative state'), false);
+    assert.equal(document.body.textContent.includes('Old answer'), false);
+    assert.ok(summarized.some((call) => call[1] === 'workstream.list'), 'refreshes global Workstreams');
+    assert.ok(summarized.some((call) => call[1] === 'needs_owner.list' && call[2] === null), 'refreshes global NeedsOwner');
+    assert.ok(summarized.some((call) => call[1] === 'workstream.get' && call[2] === 'ws-1'), 'requeries old Workstream without selecting it');
+    assert.ok(summarized.some((call) => call[1] === 'workstream.get' && call[2] === 'ws-2'), 'refreshes current Workstream');
+    assert.ok(summarized.some((call) => call[1] === 'run.list' && call[2] === 'ws-2'), 'refreshes current Runs');
+    assert.ok(summarized.some((call) => call[1] === 'artifact.list' && call[2] === 'ws-2'), 'refreshes current Artifacts');
+    assert.ok(summarized.some((call) => call[0] === 'events' && call[1] === 'event.list' && call[2] === 'ws-2'), 'refreshes current Activity/Event cursor');
+  } finally {
+    await unmount(view);
+  }
+});
+
 test('conversation serializes submits and renders bounded safe tool evidence only', async () => {
   const pending = deferred();
   let calls = 0;
