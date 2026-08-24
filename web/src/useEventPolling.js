@@ -26,16 +26,19 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
     let disposed = false;
 
     const clear = () => {
-      if (timer.current !== null) {
-        clearTimeout(timer.current);
+      if (timer.current?.generation === requestGeneration) {
+        clearTimeout(timer.current.id);
         timer.current = null;
       }
     };
 
     const schedule = () => {
-      clear();
       if (disposed || document.hidden || !workstreamId) return;
-      timer.current = setTimeout(() => { void poll(); }, interval);
+      clear();
+      timer.current = {
+        generation: requestGeneration,
+        id: setTimeout(() => { void poll(); }, interval)
+      };
     };
 
     const poll = async () => {

@@ -5,6 +5,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '../web/src/App.js';
 import { ActivityPanel } from '../web/src/components/ActivityPanel.js';
+import { useWorkbenchData } from '../web/src/useWorkbenchData.js';
 
 function installDom() {
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://echo.test/', pretendToBeVisual: true });
@@ -255,5 +256,77 @@ test('Run controls query the contract-open statuses instead of treating a termin
   assert.deepEqual(calls.find((call) => call.type === 'run.list').payload, {
     workstreamId: 'ws-1', statuses: ['queued', 'running', 'paused', 'needs_owner'], limit: 100
   });
+  await unmount(view);
+});
+
+test('an old Event generation cannot clear a new selection timer after the new poll has scheduled', async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const timers = new Map();
+  let sequence = 0;
+  globalThis.setTimeout = (fn, delay) => { const id = ++sequence; timers.set(id, { fn, delay }); return id; };
+  globalThis.clearTimeout = (id) => { timers.delete(id); };
+  const first = deferred();
+  const calls = [];
+  const dom = installDom();
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+  const api = {
+    events(_type, payload) {
+      calls.push(payload);
+      if (payload.workstreamId === 'ws-1') return first.promise;
+      return Promise.resolve({ ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} });
+    },
+    async query() { throw new Error('empty event pages do not query Activity'); }
+  };
+  const root = createRoot(document.getElementById('root'));
+  try {
+    await act(async () => { root.render(React.createElement(ActivityPanel, { api, workstreamId: 'ws-1' })); });
+    await act(async () => { root.render(React.createElement(ActivityPanel, { api, workstreamId: 'ws-2' })); await Promise.resolve(); await Promise.resolve(); });
+    assert.equal([...timers.values()].filter((timer) => timer.delay === 3000).length, 1);
+    await act(async () => { first.resolve({ ok: true, data: { items: [], nextCursor: 0, hasMore: false }, meta: {} }); await Promise.resolve(); });
+    assert.equal([...timers.values()].filter((timer) => timer.delay === 3000).length, 1);
+    const timer = [...timers.values()][0];
+    await act(async () => { await timer.fn(); });
+    assert.equal(calls.filter((payload) => payload.workstreamId === 'ws-2').length, 2);
+  } finally {
+    await act(async () => { root.unmount(); });
+    dom.window.close();
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
+test('an authority reload that is pending during selection change cannot write the old workstream detail', async () => {
+  const authorityList = deferred();
+  const first = workstream();
+  const second = { ...workstream(), id: 'ws-2', title: 'Second workstream', currentState: 'Second state' };
+  let workstreamListCalls = 0;
+  const api = {
+    query(type, payload = {}) {
+      if (type === 'workstream.list') {
+        workstreamListCalls += 1;
+        return workstreamListCalls === 1
+          ? Promise.resolve({ ok: true, data: { items: [first, second] }, meta: {} })
+          : authorityList.promise;
+      }
+      if (type === 'needs_owner.list') return Promise.resolve({ ok: true, data: { items: [] }, meta: {} });
+      if (type === 'workstream.get') return Promise.resolve({ ok: true, data: payload.workstreamId === 'ws-2' ? second : first, meta: {} });
+      throw new Error(`unexpected query ${type}`);
+    }
+  };
+  let data;
+  function Probe() {
+    data = useWorkbenchData(api);
+    return React.createElement('p', null, data.detailState.workstream?.title ?? 'none');
+  }
+  const view = await mount(React.createElement(Probe));
+  await act(async () => { await data.selectWorkstream('ws-1'); });
+  let pendingReload;
+  await act(async () => { pendingReload = data.refreshAfterRunCommand('ws-1'); await Promise.resolve(); });
+  assert.equal(workstreamListCalls, 2);
+  await act(async () => { await data.selectWorkstream('ws-2'); });
+  await act(async () => { authorityList.resolve({ ok: true, data: { items: [first, second] }, meta: {} }); await pendingReload; });
+  assert.equal(data.selectedId, 'ws-2');
+  assert.equal(data.detailState.workstream.id, 'ws-2');
   await unmount(view);
 });

@@ -34,6 +34,7 @@ export function useWorkbenchData(api) {
   const mounted = useRef(false);
   const listRequest = useRef(0);
   const detailRequest = useRef(0);
+  const selectedIdRef = useRef(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -67,11 +68,11 @@ export function useWorkbenchData(api) {
   }, [api]);
 
   const refreshWorkstream = useCallback(async (id = selectedId) => {
-    if (!mounted.current || typeof id !== 'string' || !id) return false;
+    if (!mounted.current || typeof id !== 'string' || !id || selectedIdRef.current !== id) return false;
     const request = ++detailRequest.current;
     setDetailState({ loading: true, error: null, workstream: null });
     const result = await api.query('workstream.get', { workstreamId: id });
-    if (!mounted.current || request !== detailRequest.current) return false;
+    if (!mounted.current || request !== detailRequest.current || selectedIdRef.current !== id) return false;
     if (result?.ok !== true) {
       setDetailState({ loading: false, error: failure(result), workstream: null });
       return false;
@@ -81,6 +82,7 @@ export function useWorkbenchData(api) {
   }, [api, selectedId]);
 
   const selectWorkstream = useCallback(async (id) => {
+    selectedIdRef.current = id;
     setSelectedId(id);
     return refreshWorkstream(id);
   }, [refreshWorkstream]);
@@ -95,9 +97,11 @@ export function useWorkbenchData(api) {
     if (selectedId) await refreshWorkstream(selectedId);
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 
-  const refreshAfterRunCommand = useCallback(async (id = selectedId) => {
+  const refreshAfterRunCommand = useCallback(async (id = selectedId, isCommandCurrent = () => true) => {
+    if (selectedIdRef.current !== id || isCommandCurrent() !== true) return false;
     await refreshWorkstreams();
-    if (id) await refreshWorkstream(id);
+    if (selectedIdRef.current !== id || isCommandCurrent() !== true) return false;
+    return refreshWorkstream(id);
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 
   useEffect(() => { refreshWorkstreams(); }, [refreshWorkstreams]);

@@ -104,7 +104,10 @@ export function RunControls({ api, workstreamId, onAuthoritativeReload }) {
     try { result = await api.command(`run.${operation}`, payload, options); }
     catch { result = { ok: false, error: { code: 'transport_unavailable', retryable: true } }; }
     if (!isCurrentSelection(commandWorkstreamId, commandGeneration)) return;
-    await Promise.all([refreshRuns(), onAuthoritativeReload?.(commandWorkstreamId)]);
+    await Promise.all([
+      refreshRuns(),
+      onAuthoritativeReload?.(commandWorkstreamId, () => isCurrentSelection(commandWorkstreamId, commandGeneration))
+    ]);
     if (!isCurrentSelection(commandWorkstreamId, commandGeneration)) return;
     setState((current) => ({ ...current, submitting: false, error: result?.ok === true ? null : (result?.error ?? { code: 'transport_unavailable' }) }));
   }, [api, onAuthoritativeReload, refreshRuns, state.run, state.submitting, workstreamId]);

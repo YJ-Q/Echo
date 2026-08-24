@@ -41,3 +41,15 @@
 - Adjacent Web checks: 23 passing.
 - `npm run build`: passing.
 - Full `npm test`: 432 passing, 0 failing.
+
+## Fix round 2
+
+1. RED/GREEN: polling timers are now owned by their Event generation. An old generation's `finally`, cleanup, or visibility path can neither clear nor replace a timer scheduled by the new selection. The regression advances the preserved 3000 ms timer and proves the second Workstream polls again.
+2. RED/GREEN: the Run command's authority callback receives its selection guard; Workbench detail refreshes track the current selected ID before dispatch and before writing. A pending old authority list therefore cannot start or commit an old Workstream detail after the user selects another Workstream.
+
+### Fix round 2 verification
+
+- Focused Task 5: 9 passing.
+- Adjacent Web checks: 25 passing.
+- `npm run build`: passing.
+- Full `npm test`: 434 passing, 0 failing.
