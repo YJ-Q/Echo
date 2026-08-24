@@ -44,26 +44,25 @@ export async function createPiTerminalPilotRuntime({
     sessionManager: dependencies.sessionManager ?? SessionManager,
     settingsManager: dependencies.settingsManager ?? SettingsManager
   };
-  let invocationContextProvider = getInvocationContext ?? (async () => undefined);
-  let currentToolResults = [];
-  const extension = providerExtension({
-    provider, modelId, customProvider, tools,
-    getInvocationContext: (input) => invocationContextProvider(input),
-    onToolResult: (result) => currentToolResults.push(result)
-  });
-  const options = buildPiTerminalPilotOptions(extension);
-  const services = await deps.createServices({
-    cwd: repositoryRoot, agentDir,
-    settingsManager: deps.settingsManager.inMemory({ compaction: { enabled: true }, retry: { enabled: false } }),
-    resourceLoaderOptions: options.resources
-  });
-  const model = services.modelRuntime.getModel(provider, modelId);
-  if (!model) throw Object.assign(new Error('pilot_model_unavailable'), { code: 'PI_MODEL_UNAVAILABLE' });
   const sessions = new Map();
 
   return {
     async createSession({ getInvocationContext: sessionInvocationContext } = {}) {
-      if (sessionInvocationContext) invocationContextProvider = sessionInvocationContext;
+      const invocationContextProvider = sessionInvocationContext ?? getInvocationContext ?? (async () => undefined);
+      let currentToolResults = [];
+      const extension = providerExtension({
+        provider, modelId, customProvider, tools,
+        getInvocationContext: (input) => invocationContextProvider(input),
+        onToolResult: (result) => currentToolResults.push(result)
+      });
+      const options = buildPiTerminalPilotOptions(extension);
+      const services = await deps.createServices({
+        cwd: repositoryRoot, agentDir,
+        settingsManager: deps.settingsManager.inMemory({ compaction: { enabled: true }, retry: { enabled: false } }),
+        resourceLoaderOptions: options.resources
+      });
+      const model = services.modelRuntime.getModel(provider, modelId);
+      if (!model) throw Object.assign(new Error('pilot_model_unavailable'), { code: 'PI_MODEL_UNAVAILABLE' });
       const { session } = await deps.createSession({
         services, sessionManager: deps.sessionManager.inMemory(repositoryRoot), model,
         noTools: options.policy.noTools, tools: options.policy.tools

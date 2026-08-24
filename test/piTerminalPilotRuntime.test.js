@@ -85,3 +85,30 @@ test('createSession binds the controller-owned invocation context', async () => 
   assert.equal(observed.input.sourceSessionId, 'bound');
   assert.equal(observed.context.permissions.memoryRead, true);
 });
+
+test('each Pi session retains its own invocation context after another session opens', async () => {
+  const registered = [];
+  const observed = [];
+  const runtime = await createPiTerminalPilotRuntime({
+    repositoryRoot: 'D:/repo', agentDir: 'D:/repo/data/terminal-pilot/agent', provider: 'test', modelId: 'model',
+    tools: {
+      async memory_search(input) { observed.push(input.sourceSessionId); return { ok: true, data: [] }; },
+      memory_propose() {}, state_update() {}, action_update() {}
+    },
+    dependencies: {
+      async createServices(options) {
+        const tools = new Map();
+        registered.push(tools);
+        await options.resourceLoaderOptions.extensionFactories[0].factory({ registerTool(tool) { tools.set(tool.name, tool); } });
+        return { modelRuntime: { getModel: () => ({}) } };
+      },
+      sessionManager: { inMemory: () => ({}) }, settingsManager: { inMemory: () => ({}) },
+      createSession: (() => { let id = 0; return async () => ({ session: { sessionId: `s-${++id}`, getActiveToolNames: () => ['memory_search', 'memory_propose', 'state_update', 'action_update'], dispose() {} } }); })()
+    }
+  });
+  await runtime.createSession({ getInvocationContext: async () => ({ actorType: 'agent', permissions: { memoryRead: true }, sourceSessionId: 's-1', projectId: 'p-1' }) });
+  await runtime.createSession({ getInvocationContext: async () => ({ actorType: 'agent', permissions: { memoryRead: true }, sourceSessionId: 's-2', projectId: 'p-2' }) });
+  await registered[0].get('memory_search').execute('call-1', { requestId: 'r', projectId: 'p-1', query: 'q', asOf: '2026-08-23T00:00:00.000Z' });
+
+  assert.deepEqual(observed, ['s-1']);
+});
