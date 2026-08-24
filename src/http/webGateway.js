@@ -16,7 +16,7 @@ export function createWebGateway({ core, runtimeControl, instanceId, idFactory }
   if (!contract?.execute || !contract?.query || !contract?.events) throw new TypeError('invalid_application_contract');
   const correlationId = idFactory('web_correlation');
 
-  async function dispatch(method, request, capabilities) {
+  async function dispatch(method, request, capabilities, { browser = true } = {}) {
     const requestId = request?.requestId;
     if (!isRequestId(requestId) || hasForbiddenBrowserField(request)) {
       return failureEnvelope({ code: 'invalid_request', requestId, correlationId });
@@ -31,7 +31,8 @@ export function createWebGateway({ core, runtimeControl, instanceId, idFactory }
     if (!context.capabilities[0]) return failureEnvelope({ code: 'invalid_request', requestId, correlationId });
     try {
       const trusted = core.bindHostContext(context);
-      return sanitizeBrowserEnvelope(await contract[method](request, trusted), { requestId, correlationId });
+      const result = await contract[method](request, trusted);
+      return browser ? sanitizeBrowserEnvelope(result, { requestId, correlationId }) : result;
     } catch {
       return failureEnvelope({ code: 'storage_failure', requestId, correlationId });
     }
@@ -40,8 +41,8 @@ export function createWebGateway({ core, runtimeControl, instanceId, idFactory }
   const execute = (request) => dispatch('execute', request, WEB_COMMAND_CAPABILITIES);
   const query = (request) => dispatch('query', request, WEB_QUERY_CAPABILITIES);
   const events = (request) => dispatch('events', request, WEB_EVENT_CAPABILITIES);
-  const internalQuery = (type, payload) => query({ type, requestId: idFactory('web_query_request'), payload });
-  const internalEvents = (type, payload) => events({ type, requestId: idFactory('web_event_request'), payload });
+  const internalQuery = (type, payload) => dispatch('query', { type, requestId: idFactory('web_query_request'), payload }, WEB_QUERY_CAPABILITIES, { browser: false });
+  const internalEvents = (type, payload) => dispatch('events', { type, requestId: idFactory('web_event_request'), payload }, WEB_EVENT_CAPABILITIES, { browser: false });
 
   return Object.freeze({ execute, query, events, internalQuery, internalEvents });
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInteractionService } from '../src/application/interactionService.js';
+import { createWebGateway } from '../src/http/webGateway.js';
 
 function envelope(data) { return { ok: true, data }; }
 
@@ -100,5 +101,76 @@ test('submit reports a Gateway read failure as a stable storage failure', async 
 
   assert.deepEqual(await service.submit({ workstreamId: 'ws-1', runId: 'run-1', message: 'x' }), {
     error: { code: 'storage_failure', retryable: true }
+  });
+});
+
+test('submit preserves safe Gateway failure envelopes instead of reclassifying them as not_found', async () => {
+  const service = createInteractionService({
+    webGateway: {
+      async internalQuery() {
+        return { ok: false, error: { code: 'version_conflict', retryable: false, details: { currentVersion: 7, stack: 'private' } } };
+      },
+      async internalEvents() { throw new Error('unused'); }
+    },
+    continuity: { async snapshot() {}, async plan() {} }, runtimeCoordinator: { async interact() {} }, clock: () => 'now'
+  });
+
+  assert.deepEqual(await service.submit({ workstreamId: 'ws-1', runId: 'run-1', message: 'x' }), {
+    error: { code: 'version_conflict', retryable: false, details: { currentVersion: 7 } }
+  });
+});
+
+test('Interaction receives a trusted runtime reference while browser Gateway reads remain sanitized', async () => {
+  const workstream = { id: 'ws-1', title: 'Workstream', goal: 'Goal', status: 'running', version: 1 };
+  const run = { id: 'run-1', workstreamId: 'ws-1', workerKind: 'pi', runtimeReference: { kind: 'pi', id: 'pi-1' }, status: 'running', version: 1 };
+  const core = {
+    bindHostContext(context) { return context; },
+    createApplicationContract() {
+      return {
+        async query(request, context) {
+          const data = request.type === 'workstream.get' ? workstream : run;
+          return { ok: true, data, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: context.correlationId } };
+        },
+        async events(request, context) {
+          return { ok: true, data: { items: [], nextCursor: 0, hasMore: false }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: context.correlationId } };
+        },
+        async execute() { throw new Error('unused'); }
+      };
+    }
+  };
+  let runtimeRun;
+  const gateway = createWebGateway({ core, instanceId: 'web-1', idFactory: (prefix) => `${prefix}-1` });
+  const browserRead = await gateway.query({ type: 'run.get', requestId: 'browser-run', payload: { runId: 'run-1' } });
+  assert.equal(browserRead.data.runtimeReference, undefined);
+  const service = createInteractionService({
+    webGateway: gateway,
+    continuity: { async snapshot() { return { actions: [] }; }, async plan() { return { selected: [], excluded: [] }; } },
+    runtimeCoordinator: { async interact({ run: current }) { runtimeRun = current; return { message: 'ok', toolResults: [] }; } },
+    clock: () => 'now'
+  });
+
+  const result = await service.submit({ workstreamId: 'ws-1', runId: 'run-1', message: 'continue' });
+
+  assert.equal(result.message, 'ok');
+  assert.deepEqual(runtimeRun.runtimeReference, { kind: 'pi', id: 'pi-1' });
+});
+
+test('submit rejects a post-turn Run that no longer belongs to the requested Workstream', async () => {
+  let runReads = 0;
+  const service = createInteractionService({
+    webGateway: {
+      async internalQuery(type) {
+        if (type === 'workstream.get') return envelope({ id: 'ws-1', status: 'running', version: 1 });
+        runReads += 1;
+        return envelope({ id: 'run-1', workstreamId: runReads === 1 ? 'ws-1' : 'ws-other', status: 'running', runtimeReference: { kind: 'pi', id: 'pi-1' }, version: 1 });
+      },
+      async internalEvents() { return envelope({ items: [], nextCursor: 0, hasMore: false }); }
+    },
+    continuity: { async snapshot() { return { actions: [] }; }, async plan() { return { selected: [], excluded: [] }; } },
+    runtimeCoordinator: { async interact() { return { message: 'must not escape', toolResults: [] }; } }, clock: () => 'now'
+  });
+
+  assert.deepEqual(await service.submit({ workstreamId: 'ws-1', runId: 'run-1', message: 'continue' }), {
+    error: { code: 'cross_workstream_reference', retryable: false }
   });
 });

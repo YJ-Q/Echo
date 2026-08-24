@@ -1,11 +1,13 @@
-const TOOL_RESULT_FIELDS = Object.freeze([
-  'toolName', 'code', 'auditId', 'entityId', 'entityVersion', 'confirmationRequired', 'requestShape'
-]);
-
 function referenceId(value) {
   if (typeof value === 'string' && value.trim()) return value;
   if (value && typeof value === 'object' && typeof value.id === 'string' && value.id.trim()) return value.id;
   return null;
+}
+
+function runtimeReference(value) {
+  if (!value || typeof value !== 'object' || typeof value.kind !== 'string' || !value.kind.trim()) return null;
+  const id = referenceId(value);
+  return id ? { kind: value.kind, id } : null;
 }
 
 function operationIdentity(descriptor) {
@@ -13,9 +15,7 @@ function operationIdentity(descriptor) {
 }
 
 function unavailableError() {
-  const error = new Error('runtime_unavailable');
-  error.code = 'runtime_unavailable';
-  return error;
+  return Object.freeze({ code: 'runtime_unavailable' });
 }
 
 function unavailableResult() {
@@ -24,9 +24,15 @@ function unavailableResult() {
 
 function sanitizeToolResult(value) {
   if (!value || typeof value !== 'object') return {};
-  const result = Object.fromEntries(TOOL_RESULT_FIELDS.filter((field) => field !== 'requestShape')
-    .filter((field) => value[field] !== undefined)
-    .map((field) => [field, value[field]]));
+  const boundedString = (item, max = 200) => typeof item === 'string' && item.trim() && item.length <= max ? item : undefined;
+  const result = {
+    ...(boundedString(value.toolName, 100) ? { toolName: value.toolName } : {}),
+    ...(boundedString(value.code, 100) ? { code: value.code } : {}),
+    ...(boundedString(value.auditId) ? { auditId: value.auditId } : {}),
+    ...(boundedString(value.entityId) ? { entityId: value.entityId } : {}),
+    ...(Number.isInteger(value.entityVersion) && value.entityVersion >= 0 ? { entityVersion: value.entityVersion } : {}),
+    ...(typeof value.confirmationRequired === 'boolean' ? { confirmationRequired: value.confirmationRequired } : {})
+  };
   const requestShape = sanitizeRequestShape(value.requestShape);
   return requestShape ? { ...result, requestShape } : result;
 }
@@ -34,13 +40,18 @@ function sanitizeToolResult(value) {
 function sanitizeRequestShape(value) {
   if (!value || typeof value !== 'object') return null;
   const stringList = (items) => Array.isArray(items)
-    ? items.filter((item) => typeof item === 'string' && item.length <= 2_000).slice(0, 20)
+    ? items.filter((item) => typeof item === 'string' && item.trim() && item.length <= 200).slice(0, 20)
     : [];
   return {
-    ...(typeof value.operation === 'string' && value.operation.length <= 2_000 ? { operation: value.operation } : {}),
+    ...(typeof value.operation === 'string' && value.operation.trim() && value.operation.length <= 100 ? { operation: value.operation } : {}),
     ...(Array.isArray(value.fields) ? { fields: stringList(value.fields) } : {}),
     ...(Array.isArray(value.changeFields) ? { changeFields: stringList(value.changeFields) } : {})
   };
+}
+
+function ownsSession(record, run, reference) {
+  const workstreamId = run?.workstreamId ?? run?.workstream_id;
+  return record.runId === run?.id && record.workstreamId === workstreamId && record.kind === reference?.kind && record.session.id === reference?.id;
 }
 
 export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContextFactory } = {}) {
@@ -55,9 +66,9 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
   function replay(descriptor, effect) {
     const identity = operationIdentity(descriptor);
     if (operations.has(identity)) return operations.get(identity);
-    const pending = Promise.resolve().then(effect).catch((error) => {
+    const pending = Promise.resolve().then(effect).catch(() => {
       operations.delete(identity);
-      throw error;
+      throw unavailableError();
     });
     operations.set(identity, pending);
     return pending;
@@ -83,28 +94,27 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
           await session.close();
           throw unavailableError();
         }
-        const record = { session, closed: false };
+        const record = { session, runId: run.id, workstreamId, kind: 'pi', closed: false, turnTail: Promise.resolve() };
         sessions.set(session.id, record);
         return { runtimeSessionId: session.id };
-      } catch (error) {
-        if (error?.code === 'runtime_unavailable') throw error;
-        throw unavailableError();
-      }
+      } catch { throw unavailableError(); }
     });
   }
 
-  async function haltReference(id) {
-    const record = sessions.get(id);
+  async function haltReference(run, reference) {
+    const record = sessions.get(reference.id);
     if (record) {
+      if (!ownsSession(record, run, reference)) throw unavailableError();
       if (!record.closed) {
         record.closed = true;
-        sessions.delete(id);
+        sessions.delete(reference.id);
         await record.session.close();
       }
       return { halted: true };
     }
+    if (reference.kind !== 'pi') throw unavailableError();
     if (typeof runtime.haltSession === 'function') {
-      await runtime.haltSession(id);
+      await runtime.haltSession(reference.id);
       return { halted: true };
     }
     return { halted: true, noOp: true };
@@ -112,26 +122,29 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
 
   async function halt(run, descriptor = {}) {
     return replay(descriptor, async () => {
-      const id = referenceId(descriptor.runtimeReference) ?? referenceId(run?.runtimeReference) ?? run?.runtime_session_id;
-      if (!id) return { halted: true, noOp: true };
-      try { return await haltReference(id); }
+      const reference = runtimeReference(descriptor.runtimeReference) ?? runtimeReference(run?.runtimeReference ?? run?.runtime_reference)
+        ?? (typeof run?.runtime_session_id === 'string' ? { kind: 'pi', id: run.runtime_session_id } : null);
+      if (!reference) return { halted: true, noOp: true };
+      try { return await haltReference(run, reference); }
       catch { throw unavailableError(); }
     });
   }
 
   async function interact({ run, context, message } = {}) {
-    const id = referenceId(run?.runtimeReference ?? run?.runtime_reference);
-    const record = id ? sessions.get(id) : null;
-    if (!record || record.closed || typeof message !== 'string') return unavailableResult();
-    try {
-      const response = await record.session.send({ context, message });
-      return {
-        message: typeof response?.text === 'string' ? response.text : '',
-        toolResults: Array.isArray(response?.toolResults) ? response.toolResults.map(sanitizeToolResult) : []
-      };
-    } catch {
-      return unavailableResult();
-    }
+    const reference = runtimeReference(run?.runtimeReference ?? run?.runtime_reference);
+    const record = reference ? sessions.get(reference.id) : null;
+    if (!record || record.closed || !ownsSession(record, run, reference) || typeof message !== 'string') return unavailableResult();
+    const turn = record.turnTail.then(async () => {
+      try {
+        const response = await record.session.send({ context, message });
+        return {
+          message: typeof response?.text === 'string' ? response.text : '',
+          toolResults: Array.isArray(response?.toolResults) ? response.toolResults.map(sanitizeToolResult) : []
+        };
+      } catch { return unavailableResult(); }
+    });
+    record.turnTail = turn.then(() => undefined, () => undefined);
+    return turn;
   }
 
   async function reconcile(runningRuns, pause) {
@@ -143,7 +156,7 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
       }
     })().catch((error) => {
       reconcilePromise = null;
-      throw error?.code === 'runtime_unavailable' ? error : unavailableError();
+      throw unavailableError();
     });
     return reconcilePromise;
   }
@@ -152,11 +165,11 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
     if (closed) return;
     closed = true;
     let failure;
-    for (const [id, record] of [...sessions]) {
-      try { await haltReference(id); } catch (error) { failure ??= error; }
+    for (const record of [...sessions.values()]) {
+      try { await haltReference({ id: record.runId, workstreamId: record.workstreamId }, { kind: record.kind, id: record.session.id }); } catch (error) { failure ??= error; }
     }
     try { await runtime.close?.(); } catch { failure ??= unavailableError(); }
-    if (failure) throw failure;
+    if (failure) throw unavailableError();
   }
 
   return Object.freeze({ activate, halt, interact, reconcile, close });

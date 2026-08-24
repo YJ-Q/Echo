@@ -44,3 +44,25 @@
 ## Concerns
 
 No functional blockers. Pi services are intentionally created per session to preserve tool authorization isolation; this trades setup cost for strict Run scoping.
+
+## Fix round 1 — independent review remediation
+
+### Changes
+
+- Web Gateway browser reads remain sanitized, while its existing server-internal query/event helpers now return the Core contract envelope unchanged. This supplies `runtimeReference` only to the application interaction boundary and retains browser disclosure protections.
+- Coordinator session records now bind Pi session ID, runtime kind, Run ID, and Workstream ID. `interact` and tracked-session `halt` require an exact match; every coordinator-side runtime failure is reconstructed as a code-only `runtime_unavailable` error.
+- Per-session turns are serialized through a promise tail, preventing overlapping Pi prompts and tool-result buffers.
+- Interaction preserves safe Gateway error codes/retryability/current version, verifies the refreshed request tuple before reading/returning events, and restricts tool metadata to bounded scalar DTO fields.
+
+### Additional RED/GREEN evidence
+
+1. RED: real `createWebGateway()` integration test showed `runtimeReference` was stripped before `Interaction.submit()` and the runtime received `undefined`. GREEN after unsanitized internal dispatch only; browser `query()` remains stripped.
+2. RED: cross-Run ownership test returned the owner session reply to an attacker. GREEN after session ownership binding and kind checks.
+3. RED: safe Gateway failure test returned `not_found` for a `version_conflict`. GREEN after explicit safe-envelope propagation.
+4. RED: post-turn Run mismatch test returned assistant text/events mixed with a different Workstream Run. GREEN after tuple revalidation before event retrieval.
+5. RED: hostile tool metadata leaked object credentials, oversized IDs, and invalid scalar types. GREEN after closed scalar sanitization.
+
+### Fix-round verification
+
+- Focused: `.runtime\\node-v22.23.1-win-x64\\node.exe --test test\\piWebRuntimeCoordinator.test.js test\\interactionService.test.js test\\webGateway.test.js` — 23 passed.
+- Full: `npm test` — 408 passed, 0 failed.
