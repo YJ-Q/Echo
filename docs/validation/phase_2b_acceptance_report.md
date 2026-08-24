@@ -1,6 +1,6 @@
 # Phase 2B Web Workbench Acceptance Report
 
-Status: final-fix validation complete on 2026-08-24. Commit range: 82394b9..PENDING_FINAL_FIX_HEAD. Phase 2B stops here; this change does not begin Phase 3, Feishu, Scheduler, or Worker work.
+Status: final-fix validation complete on 2026-08-24. Commit range: 82394b9..0dd10fb. Phase 2B stops here; this change does not begin Phase 3, Feishu, Scheduler, or Worker work.
 
 ## Delivered surface
 
@@ -52,6 +52,6 @@ The focused suite includes Phase 1 terminal restart/reconciliation, Phase 2A Con
 
 ## Known gaps and stop condition
 
-No screenshot was captured because this workspace has no browser screenshot tooling. Safe page behavior is covered by the production build and ephemeral HTTP tests. Two reviewed Minor items remain deferred from this fix wave: an assistant response longer than 2,000 characters currently becomes an empty display message instead of an explicit truncation, and the process-local runtime operation replay cache has no lifetime bound. Neither item changes the Persistent Core authority or the loopback exposure rule; both require their own test-first change rather than expanding this final review wave. The Web host remains a local, single-user surface; remote exposure, authentication, multi-user authorization, Feishu, Scheduler, Worker, and Phase 3 changes remain out of scope.
+No screenshot was captured because this workspace has no browser screenshot tooling. Safe page behavior is covered by the production build and ephemeral HTTP tests. Two reviewed Minor items remain deferred from this fix wave: an assistant response longer than 2,000 characters currently becomes an empty display message instead of an explicit truncation, and the process-local runtime operation replay cache has no lifetime bound. The unbounded replay cache is accepted for the current V1 single-user scenario and does not block Phase 2B; a bounded replay cache policy is required before multi-user or long-term deployment. Neither item changes the Persistent Core authority or the loopback exposure rule; both require their own test-first change rather than expanding this final review wave. The Web host remains a local, single-user surface; remote exposure, authentication, multi-user authorization, Feishu, Scheduler, Worker, and Phase 3 changes remain out of scope.
 
 Phase 2B is complete and intentionally stops at this acceptance boundary.
