@@ -1,7 +1,9 @@
-import { createElement } from 'react';
+import { createElement, useCallback, useState } from 'react';
 import { createApiClient } from './apiClient.js';
 import { CreateWorkstreamForm } from './components/CreateWorkstreamForm.js';
 import { ActivityPanel } from './components/ActivityPanel.js';
+import { ArtifactPanel } from './components/ArtifactPanel.js';
+import { NeedsOwnerPanel } from './components/NeedsOwnerPanel.js';
 import { RunControls } from './components/RunControls.js';
 import { WorkstreamDetail } from './components/WorkstreamDetail.js';
 import { WorkstreamList } from './components/WorkstreamList.js';
@@ -9,6 +11,8 @@ import { useWorkbenchData } from './useWorkbenchData.js';
 
 export function App({ api = createApiClient() }) {
   const data = useWorkbenchData(api);
+  const [activityGeneration, setActivityGeneration] = useState(0);
+  const refreshActivity = useCallback(() => setActivityGeneration((generation) => generation + 1), []);
 
   return createElement('main', { className: 'workbench-shell' },
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workstreams' },
@@ -24,11 +28,15 @@ export function App({ api = createApiClient() }) {
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workbench' },
       createElement('h2', null, 'Workbench'),
       createElement(WorkstreamDetail, { selectedId: data.selectedId, state: data.detailState, onRefresh: data.refreshWorkstream }),
-      createElement(RunControls, { api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterRunCommand })
+      createElement(RunControls, { api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterRunCommand }),
+      createElement(NeedsOwnerPanel, {
+        api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterNeedsOwnerResolution, onActivityReload: refreshActivity
+      }),
+      createElement(ArtifactPanel, { api, workstreamId: data.selectedId })
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Activity' },
       createElement('h2', null, 'Activity'),
-      createElement(ActivityPanel, { api, workstreamId: data.selectedId })
+      createElement(ActivityPanel, { api, workstreamId: data.selectedId, refreshToken: activityGeneration })
     )
   );
 }

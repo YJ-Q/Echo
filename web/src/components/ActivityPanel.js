@@ -9,7 +9,7 @@ function safeActivity(item) {
   return title && summary && occurredAt ? { cursor: item.cursor, title, summary, occurredAt } : null;
 }
 
-export function ActivityPanel({ api, workstreamId }) {
+export function ActivityPanel({ api, workstreamId, refreshToken = 0 }) {
   const [items, setItems] = useState([]);
   const seen = useRef(new Set());
   const selected = useRef(workstreamId);
@@ -19,7 +19,7 @@ export function ActivityPanel({ api, workstreamId }) {
     selected.current = workstreamId;
     seen.current = new Set();
     setItems([]);
-  }, [workstreamId]);
+  }, [refreshToken, workstreamId]);
 
   const processPage = useCallback(async ({ workstreamId: pageWorkstreamId, afterCursor, nextCursor }) => {
     let result;
@@ -41,7 +41,7 @@ export function ActivityPanel({ api, workstreamId }) {
     return true;
   }, [api]);
 
-  useEventPolling({ api, workstreamId, onPageProcessed: processPage });
+  useEventPolling({ api, workstreamId, onPageProcessed: processPage, reloadToken: refreshToken });
 
   if (!workstreamId) return createElement('p', { className: 'muted' }, 'Select a workstream to view activity.');
   return createElement('div', { className: 'activity-panel', 'data-activity-panel': 'true' },

@@ -11,7 +11,7 @@ function pageCursor(page, previous) {
  * Reads Event pages in cursor order. The cursor is committed only after the
  * consumer confirms that the corresponding page has been handled.
  */
-export function useEventPolling({ api, workstreamId, onPageProcessed, interval = EVENT_POLL_INTERVAL_MS }) {
+export function useEventPolling({ api, workstreamId, onPageProcessed, interval = EVENT_POLL_INTERVAL_MS, reloadToken = 0 }) {
   const cursor = useRef(0);
   const timer = useRef(null);
   const generation = useRef(0);
@@ -91,5 +91,5 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
       clear();
       document.removeEventListener('visibilitychange', visibilityChanged);
     };
-  }, [api, interval, workstreamId]);
+  }, [api, interval, reloadToken, workstreamId]);
 }
