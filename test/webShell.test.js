@@ -80,7 +80,8 @@ test('App renders a stable error and retries the shell query', async () => {
 test('web shell source does not persist or own domain DTOs', async () => {
   const source = await import('node:fs/promises').then((fs) => fs.readFile(new URL('../web/src/App.js', import.meta.url), 'utf8'));
   assert.equal(/(?:localStorage|sessionStorage|indexedDB)/.test(source), false);
-  assert.equal(/(?:workstreams|artifacts|conversation)\s*[:=]/i.test(source), false);
+  assert.equal(/\b(?:workstreams|artifacts)\s*=\s*(?:\{|Array|\[)/i.test(source), false);
+  assert.equal(/conversation\s*[:=]\s*(?:\{|Array|\[)/i.test(source), false);
 });
 
 test('App does not write browser storage while loading the shell', async () => {

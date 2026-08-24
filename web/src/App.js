@@ -3,6 +3,7 @@ import { createApiClient } from './apiClient.js';
 import { CreateWorkstreamForm } from './components/CreateWorkstreamForm.js';
 import { ActivityPanel } from './components/ActivityPanel.js';
 import { ArtifactPanel } from './components/ArtifactPanel.js';
+import { ConversationPanel } from './components/ConversationPanel.js';
 import { NeedsOwnerPanel } from './components/NeedsOwnerPanel.js';
 import { RunControls } from './components/RunControls.js';
 import { WorkstreamDetail } from './components/WorkstreamDetail.js';
@@ -12,7 +13,15 @@ import { useWorkbenchData } from './useWorkbenchData.js';
 export function App({ api = createApiClient() }) {
   const data = useWorkbenchData(api);
   const [activityGeneration, setActivityGeneration] = useState(0);
+  const [authorityGeneration, setAuthorityGeneration] = useState(0);
   const refreshActivity = useCallback(() => setActivityGeneration((generation) => generation + 1), []);
+  const refreshAfterInteraction = useCallback(async (id, isTurnCurrent) => {
+    await data.refreshAfterInteraction(id, isTurnCurrent);
+    if (isTurnCurrent?.() !== false) {
+      setAuthorityGeneration((generation) => generation + 1);
+      refreshActivity();
+    }
+  }, [data, refreshActivity]);
 
   return createElement('main', { className: 'workbench-shell' },
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workstreams' },
@@ -28,15 +37,19 @@ export function App({ api = createApiClient() }) {
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workbench' },
       createElement('h2', null, 'Workbench'),
       createElement(WorkstreamDetail, { selectedId: data.selectedId, state: data.detailState, onRefresh: data.refreshWorkstream }),
-      createElement(RunControls, { api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterRunCommand }),
-      createElement(NeedsOwnerPanel, {
-        api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterNeedsOwnerResolution, onActivityReload: refreshActivity
+      createElement(RunControls, { key: `run:${data.selectedId}:${authorityGeneration}`, api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterRunCommand }),
+      createElement(ConversationPanel, {
+        api, workstreamId: data.selectedId, refreshToken: authorityGeneration, onAuthoritativeRefresh: refreshAfterInteraction
       }),
-      createElement(ArtifactPanel, { api, workstreamId: data.selectedId })
+      createElement(NeedsOwnerPanel, {
+        key: `needs:${data.selectedId}:${authorityGeneration}`, api, workstreamId: data.selectedId,
+        onAuthoritativeReload: data.refreshAfterNeedsOwnerResolution, onActivityReload: refreshActivity
+      }),
+      createElement(ArtifactPanel, { key: `artifacts:${data.selectedId}:${authorityGeneration}`, api, workstreamId: data.selectedId })
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Activity' },
       createElement('h2', null, 'Activity'),
-      createElement(ActivityPanel, { api, workstreamId: data.selectedId, refreshToken: activityGeneration })
+      createElement(ActivityPanel, { api, workstreamId: data.selectedId, refreshToken: activityGeneration + authorityGeneration })
     )
   );
 }

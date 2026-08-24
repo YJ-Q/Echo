@@ -111,6 +111,13 @@ export function useWorkbenchData(api) {
     return refreshWorkstream(id);
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 
+  const refreshAfterInteraction = useCallback(async (id = selectedId, isTurnCurrent = () => true) => {
+    if (selectedIdRef.current !== id || isTurnCurrent() !== true) return false;
+    await refreshWorkstreams();
+    if (selectedIdRef.current !== id || isTurnCurrent() !== true) return false;
+    return refreshWorkstream(id);
+  }, [refreshWorkstream, refreshWorkstreams, selectedId]);
+
   useEffect(() => { refreshWorkstreams(); }, [refreshWorkstreams]);
 
   const rows = useMemo(() => rowsFor(workstreams, needsOwner), [workstreams, needsOwner]);
@@ -118,6 +125,7 @@ export function useWorkbenchData(api) {
 
   return {
     groups, selectedId, selectWorkstream, refreshWorkstreams, refreshWorkstream,
-    createdWorkstream, refreshAfterUncertainCreate, refreshAfterRunCommand, refreshAfterNeedsOwnerResolution, listState, detailState
+    createdWorkstream, refreshAfterUncertainCreate, refreshAfterRunCommand, refreshAfterNeedsOwnerResolution,
+    refreshAfterInteraction, listState, detailState
   };
 }

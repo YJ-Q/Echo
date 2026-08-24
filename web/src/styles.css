@@ -48,12 +48,16 @@ ul { list-style: none; margin: 0; padding: 0; }
 .activity-item { border-top: 1px solid #e2e6ea; margin-top: 0.7rem; padding-top: 0.7rem; }
 .activity-item strong, .activity-item time { display: block; }
 .activity-item time { color: #7a8793; font-size: 0.8rem; margin-top: 0.3rem; }
-.needs-owner-panel, .artifact-panel { border-top: 1px solid #e2e6ea; margin-top: 1rem; padding-top: 1rem; }
+.needs-owner-panel, .artifact-panel, .conversation-panel { border-top: 1px solid #e2e6ea; margin-top: 1rem; padding-top: 1rem; }
 .needs-owner-item, .artifact-item { border-top: 1px solid #e2e6ea; margin-top: 0.7rem; padding-top: 0.7rem; }
 .needs-owner-item strong, .artifact-item > strong { display: block; }
 .needs-owner-options { margin-top: 0.45rem; }
 .needs-owner-options li { color: #52606d; font-size: 0.9rem; margin-top: 0.25rem; }
 .artifact-item p { margin-top: 0.35rem; overflow-wrap: anywhere; }
+.conversation-messages { margin-top: 0.75rem; }
+.conversation-messages > li, .conversation-evidence li { border-top: 1px solid #e2e6ea; margin-top: 0.5rem; padding-top: 0.5rem; overflow-wrap: anywhere; }
+.conversation-messages p { white-space: pre-wrap; }
+.conversation-evidence { margin-top: 0.35rem; color: #52606d; font-size: 0.85rem; }
 
 .status-badge { border-radius: 999px; padding: 0.15rem 0.45rem; font-size: 0.8rem; font-weight: 600; }
 .status-badge[data-status="active"] { background: #e6f4ea; color: #17633a; }

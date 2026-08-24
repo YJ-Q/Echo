@@ -2,7 +2,8 @@ import { CONTRACT_VERSION } from '../contracts/contractTypes.js';
 
 const STABLE_CODES = new Set([
   'invalid_request', 'permission_denied', 'not_found', 'version_conflict',
-  'invalid_transition', 'runtime_unavailable', 'storage_failure'
+  'invalid_transition', 'runtime_unavailable', 'storage_failure', 'workstream_not_found',
+  'run_not_found', 'cross_workstream_reference', 'run_not_running'
 ]);
 
 const PRIVATE_KEYS = new Set([
@@ -16,6 +17,10 @@ export const HTTP_ERROR_STATUS = Object.freeze({
   not_found: 404,
   version_conflict: 409,
   invalid_transition: 409,
+  workstream_not_found: 404,
+  run_not_found: 404,
+  cross_workstream_reference: 400,
+  run_not_running: 409,
   runtime_unavailable: 503,
   storage_failure: 500
 });

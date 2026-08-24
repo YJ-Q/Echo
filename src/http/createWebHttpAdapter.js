@@ -13,10 +13,11 @@ export function createWebHttpAdapter({ webGateway, interactionService, staticDir
   app.post('/api/queries', asyncRoute((request) => webGateway.query(request)));
   app.get('/api/events', asyncRoute((request) => webGateway.events(request)));
   app.post('/api/interactions', async (request, response) => {
-    const requestId = request.body?.requestId;
-    if (hasForbiddenBrowserField(request.body)) return respond(response, failureEnvelope({ code: 'invalid_request', requestId }));
-    if (!interactionService?.handle) return respond(response, failureEnvelope({ code: 'runtime_unavailable', requestId }));
-    try { return respond(response, sanitizeBrowserEnvelope(await interactionService.handle(request.body), { requestId })); }
+    const input = interactionInput(request.body);
+    const requestId = input?.requestId ?? request.body?.requestId;
+    if (!input) return respond(response, failureEnvelope({ code: 'invalid_request', requestId }));
+    if (!interactionService?.submit) return respond(response, failureEnvelope({ code: 'runtime_unavailable', requestId }));
+    try { return respond(response, interactionEnvelope(await interactionService.submit(input), input.requestId)); }
     catch { return respond(response, failureEnvelope({ code: 'storage_failure', requestId })); }
   });
 
@@ -26,6 +27,52 @@ export function createWebHttpAdapter({ webGateway, interactionService, staticDir
     return respond(response, failureEnvelope({ code: 'storage_failure', requestId: request.body?.requestId }));
   });
   return app;
+}
+
+function interactionInput(value) {
+  const fields = ['workstreamId', 'runId', 'message', 'requestId'];
+  if (!value || typeof value !== 'object' || Array.isArray(value) || hasForbiddenBrowserField(value) ||
+    Object.keys(value).length !== fields.length || Object.keys(value).some((key) => !fields.includes(key))) return null;
+  const [workstreamId, runId, message, requestId] = fields.map((field) => value[field]);
+  if (![workstreamId, runId, requestId].every((item) => typeof item === 'string' && item.trim() && item.length <= 2_000) ||
+    typeof message !== 'string' || !message.trim() || message.length > 2_000) return null;
+  return { workstreamId, runId, message, requestId };
+}
+
+function interactionEnvelope(result, requestId) {
+  if (result?.error) return failureEnvelope({ code: result.error.code, requestId });
+  if (result?.ok === false) return sanitizeBrowserEnvelope(result, { requestId });
+  return sanitizeBrowserEnvelope({
+    ok: true,
+    data: interactionData(result),
+    meta: { requestId }
+  }, { requestId });
+}
+
+function interactionData(value) {
+  const result = value && typeof value === 'object' ? value : {};
+  return {
+    message: boundedString(result.message, 2_000) ?? '',
+    toolResults: (Array.isArray(result.toolResults) ? result.toolResults : []).slice(0, 20).map(toolEvidence),
+    ...(result.workstream && typeof result.workstream === 'object' ? { workstream: result.workstream } : {}),
+    ...(result.run && typeof result.run === 'object' ? { run: result.run } : {}),
+    ...(result.events && typeof result.events === 'object' ? { events: result.events } : {})
+  };
+}
+
+function toolEvidence(value) {
+  const tool = value && typeof value === 'object' ? value : {};
+  return {
+    ...(boundedString(tool.toolName, 100) ? { toolName: tool.toolName } : {}),
+    ...(boundedString(tool.code, 100) ? { code: tool.code } : {}),
+    ...(boundedString(tool.auditId, 200) ? { auditId: tool.auditId } : {}),
+    ...(boundedString(tool.entityId, 200) ? { entityId: tool.entityId } : {}),
+    ...(Number.isInteger(tool.entityVersion) && tool.entityVersion >= 0 ? { entityVersion: tool.entityVersion } : {})
+  };
+}
+
+function boundedString(value, max) {
+  return typeof value === 'string' && value.trim() && value.length <= max ? value : null;
 }
 
 function asyncRoute(dispatch) {

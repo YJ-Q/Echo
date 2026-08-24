@@ -66,10 +66,19 @@ test('HTTP adapter maps stable contract errors, preserves version metadata, and 
   });
 });
 
-test('HTTP adapter returns runtime_unavailable for interactions without a service and forwards interactions when injected', async () => {
+test('HTTP adapter requires the closed interaction request before service availability and submits when injected', async () => {
   const f = gatewayFixture();
   await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
     const response = await fetch(`${origin}/api/interactions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'hello' }) });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, 'invalid_request');
+  });
+
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/interactions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ workstreamId: 'ws-1', runId: 'run-1', requestId: 'interaction-1', message: 'hello' })
+    });
     assert.equal(response.status, 503);
     assert.equal((await response.json()).error.code, 'runtime_unavailable');
   });
@@ -81,12 +90,15 @@ test('HTTP adapter returns runtime_unavailable for interactions without a servic
   });
 
   const interactions = [];
-  await withServer(createWebHttpAdapter({ webGateway: f.gateway, interactionService: { async handle(input) { interactions.push(input); return { ok: true, data: { text: 'safe' }, meta: { contractVersion: '1.0', requestId: 'interaction-1', correlationId: 'web-correlation' } }; } } }), async (origin) => {
-    const response = await fetch(`${origin}/api/interactions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ requestId: 'interaction-1', message: 'hello' }) });
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway, interactionService: { async submit(input) { interactions.push(input); return { message: 'safe', toolResults: [] }; } } }), async (origin) => {
+    const response = await fetch(`${origin}/api/interactions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ workstreamId: 'ws-1', runId: 'run-1', requestId: 'interaction-1', message: 'hello' })
+    });
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).data.text, 'safe');
+    assert.equal((await response.json()).data.message, 'safe');
   });
-  assert.deepEqual(interactions, [{ requestId: 'interaction-1', message: 'hello' }]);
+  assert.deepEqual(interactions, [{ workstreamId: 'ws-1', runId: 'run-1', requestId: 'interaction-1', message: 'hello' }]);
 });
 
 test('HTTP adapter converts injected middleware errors to sanitized storage failures', async () => {
