@@ -110,7 +110,7 @@ test('selecting a workstream loads its authoritative detail and exposes its fixe
   await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true })); });
 
   for (const value of ['Title ws-1', 'Goal ws-1', 'State ws-1', 'Plan ws-1', 'Next ws-1', 'Blocker ws-1', 'checkpoint-ws-1', 'D:/Echo/ws-1']) {
-    assert.match(document.querySelector('[aria-label="Workbench"]').textContent, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(document.querySelector('[aria-label="Current Workstream"]').textContent, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.equal(f.calls.filter((call) => call.type === 'workstream.get').length, 1);
   assert.equal(document.querySelector('[data-workstream-id="ws-1"]').getAttribute('aria-current'), 'true');
@@ -141,7 +141,7 @@ test('create validates fields, sends closed payload with stable identifiers, the
   assert.match(command.options.idempotencyKey, /^web_workstream_create_intent_/);
   assert.equal(title.value, '');
   assert.equal(goal.value, '');
-  assert.match(document.querySelector('[aria-label="Workbench"]').textContent, /Created title/);
+  assert.match(document.querySelector('[aria-label="Current Workstream"]').textContent, /Created title/);
   assert.ok(f.calls.filter((call) => call.type === 'workstream.list').length >= 2);
   assert.equal(f.calls.filter((call) => call.type === 'workstream.get').at(-1).payload.workstreamId, 'ws-created');
   await unmount(view);
@@ -191,7 +191,7 @@ test('an uncertain create refreshes authority and retries one unchanged draft wi
   assert.equal(commands[0].options.idempotencyKey, commands[1].options.idempotencyKey);
   assert.notEqual(commands[0].options.requestId, commands[1].options.requestId);
   assert.equal(items.length, 1);
-  assert.match(document.querySelector('[aria-label="Workbench"]').textContent, /Recovered title/);
+  assert.match(document.querySelector('[aria-label="Current Workstream"]').textContent, /Recovered title/);
 
   await act(async () => {
     title.value = 'Changed title'; title.dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -208,7 +208,7 @@ test('a remounted workbench refetches the selected detail instead of restoring b
   const f = createServer([workstream('ws-1', 'running', { currentState: 'First detail' })]);
   const first = await mount(f.api);
   await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true })); });
-  assert.match(document.querySelector('[aria-label="Workbench"]').textContent, /First detail/);
+  assert.match(document.querySelector('[aria-label="Current Workstream"]').textContent, /First detail/);
   await unmount(first);
 
   f.api.query = async (type, payload = {}) => {
@@ -220,7 +220,7 @@ test('a remounted workbench refetches the selected detail instead of restoring b
   };
   const second = await mount(f.api);
   await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true })); });
-  assert.match(document.querySelector('[aria-label="Workbench"]').textContent, /Second detail/);
+  assert.match(document.querySelector('[aria-label="Current Workstream"]').textContent, /Second detail/);
   assert.equal(document.body.textContent.includes('First detail'), false);
   assert.ok(f.calls.filter((call) => call.type === 'workstream.get').length >= 2);
   await unmount(second);

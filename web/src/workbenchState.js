@@ -17,7 +17,7 @@ const ERROR_LABELS = Object.freeze({
 });
 
 export function createInitialWorkbenchState() {
-  return { selectedId: null, tab: 'overview', formInput: '', loading: true, error: null, message: null, cursor: 0 };
+  return { selectedId: null, tab: 'conversation', formInput: '', loading: true, error: null, message: null, cursor: 0 };
 }
 
 export function reduceWorkbenchState(state, event) {

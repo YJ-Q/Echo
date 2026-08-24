@@ -1,7 +1,9 @@
 const SAFE_ERROR_CODES = new Set([
-  'invalid_request', 'permission_denied', 'not_found', 'version_conflict', 'invalid_transition',
-  'runtime_unavailable', 'storage_failure', 'transport_unavailable', 'workstream_not_found',
-  'run_not_found', 'cross_workstream_reference', 'run_not_running', 'idempotency_conflict'
+  'invalid_request', 'permission_denied', 'capability_required', 'not_found', 'version_conflict',
+  'idempotency_conflict', 'invalid_transition', 'open_run_conflict', 'open_run_exists',
+  'invalid_workstream_transition', 'runtime_unavailable', 'runtime_control_required', 'storage_failure',
+  'transport_unavailable', 'workstream_not_found', 'run_not_found', 'cross_workstream_reference',
+  'run_not_running'
 ]);
 
 const PRIVATE_FIELD = (key) => {
@@ -99,7 +101,7 @@ function stableEnvelope(value, fallbackRequestId) {
   const currentVersion = value?.error?.currentVersion ?? value?.error?.details?.currentVersion;
   return Object.freeze({
     ok: false,
-    error: Object.freeze({ code, retryable: value?.error?.retryable === true, ...(Number.isInteger(currentVersion) ? { currentVersion } : {}) }),
+    error: Object.freeze({ code, retryable: value?.error?.retryable === true, ...(Number.isSafeInteger(currentVersion) && currentVersion >= 0 ? { currentVersion } : {}) }),
     meta: Object.freeze({ contractVersion, requestId, correlationId })
   });
 }

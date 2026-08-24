@@ -203,6 +203,8 @@ test('package, Docker, environment example, and launchers expose exact Phase 2B 
   assert.match(dockerfile, /MARGIN_WEB_HOST=0\.0\.0\.0/u);
   assert.match(compose, /terminal-pilot\/margin-core\.sqlite/u);
   assert.match(compose, /MARGIN_WEB_HOST=0\.0\.0\.0/u);
+  assert.match(compose, /['"]127\.0\.0\.1:3000:3000['"]/u);
+  assert.doesNotMatch(compose, /['"]3000:3000['"]/u);
   assert.match(marginLauncher, /scripts\\run-web-workbench\.js/u);
   assert.doesNotMatch(marginLauncher, /src\\server\.js/u);
   assert.match(echoLauncher, /deprecated/iu);

@@ -45,6 +45,11 @@ ul { list-style: none; margin: 0; padding: 0; }
 .run-controls { border-top: 1px solid #e2e6ea; margin-top: 1rem; padding-top: 1rem; }
 .run-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .run-actions button { margin-top: 0; }
+.workbench-tabs { display: flex; gap: 0.35rem; border-bottom: 1px solid #e2e6ea; margin-top: 1rem; }
+.workbench-tabs button { margin: 0 0 -1px; border-bottom-color: #e2e6ea; }
+.workbench-tabs button[aria-selected="true"] { border-bottom-color: #fff; background: #f6f7f8; font-weight: 650; }
+.context-summary { border-top: 1px solid #e2e6ea; margin-top: 1rem; padding-top: 1rem; }
+.context-summary p { margin-top: 0.45rem; }
 .activity-item { border-top: 1px solid #e2e6ea; margin-top: 0.7rem; padding-top: 0.7rem; }
 .activity-item strong, .activity-item time { display: block; }
 .activity-item time { color: #7a8793; font-size: 0.8rem; margin-top: 0.3rem; }

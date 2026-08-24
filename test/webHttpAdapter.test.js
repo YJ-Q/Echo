@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
 import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
+import { createMarginCore } from '../src/core/createMarginCore.js';
 import { createWebHttpAdapter } from '../src/http/createWebHttpAdapter.js';
+import { createWebGateway } from '../src/http/webGateway.js';
 
 async function withServer(app, action) {
   const server = http.createServer(app);
@@ -58,8 +63,12 @@ test('HTTP adapter routes native fetch command, query, and event requests throug
 
 test('HTTP adapter maps stable contract errors, preserves version metadata, and hides private error details', async () => {
   const expectedStatuses = {
-    invalid_request: 400, permission_denied: 403, not_found: 404, version_conflict: 409,
-    invalid_transition: 409, runtime_unavailable: 503, storage_failure: 500
+    invalid_request: 400, permission_denied: 403, capability_required: 403, not_found: 404,
+    workstream_not_found: 404, run_not_found: 404, version_conflict: 409,
+    idempotency_conflict: 409, invalid_transition: 409, invalid_workstream_transition: 409,
+    open_run_conflict: 409, open_run_exists: 409, run_not_running: 409,
+    cross_workstream_reference: 400, runtime_unavailable: 503, runtime_control_required: 503,
+    storage_failure: 503
   };
   const f = gatewayFixture({ resultFor: (request) => envelope(request.requestId, request.payload.code) });
   const app = createWebHttpAdapter({ webGateway: f.gateway });
@@ -74,6 +83,123 @@ test('HTTP adapter maps stable contract errors, preserves version metadata, and 
       assert.equal(JSON.stringify(body).includes('stack'), false);
     }
   });
+});
+
+test('HTTP adapter preserves only safe application error fields and original retryability', async () => {
+  const f = gatewayFixture({ resultFor: (request) => ({
+    ok: false,
+    error: {
+      code: 'version_conflict', retryable: true, message: 'private conflict detail',
+      details: { currentVersion: 7, expectedVersion: 6, sql: 'private sql' }
+    },
+    meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' }
+  }) });
+
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/queries`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'workstream.list', requestId: 'safe-error', payload: {} })
+    });
+    assert.equal(response.status, 409);
+    const body = await response.json();
+    assert.deepEqual(body.error, { code: 'version_conflict', retryable: true, details: { currentVersion: 7 } });
+    assert.equal(JSON.stringify(body).includes('private'), false);
+    assert.equal(JSON.stringify(body).includes('expectedVersion'), false);
+  });
+});
+
+test('real Core conflicts retain their stable semantics through Web Gateway and HTTP', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'margin-web-http-conflicts-'));
+  const core = await createMarginCore({ enabled: true, dbPath: path.join(directory, 'core.sqlite') });
+  let sequence = 0;
+  const webGateway = createWebGateway({
+    core, instanceId: 'real-http-conflicts', idFactory: (prefix) => `${prefix}-${++sequence}`
+  });
+  const app = createWebHttpAdapter({ webGateway });
+
+  try {
+    await withServer(app, async (origin) => {
+      const command = async (type, payload, { expectedVersion, idempotencyKey } = {}) => {
+        const requestId = `request-${++sequence}`;
+        const response = await fetch(`${origin}/api/commands`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            type, requestId, idempotencyKey: idempotencyKey ?? `intent-${sequence}`,
+            ...(expectedVersion === undefined ? {} : { expectedVersion }), payload
+          })
+        });
+        return { status: response.status, body: await response.json() };
+      };
+      const query = async (type, payload) => {
+        const requestId = `query-${++sequence}`;
+        const response = await fetch(`${origin}/api/queries`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type, requestId, payload })
+        });
+        return { status: response.status, body: await response.json() };
+      };
+
+      const created = await command('workstream.create', {
+        title: 'Conflict source', goal: 'Exercise safe errors', scenario: 'career_project'
+      }, { idempotencyKey: 'shared-create-intent' });
+      assert.equal(created.status, 200);
+      const workstream = created.body.data;
+
+      const idempotency = await command('workstream.create', {
+        title: 'Different input', goal: 'Exercise safe errors', scenario: 'career_project'
+      }, { idempotencyKey: 'shared-create-intent' });
+      assert.equal(idempotency.status, 409);
+      assert.deepEqual(idempotency.body.error, { code: 'idempotency_conflict', retryable: false });
+
+      const version = await command('workstream.update', {
+        workstreamId: workstream.id, changes: { nextAction: 'fresh authority' }
+      }, { expectedVersion: workstream.version + 10 });
+      assert.equal(version.status, 409);
+      assert.deepEqual(version.body.error, {
+        code: 'version_conflict', retryable: false, details: { currentVersion: workstream.version }
+      });
+
+      const run = await command('run.create', {
+        workstreamId: workstream.id, workerKind: 'pi', scope: 'Conflict coverage'
+      });
+      assert.equal(run.status, 200);
+      const openRunExists = await command('run.create', {
+        workstreamId: workstream.id, workerKind: 'pi', scope: 'Second open Run'
+      });
+      assert.equal(openRunExists.status, 409);
+      assert.equal(openRunExists.body.error.code, 'open_run_exists');
+
+      const currentWorkstream = await query('workstream.get', { workstreamId: workstream.id });
+      const openRunConflict = await command('workstream.update', {
+        workstreamId: workstream.id, changes: { status: 'completed' }
+      }, { expectedVersion: currentWorkstream.body.data.version });
+      assert.equal(openRunConflict.status, 409);
+      assert.equal(openRunConflict.body.error.code, 'open_run_conflict');
+
+      const need = await command('needs_owner.create', {
+        workstreamId: workstream.id, runId: run.body.data.id, type: 'approval',
+        reason: 'Approve once', options: [{ id: 'approve', label: 'Approve' }]
+      });
+      const resolved = await command('needs_owner.resolve', {
+        needsOwnerId: need.body.data.id, optionId: 'approve'
+      }, { expectedVersion: need.body.data.version });
+      assert.equal(resolved.status, 200);
+      const transition = await command('needs_owner.resolve', {
+        needsOwnerId: need.body.data.id, optionId: 'approve'
+      }, { expectedVersion: resolved.body.data.version });
+      assert.equal(transition.status, 409);
+      assert.equal(transition.body.error.code, 'invalid_transition');
+
+      for (const result of [idempotency, version, openRunExists, openRunConflict, transition]) {
+        assert.equal(JSON.stringify(result.body).includes('SQL'), false);
+        assert.equal(JSON.stringify(result.body).includes('stack'), false);
+        assert.equal(JSON.stringify(result.body).includes('private'), false);
+      }
+    });
+  } finally {
+    await core.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('HTTP adapter requires the closed interaction request before service availability and submits when injected', async () => {
@@ -115,7 +241,7 @@ test('HTTP adapter converts injected middleware errors to sanitized storage fail
   const f = gatewayFixture();
   const assertFailure = async (app) => withServer(app, async (origin) => {
     const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'middleware-request', payload: {} }) });
-    assert.equal(response.status, 500);
+    assert.equal(response.status, 503);
     assert.match(response.headers.get('content-type'), /application\/json/);
     const body = await response.json();
     assert.deepEqual(body.error, { code: 'storage_failure', retryable: true });
@@ -177,7 +303,7 @@ test('buffered middleware observes native sent and ended state without leaking a
   await withServer(app, async (origin) => {
     for (const operation of ['writeHead', 'write', 'end']) {
       const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-buffer-operation': operation }, body: JSON.stringify({ type: 'workstream.list', requestId: `middleware-${operation}`, payload: {} }) });
-      assert.equal(response.status, 500, operation);
+      assert.equal(response.status, 503, operation);
       const body = await response.json();
       assert.deepEqual(body.error, { code: 'storage_failure', retryable: true }, operation);
       assert.equal(response.headers.get('x-private-middleware'), null, operation);
@@ -207,7 +333,7 @@ test('buffered middleware does not commit before an async post-end failure settl
 
   await withServer(app, async (origin) => {
     const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'async-middleware-state', payload: {} }) });
-    assert.equal(response.status, 500);
+    assert.equal(response.status, 503);
     assert.equal(response.headers.get('x-private-middleware'), null);
     const body = await response.json();
     assert.deepEqual(body.error, { code: 'storage_failure', retryable: true });

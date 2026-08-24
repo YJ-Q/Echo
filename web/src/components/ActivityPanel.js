@@ -19,7 +19,7 @@ export function ActivityPanel({ api, workstreamId, refreshToken = 0 }) {
     selected.current = workstreamId;
     seen.current = new Set();
     setItems([]);
-  }, [refreshToken, workstreamId]);
+  }, [workstreamId]);
 
   const processPage = useCallback(async ({ workstreamId: pageWorkstreamId, afterCursor, nextCursor }) => {
     let result;

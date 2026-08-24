@@ -13,6 +13,7 @@ function pageCursor(page, previous) {
  */
 export function useEventPolling({ api, workstreamId, onPageProcessed, interval = EVENT_POLL_INTERVAL_MS, reloadToken = 0 }) {
   const cursor = useRef(0);
+  const cursorWorkstream = useRef(workstreamId);
   const timer = useRef(null);
   const generation = useRef(0);
   const processingGeneration = useRef(null);
@@ -21,7 +22,10 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
   useEffect(() => { callback.current = onPageProcessed; }, [onPageProcessed]);
 
   useEffect(() => {
-    cursor.current = 0;
+    if (cursorWorkstream.current !== workstreamId) {
+      cursorWorkstream.current = workstreamId;
+      cursor.current = 0;
+    }
     const requestGeneration = ++generation.current;
     let disposed = false;
 

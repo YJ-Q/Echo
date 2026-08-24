@@ -58,6 +58,22 @@ test('API client preserves the public idempotency conflict code without private 
   assert.equal(JSON.stringify(result).includes('private replay fingerprint'), false);
 });
 
+test('API client preserves every safe open-Run conflict code', async () => {
+  for (const code of ['open_run_conflict', 'open_run_exists', 'invalid_workstream_transition']) {
+    const api = createApiClient({
+      async fetchImpl() {
+        return jsonResponse({
+          ok: false, error: { code, retryable: false, message: 'private detail' },
+          meta: { contractVersion: '1.0', requestId: code, correlationId: 'correlation-1' }
+        });
+      }
+    });
+    const result = await api.command('workstream.update', {});
+    assert.deepEqual(result.error, { code, retryable: false });
+    assert.equal(JSON.stringify(result).includes('private detail'), false);
+  }
+});
+
 test('API client generates request IDs, uses each public route, and converts transport failures', async () => {
   const requests = [];
   const api = createApiClient({

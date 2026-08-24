@@ -188,6 +188,47 @@ test('changing the selected workstream discards prior activity and starts a sepa
   await unmount(view);
 });
 
+test('authority refresh tokens poll immediately from the retained cursor without replaying Activity', async () => {
+  const eventCalls = [];
+  const activityCalls = [];
+  const api = {
+    async events(_type, payload) {
+      eventCalls.push(payload);
+      if (payload.afterCursor === 0) {
+        return { ok: true, data: { items: [{ cursor: 3 }], nextCursor: 3, hasMore: false }, meta: {} };
+      }
+      return { ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} };
+    },
+    async query(_type, payload) {
+      activityCalls.push(payload);
+      return {
+        ok: true,
+        data: {
+          items: [{ cursor: 3, title: 'Retained activity', summary: 'Loaded once', occurredAt: '2026-08-24T00:00:00Z' }],
+          nextCursor: 3, hasMore: false
+        },
+        meta: {}
+      };
+    }
+  };
+  const view = await mount(React.createElement(ActivityPanel, { api, workstreamId: 'ws-1', refreshToken: 0 }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  assert.match(document.body.textContent, /Retained activity/);
+
+  for (const refreshToken of [1, 2, 3]) {
+    await act(async () => {
+      view.root.render(React.createElement(ActivityPanel, { api, workstreamId: 'ws-1', refreshToken }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+
+  assert.deepEqual(eventCalls.slice(1).map((payload) => payload.afterCursor), [3, 3, 3]);
+  assert.equal(activityCalls.length, 1);
+  assert.equal(document.body.textContent.match(/Retained activity/g)?.length, 1);
+  await unmount(view);
+});
+
 test('a pending Run command cannot reload or write an older workstream after selection changes', async () => {
   const pending = deferred();
   const calls = [];
@@ -253,7 +294,7 @@ test('Run controls query the contract-open statuses instead of treating a termin
   const view = await mount(React.createElement(App, { api }));
   await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); });
   assert.equal(document.querySelector('[data-run-status]').textContent, 'queued');
-  assert.deepEqual(calls.find((call) => call.type === 'run.list').payload, {
+  assert.deepEqual(calls.find((call) => call.type === 'run.list' && call.payload.statuses?.length === 4).payload, {
     workstreamId: 'ws-1', statuses: ['queued', 'running', 'paused', 'needs_owner'], limit: 100
   });
   await unmount(view);

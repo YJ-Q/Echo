@@ -19,7 +19,7 @@ function installDom() {
 
 test('workbench state exposes deterministic status groups and stable error labels without domain data', () => {
   assert.deepEqual(createInitialWorkbenchState(), {
-    selectedId: null, tab: 'overview', formInput: '', loading: true, error: null, message: null, cursor: 0
+    selectedId: null, tab: 'conversation', formInput: '', loading: true, error: null, message: null, cursor: 0
   });
   assert.equal(statusGroup('running'), 'active');
   assert.equal(statusGroup('needs_owner'), 'attention');
@@ -40,8 +40,8 @@ test('App mounts three named regions, starts loading, and renders an empty works
 
   await act(async () => { root.render(React.createElement(App, { api })); });
   assert.match(document.body.textContent, /Loading workstreams/);
-  assert.deepEqual([...document.querySelectorAll('main [aria-label]')].map((node) => node.getAttribute('aria-label')), [
-    'Workstreams', 'Workbench', 'Activity'
+  assert.deepEqual([...document.querySelectorAll('main > [aria-label]')].map((node) => node.getAttribute('aria-label')), [
+    'Workstreams', 'Current Workstream', 'Control and Context'
   ]);
 
   await act(async () => { resolveQuery({ ok: true, data: { items: [] }, meta: { requestId: 'list-1' } }); });
@@ -52,6 +52,66 @@ test('App mounts three named regions, starts loading, and renders an empty works
   assert.equal(document.body.textContent.includes('list-1'), false);
   await act(async () => { root.unmount(); });
   dom.window.close();
+});
+
+test('App keeps the Workstream summary fixed, switches three center tabs, and keeps controls and context on the right', async () => {
+  const dom = installDom();
+  const workstream = {
+    id: 'ws-1', title: 'Frozen IA', goal: 'Keep authority visible', status: 'paused', priority: 1,
+    currentState: 'Awaiting review', currentPlan: ['Review evidence', 'Resume safely'], nextAction: 'Choose approval',
+    blockers: [], autonomyLevel: 1, workspaceReference: null, latestCheckpoint: null, activeRun: null,
+    version: 4, updatedAt: '2026-08-24T00:00:00Z'
+  };
+  const needsOwner = {
+    id: 'need-1', workstreamId: 'ws-1', runId: 'run-1', type: 'approval', reason: 'Owner approval required',
+    options: [{ id: 'approve', label: 'Approve' }], consequenceSummary: 'Run remains paused',
+    contextSummary: 'Evidence is ready', status: 'open', version: 1
+  };
+  const run = { id: 'run-1', workstreamId: 'ws-1', status: 'paused', version: 2 };
+  const api = {
+    async query(type, payload = {}) {
+      if (type === 'workstream.list') return { ok: true, data: { items: [workstream] }, meta: {} };
+      if (type === 'workstream.get') return { ok: true, data: workstream, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [needsOwner], nextCursor: null }, meta: {} };
+      if (type === 'run.list') return { ok: true, data: { items: [run], nextCursor: null }, meta: {} };
+      if (type === 'artifact.list') return { ok: true, data: { items: [], nextCursor: null }, meta: {} };
+      if (type === 'activity.list') return { ok: true, data: { items: [], nextCursor: payload.afterCursor ?? 0 }, meta: {} };
+      throw new Error(`unexpected query ${type}`);
+    },
+    async events(_type, payload) {
+      return { ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} };
+    }
+  };
+  const root = createRoot(document.getElementById('root'));
+  await act(async () => { root.render(React.createElement(App, { api })); });
+  await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); });
+  try {
+    const center = document.querySelector('[aria-label="Current Workstream"]');
+    const right = document.querySelector('[aria-label="Control and Context"]');
+    assert.match(center.textContent, /Frozen IA/);
+    assert.match(center.textContent, /Keep authority visible/);
+    assert.deepEqual([...center.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent), ['Conversation', 'Artifacts', 'Activity']);
+    assert.equal(center.querySelector('[role="tab"][aria-selected="true"]').textContent, 'Conversation');
+    assert.equal(center.querySelector('[data-conversation-panel]').closest('[role="tabpanel"]').hidden, false);
+    assert.match(right.textContent, /Run controls/);
+    assert.match(right.textContent, /paused/);
+    assert.match(right.textContent, /Review evidence, Resume safely/);
+    assert.match(right.textContent, /Choose approval/);
+    assert.match(right.textContent, /Owner approval required/);
+
+    await act(async () => { center.querySelector('[role="tab"][data-workbench-tab="artifacts"]').click(); });
+    assert.equal(center.querySelector('[role="tab"][aria-selected="true"]').textContent, 'Artifacts');
+    assert.equal(center.querySelector('[data-artifact-panel]').closest('[role="tabpanel"]').hidden, false);
+    assert.match(center.textContent, /Frozen IA/);
+
+    await act(async () => { center.querySelector('[role="tab"][data-workbench-tab="activity"]').click(); });
+    assert.equal(center.querySelector('[role="tab"][aria-selected="true"]').textContent, 'Activity');
+    assert.equal(center.querySelector('[data-activity-panel]').closest('[role="tabpanel"]').hidden, false);
+    assert.match(center.textContent, /Keep authority visible/);
+  } finally {
+    await act(async () => { root.unmount(); });
+    dom.window.close();
+  }
 });
 
 test('App renders a stable error and retries the shell query', async () => {

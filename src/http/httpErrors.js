@@ -1,9 +1,11 @@
 import { CONTRACT_VERSION } from '../contracts/contractTypes.js';
 
 const STABLE_CODES = new Set([
-  'invalid_request', 'permission_denied', 'not_found', 'version_conflict',
-  'invalid_transition', 'runtime_unavailable', 'storage_failure', 'workstream_not_found',
-  'run_not_found', 'cross_workstream_reference', 'run_not_running'
+  'invalid_request', 'permission_denied', 'capability_required', 'not_found',
+  'version_conflict', 'idempotency_conflict', 'invalid_transition', 'open_run_conflict',
+  'runtime_unavailable', 'runtime_control_required', 'storage_failure', 'workstream_not_found',
+  'run_not_found', 'open_run_exists', 'cross_workstream_reference',
+  'invalid_workstream_transition', 'run_not_running'
 ]);
 
 const PRIVATE_KEYS = new Set([
@@ -14,15 +16,21 @@ const PRIVATE_KEYS = new Set([
 export const HTTP_ERROR_STATUS = Object.freeze({
   invalid_request: 400,
   permission_denied: 403,
+  capability_required: 403,
   not_found: 404,
   version_conflict: 409,
+  idempotency_conflict: 409,
   invalid_transition: 409,
+  open_run_conflict: 409,
   workstream_not_found: 404,
   run_not_found: 404,
+  open_run_exists: 409,
   cross_workstream_reference: 400,
+  invalid_workstream_transition: 409,
   run_not_running: 409,
   runtime_unavailable: 503,
-  storage_failure: 500
+  runtime_control_required: 503,
+  storage_failure: 503
 });
 
 export function httpStatusFor(result) {
@@ -51,10 +59,16 @@ export function sanitizeBrowserEnvelope(result, identity = {}) {
   const correlationId = safeId(meta.correlationId ?? identity.correlationId);
   const contractVersion = safeVersion(meta.contractVersion);
   if (result.ok === false) {
-    const code = STABLE_CODES.has(result.error?.code) ? result.error.code : 'storage_failure';
+    const stable = STABLE_CODES.has(result.error?.code);
+    const code = stable ? result.error.code : 'storage_failure';
+    const details = safeErrorDetails(code, result.error?.details);
     return Object.freeze({
       ok: false,
-      error: Object.freeze({ code, retryable: code === 'runtime_unavailable' || code === 'storage_failure' }),
+      error: Object.freeze({
+        code,
+        retryable: stable ? result.error?.retryable === true : true,
+        ...(details ? { details } : {})
+      }),
       meta: Object.freeze({ contractVersion, requestId, correlationId })
     });
   }
@@ -76,6 +90,13 @@ function safeId(value) {
 
 function safeVersion(value) {
   return typeof value === 'string' && value.trim() && value.length <= 100 ? value : CONTRACT_VERSION;
+}
+
+function safeErrorDetails(code, details) {
+  const currentVersion = details?.currentVersion;
+  return code === 'version_conflict' && Number.isSafeInteger(currentVersion) && currentVersion >= 0
+    ? Object.freeze({ currentVersion })
+    : null;
 }
 
 function stripPrivateFields(value) {
