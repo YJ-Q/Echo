@@ -8,7 +8,7 @@ const PRIVATE_FIELD = (key) => {
   const value = String(key).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   return value === 'actor' || value === 'capabilities' || value === 'database' || value.startsWith('database') ||
     value === 'authority' || value.startsWith('hostauthority') || value === 'runtime' ||
-    value.startsWith('runtime') || value === 'stack' || value.startsWith('pi');
+    value.startsWith('runtime') || value === 'surface' || value === 'correlationid' || value === 'stack' || value.startsWith('pi');
 };
 
 function safeValue(value) {
@@ -70,10 +70,21 @@ export function createApiClient({ fetchImpl = globalThis.fetch, baseUrl = '' } =
       return request(`/api/events?${query.toString()}`, { method: 'GET', id });
     },
     interact(payload = {}, options = {}) {
-      const id = requestId('interaction', options.requestId ?? payload.requestId);
-      return request('/api/interactions', { id, body: { requestId: id, ...safeValue(payload) } });
+      const id = requestId('interaction', validId(options.requestId) ? options.requestId : payload.requestId);
+      return request('/api/interactions', { id, body: interactionBody(payload, id) });
     }
   });
+}
+
+function interactionBody(payload, requestId) {
+  const safePayload = safeValue(payload);
+  const fields = ['workstreamId', 'runId', 'message'];
+  return {
+    requestId,
+    ...Object.fromEntries(fields
+      .filter((field) => Object.hasOwn(safePayload, field))
+      .map((field) => [field, safePayload[field]]))
+  };
 }
 
 function stableEnvelope(value, fallbackRequestId) {

@@ -76,3 +76,31 @@ test('web shell source does not persist or own domain DTOs', async () => {
   assert.equal(/(?:localStorage|sessionStorage|indexedDB)/.test(source), false);
   assert.equal(/(?:workstreams|artifacts|conversation)\s*[:=]/i.test(source), false);
 });
+
+test('App does not write browser storage while loading the shell', async () => {
+  const dom = installDom();
+  const writes = [];
+  for (const name of ['localStorage', 'sessionStorage']) {
+    const storage = window[name];
+    for (const method of ['setItem', 'removeItem', 'clear']) {
+      const original = storage[method].bind(storage);
+      Object.defineProperty(storage, method, {
+        configurable: true,
+        value(...args) { writes.push([name, method, ...args]); return original(...args); }
+      });
+    }
+  }
+  const indexedDb = {
+    open(...args) { writes.push(['indexedDB', 'open', ...args]); },
+    deleteDatabase(...args) { writes.push(['indexedDB', 'deleteDatabase', ...args]); }
+  };
+  Object.defineProperty(window, 'indexedDB', { configurable: true, value: indexedDb });
+  Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: indexedDb });
+  const root = createRoot(document.getElementById('root'));
+
+  await act(async () => { root.render(React.createElement(App, { api: { async query() { return { ok: true, data: { items: [] } }; } } })); });
+
+  assert.deepEqual(writes, []);
+  await act(async () => { root.unmount(); });
+  dom.window.close();
+});

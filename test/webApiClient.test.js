@@ -65,3 +65,39 @@ test('API client generates request IDs, uses each public route, and converts tra
   assert.deepEqual(JSON.parse(requests[2].options.body), { requestId: interaction.meta.requestId, message: 'continue' });
   assert.deepEqual(interaction.error, { code: 'transport_unavailable', retryable: true });
 });
+
+test('API client removes forged surface and correlation identities before a query is sent', async () => {
+  let request;
+  const api = createApiClient({
+    async fetchImpl(_url, options) {
+      request = JSON.parse(options.body);
+      return jsonResponse({ ok: true, data: { items: [] }, meta: { contractVersion: '1.0' } });
+    }
+  });
+
+  await api.query('workstream.list', {
+    safe: 'visible', surface: { kind: 'forged' }, correlationId: 'forged-correlation', nested: { surface: 'forged' }
+  }, { requestId: 'query-identity-1' });
+
+  assert.deepEqual(request, {
+    type: 'workstream.list', requestId: 'query-identity-1', payload: { safe: 'visible', nested: {} }
+  });
+});
+
+test('API client interaction uses a closed browser payload and gives options requestId precedence', async () => {
+  let request;
+  const api = createApiClient({
+    async fetchImpl(_url, options) {
+      request = JSON.parse(options.body);
+      return jsonResponse({ ok: true, data: {}, meta: { contractVersion: '1.0', requestId: 'options-id' } });
+    }
+  });
+
+  const result = await api.interact({
+    requestId: 'payload-id', workstreamId: 'ws-1', runId: 'run-1', message: 'continue',
+    surface: { kind: 'forged' }, correlationId: 'forged', actor: { type: 'admin' }, unexpected: 'discard'
+  }, { requestId: 'options-id' });
+
+  assert.deepEqual(request, { requestId: 'options-id', workstreamId: 'ws-1', runId: 'run-1', message: 'continue' });
+  assert.equal(result.meta.requestId, 'options-id');
+});
