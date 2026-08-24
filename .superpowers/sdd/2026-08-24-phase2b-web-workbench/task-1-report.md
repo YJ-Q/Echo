@@ -146,3 +146,44 @@ Result: 388 tests passed, 0 failed.
 ### Fix commit
 
 `fix: preserve response semantics in web buffer`
+
+## Fix Round 4
+
+### Changes
+
+- Buffered `writeHead()`, `write()`, `flushHeaders()`, and `end()` now expose virtual `headersSent`, `writableEnded`, `writableFinished`, and `finished` state matching the synchronous Node `ServerResponse` observations without touching the real socket.
+- The temporary state descriptors and `finished` value are restored on both discard and commit, so the stable error handler sees the real uncommitted response after middleware failure.
+- When injected middleware returns a Promise, buffered `end()` waits for that Promise to fulfill before committing. Rejection or a delayed `next(error)` discards the private buffered headers/body and returns the sanitized `storage_failure` envelope.
+
+### RED evidence
+
+`.\.runtime\node-v22.23.1-win-x64\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 1 expected regression failed because `headersSent`, `writableEnded`, and `finished` all remained `false` after virtual `writeHead()`, `write()`, and `end()`.
+
+After review exposed the asynchronous commit race, the same command failed 1 expected regression: middleware that ended and then reported an error across two awaited microtasks leaked a 202 response instead of returning the sanitized 500.
+
+### GREEN evidence
+
+`.\.runtime\node-v22.23.1-win-x64\node.exe --test test/webHttpAdapter.test.js test/webGateway.test.js`
+
+Result: 17 tests passed, 0 failed.
+
+`npm test`
+
+Result: 390 tests passed, 0 failed.
+
+### Self-review
+
+- The state regression uses three independent native-fetch requests, proving that `writeHead()`, `write()`, and `end()` each produce the expected observable state rather than inheriting state from a preceding operation.
+- Error-path assertions verify that neither the virtual private header nor buffered private body reaches the client for synchronous or delayed asynchronous failures.
+- Reviewed descriptor restoration on discard and commit and confirmed original response methods and state are restored before the real error response or successful buffered commit.
+- Independent read-only review found no remaining Critical, Important, or Minor issues and verified asynchronous throw, delayed `next(error)`, and successful asynchronous commit behavior.
+
+### Fix commit
+
+`fix: preserve buffered response state`
+
+### Concerns
+
+None.

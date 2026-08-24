@@ -137,6 +137,62 @@ test('injected middleware retains native response methods while buffered headers
   });
 });
 
+test('buffered middleware observes native sent and ended state without leaking a later failure', async () => {
+  const f = gatewayFixture();
+  const observed = [];
+  const app = createWebHttpAdapter({
+    webGateway: f.gateway,
+    viteMiddleware: (request, response, next) => {
+      const operation = request.headers['x-buffer-operation'];
+      if (operation === 'writeHead') response.writeHead(202, { 'x-private-middleware': 'yes' });
+      if (operation === 'write') response.write('middleware private detail');
+      if (operation === 'end') response.end('middleware private detail');
+      observed.push([operation, response.headersSent, response.writableEnded, response.finished]);
+      next(new Error('middleware private detail'));
+    }
+  });
+
+  await withServer(app, async (origin) => {
+    for (const operation of ['writeHead', 'write', 'end']) {
+      const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-buffer-operation': operation }, body: JSON.stringify({ type: 'workstream.list', requestId: `middleware-${operation}`, payload: {} }) });
+      assert.equal(response.status, 500, operation);
+      const body = await response.json();
+      assert.deepEqual(body.error, { code: 'storage_failure', retryable: true }, operation);
+      assert.equal(response.headers.get('x-private-middleware'), null, operation);
+      assert.equal(JSON.stringify(body).includes('middleware private detail'), false, operation);
+    }
+  });
+
+  assert.deepEqual(observed, [
+    ['writeHead', true, false, false],
+    ['write', true, false, false],
+    ['end', true, true, true]
+  ]);
+});
+
+test('buffered middleware does not commit before an async post-end failure settles', async () => {
+  const f = gatewayFixture();
+  const app = createWebHttpAdapter({
+    webGateway: f.gateway,
+    viteMiddleware: async (request, response, next) => {
+      response.writeHead(202, { 'x-private-middleware': 'yes' });
+      response.end('middleware private detail');
+      await Promise.resolve();
+      await Promise.resolve();
+      next(new Error('middleware private detail'));
+    }
+  });
+
+  await withServer(app, async (origin) => {
+    const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'async-middleware-state', payload: {} }) });
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get('x-private-middleware'), null);
+    const body = await response.json();
+    assert.deepEqual(body.error, { code: 'storage_failure', retryable: true });
+    assert.equal(JSON.stringify(body).includes('middleware private detail'), false);
+  });
+});
+
 test('GET events rejects forbidden and unknown URL query parameters before dispatch', async () => {
   const f = gatewayFixture();
   const app = createWebHttpAdapter({ webGateway: f.gateway });

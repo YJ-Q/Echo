@@ -59,6 +59,7 @@ function bufferedMiddleware(middleware) {
   return (request, response, next) => {
     const capture = interceptResponse(response);
     let completed = false;
+    let middlewareCompletion = null;
     const continueRequest = (error) => {
       if (completed) return;
       completed = true;
@@ -67,12 +68,20 @@ function bufferedMiddleware(middleware) {
     };
     capture.whenEnded(() => deferCommit(() => {
       if (completed) return;
-      completed = true;
-      capture.commit();
+      const commit = () => {
+        if (completed) return;
+        completed = true;
+        capture.commit();
+      };
+      if (middlewareCompletion) middlewareCompletion.then(commit, continueRequest);
+      else commit();
     }));
     try {
       const pending = middleware(request, response, continueRequest);
-      if (pending?.then) pending.catch(continueRequest);
+      if (pending?.then) {
+        middlewareCompletion = Promise.resolve(pending);
+        middlewareCompletion.catch(continueRequest);
+      }
     } catch (error) {
       continueRequest(error);
     }
@@ -91,11 +100,13 @@ function interceptResponse(response) {
   const initialStatusMessage = response.statusMessage;
   let endArgs = null;
   let onEnd = () => {};
+  let virtualHeadersSent = response.headersSent;
 
-  const replace = (name, value) => {
+  const replaceDescriptor = (name, descriptor) => {
     restores.set(name, Object.getOwnPropertyDescriptor(response, name));
-    Object.defineProperty(response, name, { configurable: true, writable: true, value });
+    Object.defineProperty(response, name, { configurable: true, ...descriptor });
   };
+  const replace = (name, value) => replaceDescriptor(name, { writable: true, value });
   const restore = ({ keepStatus = false } = {}) => {
     for (const [name, descriptor] of restores) {
       if (descriptor) Object.defineProperty(response, name, descriptor);
@@ -120,23 +131,33 @@ function interceptResponse(response) {
     }
   };
 
+  replaceDescriptor('headersSent', { enumerable: true, get: () => virtualHeadersSent });
+  replaceDescriptor('writableEnded', { get: () => response.finished });
+  replaceDescriptor('writableFinished', { get: () => response.finished });
+  replace('finished', response.finished);
   replace('setHeader', (name, value) => { setHeader(name, value); return response; });
   replace('getHeader', (name) => headers.get(String(name).toLowerCase()));
   replace('getHeaders', () => Object.fromEntries(headers));
   replace('getHeaderNames', () => [...headers.keys()]);
   replace('hasHeader', (name) => headers.has(String(name).toLowerCase()));
   replace('removeHeader', (name) => { headers.delete(String(name).toLowerCase()); });
-  replace('flushHeaders', () => {});
+  replace('flushHeaders', () => { virtualHeadersSent = true; });
   replace('writeHead', (code, messageOrHeaders, maybeHeaders) => {
     applyHead(code, messageOrHeaders, typeof messageOrHeaders === 'string' ? maybeHeaders : messageOrHeaders);
+    virtualHeadersSent = true;
     return response;
   });
   replace('write', (...args) => {
-    if (!endArgs) writes.push(args);
+    if (!endArgs) {
+      virtualHeadersSent = true;
+      writes.push(args);
+    }
     return true;
   });
   replace('end', (...args) => {
     if (endArgs) return response;
+    virtualHeadersSent = true;
+    response.finished = true;
     endArgs = args;
     onEnd();
     return response;
