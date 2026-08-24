@@ -89,5 +89,5 @@ function isPrivateKey(key) {
     || normalized.startsWith('database')
     || normalized.startsWith('hostauthority')
     || normalized.startsWith('runtime')
-    || /^(?:pisession|piconfig|piruntime|piadapter|piclient|pitool|picontext|pistate)/.test(normalized);
+    || normalized.startsWith('pi');
 }

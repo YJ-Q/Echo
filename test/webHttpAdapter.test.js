@@ -100,7 +100,10 @@ test('HTTP adapter converts injected middleware errors to sanitized storage fail
     assert.equal(JSON.stringify(body).includes('middleware private detail'), false);
   });
 
-  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, viteMiddleware: (request, response, next) => next(new Error('middleware private detail')) }));
+  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, viteMiddleware: (request, response, next) => {
+    response.write('middleware private detail');
+    next(new Error('middleware private detail'));
+  } }));
   await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, staticDir: () => { throw new Error('middleware private detail'); } }));
 });
 
@@ -119,7 +122,7 @@ test('GET events rejects forbidden and unknown URL query parameters before dispa
 
 test('HTTP adapter removes nested Pi and reasoning internals from browser output', async () => {
   const f = gatewayFixture({ resultFor: (request) => request.payload.leak
-    ? { ok: true, data: { safe: 'visible', nested: { piSession: 'secret', piConfig: { token: 'secret' }, reasoningTrace: 'secret' } }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' } }
+    ? { ok: true, data: { safe: 'visible', nested: { piSession: 'secret', piConfig: { token: 'secret' }, piCredentials: 'secret', piEnvironment: 'secret', piRequest: 'secret', reasoningTrace: 'secret' } }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' } }
     : null });
   await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
     const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'private-output', payload: { leak: true } }) });

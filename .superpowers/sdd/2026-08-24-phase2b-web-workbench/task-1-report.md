@@ -78,3 +78,37 @@ Result: 387 tests passed, 0 failed.
 ### Fix commit
 
 `fix: harden web adapter boundary`
+
+## Fix Round 2
+
+### Changes
+
+- Injected Vite and function-form static middleware now receive a buffered response facade. Their `write`/`end` calls are held until a successful completion; `next(error)` discards buffered bytes and reaches the stable JSON error handler.
+- The final error handler retains the Express four-argument signature and destroys only an already-committed response, a state the injected middleware boundary cannot create.
+- Private output filtering now blocks the complete normalized `pi*` namespace, including credentials, environment, and request fields.
+
+### RED evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 2 expected regressions failed: middleware that wrote a sensitive partial body before `next(error)` produced HTTP 200, and nested `piCredentials`/`piEnvironment`/`piRequest` remained in the output.
+
+### GREEN evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 8 tests passed, 0 failed.
+
+`npm test`
+
+Result: 387 tests passed, 0 failed.
+
+### Self-review
+
+- The partial-write regression uses native fetch against an ephemeral server and verifies both the stable error envelope and absence of the sensitive bytes.
+- The facade does not expose the real response write/end methods to injected middleware; buffered data is discarded before the stable error response is constructed.
+- The `pi*` rule is recursive through objects and arrays and removes the newly covered credential/environment/request fields.
+
+### Fix commit
+
+`fix: buffer injected web middleware`
