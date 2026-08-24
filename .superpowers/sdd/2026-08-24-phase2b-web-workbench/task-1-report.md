@@ -42,3 +42,39 @@ Result: 10 tests passed, 0 failed.
 ## Concerns
 
 None. The adapter deliberately remains a dependency-injected boundary; server composition and UI/runtime wiring are out of scope.
+
+## Fix Round 1
+
+### Changes
+
+- The final Express error handler now converts injected middleware errors (including `next(error)`) into sanitized JSON `storage_failure` responses, while parse and 64kb limit errors remain `invalid_request`.
+- `GET /api/events` now accepts only `type`, `requestId`, and `payload`; forbidden, unknown, repeated, and malformed parameters are rejected before dispatch.
+- Browser output filtering now blocks nested runtime, prompt, reasoning, database, host-authority, and Pi runtime/config/session namespaces.
+- Interaction requests reject forged trusted fields before determining whether a runtime service is available.
+- Malformed event payloads now return `invalid_request` directly rather than using a fabricated private field.
+
+### RED evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 5 expected regressions failed: forged interaction fields incorrectly returned `runtime_unavailable`; injected middleware fell through to Express HTML; event query fields were silently dropped; nested `piSession`/`piConfig`/`reasoningTrace` leaked; and the malformed-payload path still fabricated `stack`.
+
+### GREEN evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js test/webGateway.test.js`
+
+Result: 14 tests passed, 0 failed.
+
+`npm test`
+
+Result: 387 tests passed, 0 failed.
+
+### Self-review
+
+- Rechecked the adapter's final error middleware: it does not delegate unknown errors to Express's default renderer.
+- Rechecked event query parsing: validation precedes construction of the gateway request, so discarded trust fields cannot influence dispatch.
+- Rechecked nested output filtering and its focused regression coverage for Pi configuration/session and reasoning traces.
+
+### Fix commit
+
+`fix: harden web adapter boundary`

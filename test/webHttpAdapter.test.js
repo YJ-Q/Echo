@@ -74,6 +74,12 @@ test('HTTP adapter returns runtime_unavailable for interactions without a servic
     assert.equal((await response.json()).error.code, 'runtime_unavailable');
   });
 
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/interactions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ actor: { type: 'user' }, requestId: 'forged-interaction', message: 'hello' }) });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, 'invalid_request');
+  });
+
   const interactions = [];
   await withServer(createWebHttpAdapter({ webGateway: f.gateway, interactionService: { async handle(input) { interactions.push(input); return { ok: true, data: { text: 'safe' }, meta: { contractVersion: '1.0', requestId: 'interaction-1', correlationId: 'web-correlation' } }; } } }), async (origin) => {
     const response = await fetch(`${origin}/api/interactions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ requestId: 'interaction-1', message: 'hello' }) });
@@ -81,6 +87,59 @@ test('HTTP adapter returns runtime_unavailable for interactions without a servic
     assert.equal((await response.json()).data.text, 'safe');
   });
   assert.deepEqual(interactions, [{ requestId: 'interaction-1', message: 'hello' }]);
+});
+
+test('HTTP adapter converts injected middleware errors to sanitized storage failures', async () => {
+  const f = gatewayFixture();
+  const assertFailure = async (app) => withServer(app, async (origin) => {
+    const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'middleware-request', payload: {} }) });
+    assert.equal(response.status, 500);
+    assert.match(response.headers.get('content-type'), /application\/json/);
+    const body = await response.json();
+    assert.deepEqual(body.error, { code: 'storage_failure', retryable: true });
+    assert.equal(JSON.stringify(body).includes('middleware private detail'), false);
+  });
+
+  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, viteMiddleware: (request, response, next) => next(new Error('middleware private detail')) }));
+  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, staticDir: () => { throw new Error('middleware private detail'); } }));
+});
+
+test('GET events rejects forbidden and unknown URL query parameters before dispatch', async () => {
+  const f = gatewayFixture();
+  const app = createWebHttpAdapter({ webGateway: f.gateway });
+  await withServer(app, async (origin) => {
+    for (const key of ['actor', 'capabilities', 'databasePath', 'hostAuthority', 'unexpected']) {
+      const response = await fetch(`${origin}/api/events?type=event.list&requestId=event-${key}&payload=%7B%7D&${key}=forged`);
+      assert.equal(response.status, 400, key);
+      assert.equal((await response.json()).error.code, 'invalid_request', key);
+    }
+  });
+  assert.equal(f.calls.length, 0);
+});
+
+test('HTTP adapter removes nested Pi and reasoning internals from browser output', async () => {
+  const f = gatewayFixture({ resultFor: (request) => request.payload.leak
+    ? { ok: true, data: { safe: 'visible', nested: { piSession: 'secret', piConfig: { token: 'secret' }, reasoningTrace: 'secret' } }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' } }
+    : null });
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'private-output', payload: { leak: true } }) });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.data, { safe: 'visible', nested: {} });
+    assert.equal(JSON.stringify(body).includes('secret'), false);
+  });
+});
+
+test('GET events malformed payload returns invalid_request without a fabricated stack field', async () => {
+  const f = gatewayFixture();
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/events?type=event.list&requestId=malformed-event&payload=%7B`);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, 'invalid_request');
+  });
+  assert.equal(f.calls.length, 0);
+  const source = await import('node:fs/promises').then((fs) => fs.readFile(new URL('../src/http/createWebHttpAdapter.js', import.meta.url), 'utf8'));
+  assert.equal(source.includes("payload: { stack: 'invalid' }"), false);
 });
 
 test('HTTP adapter source boundary keeps web files free of Core, storage, Pi, and legacy dependencies', async () => {

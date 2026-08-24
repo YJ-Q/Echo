@@ -27,7 +27,7 @@ export function httpStatusFor(result) {
 export function hasForbiddenBrowserField(value) {
   if (Array.isArray(value)) return value.some(hasForbiddenBrowserField);
   if (!value || typeof value !== 'object') return false;
-  return Object.entries(value).some(([key, child]) => PRIVATE_KEYS.has(normalizeKey(key)) || hasForbiddenBrowserField(child));
+  return Object.entries(value).some(([key, child]) => isPrivateKey(key) || hasForbiddenBrowserField(child));
 }
 
 export function failureEnvelope({ code = 'storage_failure', requestId, correlationId } = {}) {
@@ -77,6 +77,17 @@ function stripPrivateFields(value) {
   if (value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(stripPrivateFields);
   return Object.fromEntries(Object.entries(value)
-    .filter(([key]) => !PRIVATE_KEYS.has(normalizeKey(key)))
+    .filter(([key]) => !isPrivateKey(key))
     .map(([key, child]) => [key, stripPrivateFields(child)]));
+}
+
+function isPrivateKey(key) {
+  const normalized = normalizeKey(key);
+  return PRIVATE_KEYS.has(normalized)
+    || normalized.startsWith('reasoning')
+    || normalized.startsWith('prompt')
+    || normalized.startsWith('database')
+    || normalized.startsWith('hostauthority')
+    || normalized.startsWith('runtime')
+    || /^(?:pisession|piconfig|piruntime|piadapter|piclient|pitool|picontext|pistate)/.test(normalized);
 }
