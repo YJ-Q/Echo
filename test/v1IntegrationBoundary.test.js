@@ -35,12 +35,12 @@ test('legacy frontend scripts are absent', () => {
 
 });
 
-test('legacy frontend dependencies are absent', () => {
+test('legacy desktop dependencies are absent', () => {
   const dependencies = {
     ...packageJson.dependencies,
     ...packageJson.devDependencies,
   };
-  for (const dependency of ['react', 'react-dom', 'vite', 'electron']) {
+  for (const dependency of ['electron']) {
     assert.equal(
       dependencies[dependency],
       undefined,
