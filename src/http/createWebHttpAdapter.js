@@ -57,7 +57,7 @@ function respond(response, envelope) {
 
 function bufferedMiddleware(middleware) {
   return (request, response, next) => {
-    const capture = createResponseCapture(response);
+    const capture = interceptResponse(response);
     let completed = false;
     const continueRequest = (error) => {
       if (completed) return;
@@ -65,13 +65,13 @@ function bufferedMiddleware(middleware) {
       capture.discard();
       next(error);
     };
-    capture.whenEnded(() => {
+    capture.whenEnded(() => deferCommit(() => {
       if (completed) return;
       completed = true;
       capture.commit();
-    });
+    }));
     try {
-      const pending = middleware(request, capture.response, continueRequest);
+      const pending = middleware(request, response, continueRequest);
       if (pending?.then) pending.catch(continueRequest);
     } catch (error) {
       continueRequest(error);
@@ -79,50 +79,86 @@ function bufferedMiddleware(middleware) {
   };
 }
 
-function createResponseCapture(response) {
-  const headers = new Map();
-  const chunks = [];
-  let statusCode = 200;
-  let ended = false;
+function interceptResponse(response) {
+  const original = Object.fromEntries([
+    'write', 'end', 'writeHead', 'setHeader', 'getHeader', 'getHeaders', 'getHeaderNames',
+    'hasHeader', 'removeHeader', 'flushHeaders'
+  ].map((name) => [name, response[name]]));
+  const restores = new Map();
+  const headers = new Map(Object.entries(original.getHeaders.call(response)));
+  const writes = [];
+  const initialStatusCode = response.statusCode;
+  const initialStatusMessage = response.statusMessage;
+  let endArgs = null;
   let onEnd = () => {};
-  const buffered = {
-    get headersSent() { return false; },
-    get statusCode() { return statusCode; },
-    set statusCode(value) { statusCode = value; },
-    setHeader(name, value) { headers.set(String(name).toLowerCase(), value); },
-    getHeader(name) { return headers.get(String(name).toLowerCase()); },
-    removeHeader(name) { headers.delete(String(name).toLowerCase()); },
-    writeHead(code, values = {}) {
-      statusCode = code;
-      if (values && typeof values === 'object') Object.entries(values).forEach(([name, value]) => buffered.setHeader(name, value));
-      return buffered;
-    },
-    write(chunk) {
-      if (!ended && chunk !== undefined) chunks.push(chunk);
-      return true;
-    },
-    end(chunk) {
-      if (ended) return buffered;
-      if (chunk !== undefined) chunks.push(chunk);
-      ended = true;
-      onEnd();
-      return buffered;
-    },
-    status(code) { statusCode = code; return buffered; },
-    type(value) { buffered.setHeader('content-type', value); return buffered; },
-    send(value) { buffered.end(value); return buffered; },
-    json(value) { buffered.setHeader('content-type', 'application/json'); buffered.end(JSON.stringify(value)); return buffered; }
+
+  const replace = (name, value) => {
+    restores.set(name, Object.getOwnPropertyDescriptor(response, name));
+    Object.defineProperty(response, name, { configurable: true, writable: true, value });
   };
-  return {
-    response: buffered,
-    whenEnded(callback) { onEnd = callback; },
-    discard() { chunks.length = 0; headers.clear(); },
-    commit() {
-      if (response.headersSent) return;
-      response.statusCode = statusCode;
-      headers.forEach((value, name) => response.setHeader(name, value));
-      chunks.forEach((chunk) => response.write(chunk));
-      response.end();
+  const restore = ({ keepStatus = false } = {}) => {
+    for (const [name, descriptor] of restores) {
+      if (descriptor) Object.defineProperty(response, name, descriptor);
+      else delete response[name];
+    }
+    restores.clear();
+    if (!keepStatus) {
+      response.statusCode = initialStatusCode;
+      response.statusMessage = initialStatusMessage;
     }
   };
+  const setHeader = (name, value) => headers.set(String(name).toLowerCase(), value);
+  const applyHead = (code, message, values) => {
+    response.statusCode = code;
+    if (typeof message === 'string') {
+      response.statusMessage = message;
+    }
+    if (Array.isArray(values)) {
+      for (let index = 0; index < values.length; index += 2) setHeader(values[index], values[index + 1]);
+    } else if (values && typeof values === 'object') {
+      Object.entries(values).forEach(([name, value]) => setHeader(name, value));
+    }
+  };
+
+  replace('setHeader', (name, value) => { setHeader(name, value); return response; });
+  replace('getHeader', (name) => headers.get(String(name).toLowerCase()));
+  replace('getHeaders', () => Object.fromEntries(headers));
+  replace('getHeaderNames', () => [...headers.keys()]);
+  replace('hasHeader', (name) => headers.has(String(name).toLowerCase()));
+  replace('removeHeader', (name) => { headers.delete(String(name).toLowerCase()); });
+  replace('flushHeaders', () => {});
+  replace('writeHead', (code, messageOrHeaders, maybeHeaders) => {
+    applyHead(code, messageOrHeaders, typeof messageOrHeaders === 'string' ? maybeHeaders : messageOrHeaders);
+    return response;
+  });
+  replace('write', (...args) => {
+    if (!endArgs) writes.push(args);
+    return true;
+  });
+  replace('end', (...args) => {
+    if (endArgs) return response;
+    endArgs = args;
+    onEnd();
+    return response;
+  });
+
+  return {
+    whenEnded(callback) { onEnd = callback; },
+    discard() { restore(); },
+    commit() {
+      const committedStatusCode = response.statusCode;
+      const committedStatusMessage = response.statusMessage;
+      restore({ keepStatus: true });
+      if (response.headersSent) return;
+      response.statusCode = committedStatusCode;
+      response.statusMessage = committedStatusMessage;
+      headers.forEach((value, name) => response.setHeader(name, value));
+      writes.forEach((args) => original.write.apply(response, args));
+      original.end.apply(response, endArgs ?? []);
+    }
+  };
+}
+
+function deferCommit(callback) {
+  queueMicrotask(() => queueMicrotask(callback));
 }

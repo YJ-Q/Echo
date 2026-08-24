@@ -102,9 +102,39 @@ test('HTTP adapter converts injected middleware errors to sanitized storage fail
 
   await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, viteMiddleware: (request, response, next) => {
     response.write('middleware private detail');
+    response.end('middleware private detail');
     next(new Error('middleware private detail'));
   } }));
   await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, staticDir: () => { throw new Error('middleware private detail'); } }));
+});
+
+test('injected middleware retains native response methods while buffered headers are recoverable', async () => {
+  const f = gatewayFixture();
+  const app = createWebHttpAdapter({
+    webGateway: f.gateway,
+    viteMiddleware: (request, response, next) => {
+      assert.equal(typeof response.on, 'function');
+      assert.equal(typeof response.once, 'function');
+      assert.equal(typeof response.getHeaders, 'function');
+      assert.equal(typeof response.flushHeaders, 'function');
+      assert.equal(typeof response.locals, 'object');
+      response.locals.middlewareChecked = true;
+      response.on('finish', () => {});
+      response.once('close', () => {});
+      assert.equal(response.writeHead(201, 'Created', { 'x-buffered-middleware': 'yes' }), response);
+      assert.equal(response.statusCode, 201);
+      assert.equal(response.getHeaders()['x-buffered-middleware'], 'yes');
+      response.flushHeaders();
+      next();
+    }
+  });
+
+  await withServer(app, async (origin) => {
+    const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'native-response', payload: {} }) });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-buffered-middleware'), null);
+    assert.equal((await response.json()).data.requestId, 'native-response');
+  });
 });
 
 test('GET events rejects forbidden and unknown URL query parameters before dispatch', async () => {

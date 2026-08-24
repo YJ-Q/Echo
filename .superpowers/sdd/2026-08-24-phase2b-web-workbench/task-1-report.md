@@ -112,3 +112,37 @@ Result: 387 tests passed, 0 failed.
 ### Fix commit
 
 `fix: buffer injected web middleware`
+
+## Fix Round 3
+
+### Changes
+
+- Replaced the response facade with a temporary interception on the real Express/Node response. Unrelated native methods and properties, including events, `locals`, and response inspection helpers, remain available to injected middleware.
+- Buffered `end()` now defers commit for two microtasks. A synchronous `next(error)`, throw, or already-returned Promise rejection wins during that bounded window, restores the original response methods, drops the buffered bytes, and emits the stable failure envelope.
+- Interception covers `write`, `end`, all common header methods, `flushHeaders`, and Node's two- and three-argument `writeHead` signatures. On normal continuation it restores the original response and all transient header/status changes.
+
+### RED evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 2 expected regressions failed: a middleware calling `end('middleware private detail')` followed by `next(error)` returned HTTP 200, and the facade lacked native response methods required by the compatibility regression.
+
+### GREEN evidence
+
+`.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webHttpAdapter.test.js`
+
+Result: 9 tests passed, 0 failed.
+
+`npm test`
+
+Result: 388 tests passed, 0 failed.
+
+### Self-review
+
+- The critical regression now exercises the actual Node write/end sequence over native fetch and proves the client receives neither the sensitive bytes nor a partial success response.
+- The compatibility regression verifies real `on`, `once`, `locals`, `getHeaders`, `flushHeaders`, and three-argument `writeHead` usage; the buffered header/status state is discarded before the downstream gateway response.
+- Commit is bounded to two microtasks, so a middleware that ends successfully is not left waiting indefinitely.
+
+### Fix commit
+
+`fix: preserve response semantics in web buffer`
