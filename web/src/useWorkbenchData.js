@@ -7,8 +7,8 @@ function failure(result) {
 }
 
 function groupFor(workstream, openNeedsByWorkstreamId) {
-  if (workstream.status === 'running') return 'Running';
   if (openNeedsByWorkstreamId.has(workstream.id) || workstream.status === 'needs_owner') return 'Needs Owner';
+  if (workstream.status === 'running') return 'Running';
   if (['ready', 'waiting', 'watching', 'blocked'].includes(workstream.status)) return 'Waiting';
   if (workstream.status === 'paused') return 'Paused';
   return 'Completed';
@@ -31,13 +31,27 @@ export function useWorkbenchData(api) {
   const [listState, setListState] = useState({ loading: true, error: null });
   const [selectedId, setSelectedId] = useState(null);
   const [detailState, setDetailState] = useState({ loading: false, error: null, workstream: null });
+  const mounted = useRef(false);
+  const listRequest = useRef(0);
   const detailRequest = useRef(0);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      listRequest.current += 1;
+      detailRequest.current += 1;
+    };
+  }, []);
+
   const refreshWorkstreams = useCallback(async () => {
+    if (!mounted.current) return false;
+    const request = ++listRequest.current;
     setListState({ loading: true, error: null });
     const [workstreamResult, needsOwnerResult] = await Promise.all([
       api.query('workstream.list', {}), api.query('needs_owner.list', { statuses: ['open'] })
     ]);
+    if (!mounted.current || request !== listRequest.current) return false;
     if (workstreamResult?.ok !== true) {
       setListState({ loading: false, error: failure(workstreamResult) });
       return false;
@@ -53,11 +67,11 @@ export function useWorkbenchData(api) {
   }, [api]);
 
   const refreshWorkstream = useCallback(async (id = selectedId) => {
-    if (typeof id !== 'string' || !id) return false;
+    if (!mounted.current || typeof id !== 'string' || !id) return false;
     const request = ++detailRequest.current;
     setDetailState({ loading: true, error: null, workstream: null });
     const result = await api.query('workstream.get', { workstreamId: id });
-    if (request !== detailRequest.current) return false;
+    if (!mounted.current || request !== detailRequest.current) return false;
     if (result?.ok !== true) {
       setDetailState({ loading: false, error: failure(result), workstream: null });
       return false;
@@ -76,6 +90,11 @@ export function useWorkbenchData(api) {
     if (reloaded) await selectWorkstream(id);
   }, [refreshWorkstreams, selectWorkstream]);
 
+  const refreshAfterUncertainCreate = useCallback(async () => {
+    await refreshWorkstreams();
+    if (selectedId) await refreshWorkstream(selectedId);
+  }, [refreshWorkstream, refreshWorkstreams, selectedId]);
+
   useEffect(() => { refreshWorkstreams(); }, [refreshWorkstreams]);
 
   const rows = useMemo(() => rowsFor(workstreams, needsOwner), [workstreams, needsOwner]);
@@ -83,6 +102,6 @@ export function useWorkbenchData(api) {
 
   return {
     groups, selectedId, selectWorkstream, refreshWorkstreams, refreshWorkstream,
-    createdWorkstream, listState, detailState
+    createdWorkstream, refreshAfterUncertainCreate, listState, detailState
   };
 }

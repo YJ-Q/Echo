@@ -64,6 +64,11 @@ async function unmount({ dom, root }) {
   dom.window.close();
 }
 
+function deferred() {
+  let resolve;
+  return { promise: new Promise((next) => { resolve = next; }), resolve };
+}
+
 test('workstream list renders five deterministic groups and joins open NeedsOwner only in view memory', async () => {
   const source = [
     workstream('ws-running', 'running'), workstream('ws-needs', 'ready'), workstream('ws-waiting', 'waiting'),
@@ -83,6 +88,18 @@ test('workstream list renders five deterministic groups and joins open NeedsOwne
   assert.equal(source[1].status, 'ready');
   assert.equal(Object.hasOwn(source[1], 'needsOwner'), false);
   assert.deepEqual(f.calls.filter((call) => call.type === 'needs_owner.list')[0].payload, { statuses: ['open'] });
+  await unmount(view);
+});
+
+test('an open NeedsOwner takes grouping precedence over a running workstream status', async () => {
+  const source = [workstream('ws-running-needs', 'running')];
+  const f = createServer(source, [{ id: 'need-running', workstreamId: 'ws-running-needs', status: 'open' }]);
+  const view = await mount(f.api);
+
+  const row = document.querySelector('[data-workstream-id="ws-running-needs"]');
+  assert.equal(row.closest('[data-workstream-group]').getAttribute('data-workstream-group'), 'Needs Owner');
+  assert.equal(document.querySelector('[data-workstream-group="Running"]').textContent.includes('Title ws-running-needs'), false);
+  assert.equal(source[0].status, 'running');
   await unmount(view);
 });
 
@@ -130,6 +147,63 @@ test('create validates fields, sends closed payload with stable identifiers, the
   await unmount(view);
 });
 
+test('an uncertain create refreshes authority and retries one unchanged draft with the same business idempotency key', async () => {
+  const items = [];
+  const calls = [];
+  const createdByIntent = new Map();
+  const api = {
+    async query(type, payload = {}) {
+      calls.push({ kind: 'query', type, payload });
+      if (type === 'workstream.list') return { ok: true, data: { items: [...items] }, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [] }, meta: {} };
+      if (type === 'workstream.get') return { ok: true, data: items.find((item) => item.id === payload.workstreamId), meta: {} };
+      throw new Error(`Unexpected query ${type}`);
+    },
+    async command(type, payload, options) {
+      calls.push({ kind: 'command', type, payload, options });
+      if (!createdByIntent.has(options.idempotencyKey)) {
+        const created = workstream(`ws-${createdByIntent.size + 1}`, 'ready', payload);
+        createdByIntent.set(options.idempotencyKey, created);
+        items.push(created);
+        return { ok: false, error: { code: 'transport_unavailable', retryable: true }, meta: {} };
+      }
+      return { ok: true, data: createdByIntent.get(options.idempotencyKey), meta: {} };
+    }
+  };
+  const view = await mount(api);
+  const form = document.querySelector('form[data-create-workstream]');
+  const [title, goal] = form.querySelectorAll('input');
+
+  await act(async () => {
+    title.value = 'Recovered title'; title.dispatchEvent(new window.Event('input', { bubbles: true }));
+    goal.value = 'Recovered goal'; goal.dispatchEvent(new window.Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  });
+  assert.match(form.textContent, /Connection unavailable/);
+  assert.equal(items.length, 1);
+  assert.ok(calls.filter((call) => call.type === 'workstream.list').length >= 2);
+
+  await act(async () => { form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
+  const commands = calls.filter((call) => call.kind === 'command');
+  assert.equal(commands.length, 2);
+  assert.equal(commands[0].options.idempotencyKey, commands[1].options.idempotencyKey);
+  assert.notEqual(commands[0].options.requestId, commands[1].options.requestId);
+  assert.equal(items.length, 1);
+  assert.match(document.querySelector('[aria-label="Workbench"]').textContent, /Recovered title/);
+
+  await act(async () => {
+    title.value = 'Changed title'; title.dispatchEvent(new window.Event('input', { bubbles: true }));
+    goal.value = 'Changed goal'; goal.dispatchEvent(new window.Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  });
+  assert.notEqual(commands[1].options.idempotencyKey, calls.filter((call) => call.kind === 'command')[2].options.idempotencyKey);
+  await unmount(view);
+});
+
 test('a remounted workbench refetches the selected detail instead of restoring browser or prior React state', async () => {
   const f = createServer([workstream('ws-1', 'running', { currentState: 'First detail' })]);
   const first = await mount(f.api);
@@ -150,4 +224,49 @@ test('a remounted workbench refetches the selected detail instead of restoring b
   assert.equal(document.body.textContent.includes('First detail'), false);
   assert.ok(f.calls.filter((call) => call.type === 'workstream.get').length >= 2);
   await unmount(second);
+});
+
+test('slow list responses cannot overwrite a newer refresh and do not update an unmounted workbench', async () => {
+  const slowWorkstreams = deferred();
+  const slowNeeds = deferred();
+  const slowApi = {
+    query(type) {
+      if (type === 'workstream.list') return slowWorkstreams.promise;
+      if (type === 'needs_owner.list') return slowNeeds.promise;
+      throw new Error(`Unexpected query ${type}`);
+    }
+  };
+  const freshApi = {
+    async query(type) {
+      if (type === 'workstream.list') return { ok: true, data: { items: [workstream('ws-fresh', 'ready')] }, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [] }, meta: {} };
+      throw new Error(`Unexpected query ${type}`);
+    }
+  };
+  const view = await mount(slowApi);
+  await act(async () => { view.root.render(React.createElement(App, { api: freshApi })); });
+  assert.match(document.body.textContent, /Title ws-fresh/);
+
+  await act(async () => {
+    slowWorkstreams.resolve({ ok: true, data: { items: [workstream('ws-stale', 'running')] }, meta: {} });
+    slowNeeds.resolve({ ok: true, data: { items: [] }, meta: {} });
+  });
+  assert.match(document.body.textContent, /Title ws-fresh/);
+  assert.equal(document.body.textContent.includes('Title ws-stale'), false);
+  await unmount(view);
+
+  const unmountedWorkstreams = deferred();
+  const unmountedNeeds = deferred();
+  const unmounted = await mount({
+    query(type) {
+      if (type === 'workstream.list') return unmountedWorkstreams.promise;
+      if (type === 'needs_owner.list') return unmountedNeeds.promise;
+      throw new Error(`Unexpected query ${type}`);
+    }
+  });
+  await unmount(unmounted);
+  await act(async () => {
+    unmountedWorkstreams.resolve({ ok: true, data: { items: [workstream('ws-after-unmount', 'ready')] }, meta: {} });
+    unmountedNeeds.resolve({ ok: true, data: { items: [] }, meta: {} });
+  });
 });

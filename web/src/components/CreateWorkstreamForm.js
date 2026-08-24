@@ -8,25 +8,44 @@ function fieldError(title, goal, scenario) {
   return null;
 }
 
-export function CreateWorkstreamForm({ api, onCreated }) {
+export function CreateWorkstreamForm({ api, onCreated, onUncertain }) {
   const [title, setTitle] = useState('');
   const [goal, setGoal] = useState('');
   const [scenario, setScenario] = useState('career_project');
   const [state, setState] = useState({ submitting: false, error: null });
-  const sequence = useRef(0);
+  const requestSequence = useRef(0);
+  const intentSequence = useRef(0);
+  const intent = useRef(null);
 
   const submit = async (event) => {
     event.preventDefault();
     const validation = fieldError(title, goal, scenario);
     if (validation) { setState({ submitting: false, error: validation }); return; }
-    const suffix = `${Date.now().toString(36)}_${++sequence.current}`;
+    const payload = { title: title.trim(), goal: goal.trim(), scenario };
+    const fingerprint = JSON.stringify(payload);
+    if (intent.current?.fingerprint !== fingerprint) {
+      intent.current = {
+        fingerprint,
+        idempotencyKey: `web_workstream_create_intent_${Date.now().toString(36)}_${++intentSequence.current}`
+      };
+    }
     setState({ submitting: true, error: null });
-    const result = await api.command('workstream.create', { title: title.trim(), goal: goal.trim(), scenario }, {
-      requestId: `web_workstream_create_${suffix}`,
-      idempotencyKey: `web_workstream_create_intent_${suffix}`
-    });
-    if (result?.ok !== true) { setState({ submitting: false, error: errorLabel(result?.error) }); return; }
+    let result;
+    try {
+      result = await api.command('workstream.create', payload, {
+        requestId: `web_workstream_create_${Date.now().toString(36)}_${++requestSequence.current}`,
+        idempotencyKey: intent.current.idempotencyKey
+      });
+    } catch {
+      result = { ok: false, error: { code: 'transport_unavailable', retryable: true } };
+    }
+    if (result?.ok !== true) {
+      await onUncertain?.();
+      setState({ submitting: false, error: errorLabel(result?.error) });
+      return;
+    }
     setTitle(''); setGoal(''); setScenario('career_project'); setState({ submitting: false, error: null });
+    intent.current = null;
     await onCreated(result.data.id);
   };
 

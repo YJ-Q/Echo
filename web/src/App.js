@@ -15,7 +15,9 @@ export function App({ api = createApiClient() }) {
         groups: data.groups, selectedId: data.selectedId, onSelect: data.selectWorkstream,
         loading: data.listState.loading, error: data.listState.error, onRetry: data.refreshWorkstreams
       })),
-      createElement(CreateWorkstreamForm, { api, onCreated: data.createdWorkstream })
+      createElement(CreateWorkstreamForm, {
+        api, onCreated: data.createdWorkstream, onUncertain: data.refreshAfterUncertainCreate
+      })
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workbench' },
       createElement('h2', null, 'Workbench'),
