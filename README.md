@@ -1,230 +1,185 @@
 # Margin
 
-Margin is a memory-driven personal AI companion built as a "second self" rather than a generic chatbot.
+Margin is a memory-driven personal AI companion built around Workstreams, Runs,
+durable state, and safe continuation. Its visual and product language is paper,
+ink, margin notes, and returning to the live line of unfinished work.
 
-Its brand language is centered on paper, ink, margin notes, and continuation:
+## Current Status: Phase 2B Web Workbench
 
-- a quiet place to leave what is still unfinished
-- a companion that remembers the live line, not just the task list
-- a product that helps the user continue from the last trace, without making them feel managed
+The default local surface is a desktop-first React Workbench backed by the
+persistent Margin Core. It supports:
 
-The current repository is centered on the terminal-first Persistent Core MVP:
+- creating, selecting, and refreshing Workstreams;
+- creating and controlling Runs;
+- resolving NeedsOwner items;
+- viewing Artifact metadata and cursor-derived Activity;
+- a minimal Pi-backed interaction while a Run is running;
+- browser and server restart without browser-owned domain state.
 
-- conversation and memory storage
-- state aggregation
-- learning flow guidance
-- daily reflection summaries
-- action suggestions
-- explainability output for `/chat` and `/state`
+The authoritative V1 database for both Web and Terminal surfaces is
+`data/terminal-pilot/margin-core.sqlite`. The Web adapter reaches it only
+through the trusted Application Gateway (`execute`, `query`, and `events`). It
+does not import the legacy application, routes, or legacy memory store, and it
+does not create a second SQLite database or browser shadow state.
 
-See [docs/VOICE.md](docs/VOICE.md) for Margin's voice rules and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for the backend response contract.
-For local data handling, see [docs/BACKUP_AND_EXPORT.md](docs/BACKUP_AND_EXPORT.md).
-For release-facing change history, see [CHANGELOG.md](CHANGELOG.md).
+The frozen legacy `data/echo.sqlite` database is not migrated, merged, or
+double-written by the Workbench.
 
-## Current Status: Terminal-first Pilot
+## Quick Start
 
-The repository is currently running a terminal-first pilot of the Pi + Margin continuity path. Pi provides its terminal UI, Agent runtime, sessions, branching, compaction, SDK, and RPC mode; it does not include a reusable desktop web interface for Margin. The obsolete Margin Electron/static frontend has therefore been removed while continuity behavior is validated.
-
-The legacy backend remains test-covered as a frozen, deprecated data-compatibility surface. It is no longer the default entry point and does not receive new V1 behavior.
-
-Implemented:
-
-- `POST /chat`
-- `GET /state`
-- `GET/POST /actions`
-- `GET /learning/active`
-- `GET /memory`, `GET /memory/context`
-- `POST /summary`, `GET /summary/recent`
-- profile synthesis and memory calibration
-- startup config validation and request logging
-- local backup / export / import tooling
-- optional TTS route
-
-Still worth improving before a polished open-source `1.0`:
-
-- stronger long-term memory organization
-- production-ready deployment and backups
-- richer provider configuration
-- frontend rebuild on top of the stabilized backend
-
-## Pi Continuity Development Verification
-
-Margin has pinned and audited the Pi SDK, but Pi is not yet connected to the production chat path. Stage 0 is an isolated runtime spike used to verify version, license, Session lifecycle, compaction, and tool safety boundaries. The Stage 0 live spike passed on 2026-08-20 with the `yapi` provider and `gpt-5.6-terra`; this is technical feasibility evidence only, not a production or user-value claim.
-
-On Windows PowerShell:
+Install dependencies and copy the environment template:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-pi-runtime.ps1
-$env:MARGIN_PI_PROVIDER='<configured-provider>'
-$env:MARGIN_PI_MODEL='<configured-model-id>'
-npm run spike:pi
-npm run verify:pi-stage-0
+npm install
+Copy-Item .env.example .env
 ```
 
-For the YAPI-compatible endpoint, the spike recognizes `yapi` with `https://yapi.click/v1`, the OpenAI Responses wire API, and `YAPI_API_KEY`. Generic custom endpoints can instead set `MARGIN_PI_BASE_URL`, `MARGIN_PI_API`, and `MARGIN_PI_API_KEY_ENV`. Only the environment-variable name is configured; the credential value remains process-local.
-
-The spike enables only `margin_spike_echo`; Pi's built-in file, command, edit, and write tools remain disabled. User/project extensions, skills, prompt templates, themes, and context files are also disabled, and the spike uses an isolated agent directory under ignored local data. Authentication must be supplied through the environment for the selected provider; credentials are not read from the user's normal Pi directory or stored in the repository. Without configured Pi authentication, the spike and final verification exit with `pi_credentials_required` instead of reporting success.
-
-See `docs/architecture/pi_version_and_license.md`, `docs/architecture/contribution_boundary.md`, and `docs/architecture/integration_decision.md` for the audited boundary.
-
-Run the isolated cross-session continuity path:
+Build the browser application, then start the production Workbench:
 
 ```powershell
-npm run spike:pi-continuity
+npm run build
+npm start
 ```
 
-This command is the current terminal validation entry point, not a production chat client. It requires the configured model credential and keeps Pi's built-in high-risk tools disabled.
+`npm start` only serves an already-built `web/dist`; it never runs a hidden
+build. Production startup fails with `web_assets_missing` and tells you to run
+the build when the assets are absent. The default address is
+`http://127.0.0.1:3000`.
 
-## Interactive terminal pilot
+For development, run the HTTP adapter with Vite middleware:
 
-Start the local job-application continuity pilot after configuring the same provider variables used by the Pi smoke test:
+```powershell
+npm run dev
+```
+
+`run-margin-local.cmd` starts the same Web Workbench with the pinned local Node
+22 runtime.
+
+## Pi Web Interaction
+
+The Web Workbench uses the same safe Pi provider defaults as the Terminal
+pilot:
+
+```dotenv
+MARGIN_PI_PROVIDER=yapi
+MARGIN_PI_MODEL=gpt-5.6-terra
+MARGIN_PI_BASE_URL=https://yapi.click/v1
+MARGIN_PI_API=openai-responses
+MARGIN_PI_API_KEY_ENV=YAPI_API_KEY
+YAPI_API_KEY=
+```
+
+The credential value stays process-local and is never written to reports or
+normal startup output. When provider configuration is missing or invalid, the
+Workbench remains available and interactions return the stable
+`runtime_unavailable` code. The browser never calls Pi directly.
+
+Pi is pinned to `@earendil-works/pi-coding-agent` `0.84.2`. Its built-in file,
+command, edit, and write tools are disabled for this path. Only the governed
+Margin continuity tools are exposed, so model text is not evidence of a state
+change; persisted DTO versions, tool result codes, and Event Cursor movement
+are the evidence.
+
+## Alternate Surfaces
+
+The Terminal continuity pilot remains available as an advanced/debug surface:
 
 ```powershell
 npm run pilot:terminal
 ```
 
-Available commands are `/state`, `/status`, `/pause`, `/resume`, `/stop`, `/checkpoint`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and `/exit`. Normal text is sent to the Agent. `/new` creates a distinct Agent Session while preserving the Workstream and Run. Proposed durable memories remain unavailable to recall until the user confirms the displayed memory identifier and version through `/confirm-memory`.
+Its commands include `/state`, `/status`, `/pause`, `/resume`, `/stop`,
+`/checkpoint`, `/memory`, `/confirm-memory <memoryId> <version>`, `/new`, and
+`/exit`.
 
-The authoritative V1 database is `data/terminal-pilot/margin-core.sqlite`. It is separate from the frozen legacy database and ignored by Git. The pilot only makes model-provider requests and local Margin state changes; it cannot read arbitrary files, run commands, access recruitment sites or email, submit applications, or send messages.
-
-Pi is not the final runtime decision. This pilot gathers evidence before comparing Pi Agent, DeepSeek Harness, and the Codex open-source project under the same continuity scenario.
-
-## Quick Start
-
-```bash
-git clone https://github.com/YJ-Q/Echo.git
-cd Echo
-npm install
-```
-
-The GitHub URL and cloned directory retain `Echo` until the repository itself is
-renamed; `Echo` is currently a legacy external identifier, while the product is Margin.
-
-Copy the environment template:
-
-```bash
-cp .env.example .env
-```
-
-On Windows PowerShell, the equivalent is:
+The old Express product API is deprecated and disabled on direct launch. It can
+be started only through the deliberate wrapper:
 
 ```powershell
-Copy-Item .env.example .env
-```
-
-Start the Persistent Core terminal client:
-
-```bash
-npm run dev
-```
-
-The deprecated API can be started explicitly only for compatibility or migration checks:
-
-```bash
 npm run legacy:api
 ```
 
+The wrapper prints a deprecation warning and explicitly enables the legacy
+gate. `run-echo-local.cmd` points to that legacy wrapper and never starts the
+Web Workbench under an ambiguous name.
+
+## Web Transport
+
+The isolated Web host exposes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | bounded readiness and contract version |
+| `POST` | `/api/commands` | Application Gateway commands |
+| `POST` | `/api/queries` | Application Gateway queries |
+| `GET` | `/api/events` | monotonic Event Cursor reads |
+| `POST` | `/api/interactions` | governed Pi interaction |
+
+The server owns actor, surface, capabilities, correlation identity, Core path,
+and runtime boundaries. Browser input cannot supply trusted host context.
+Responses exclude credentials, stacks, Pi internals, session material, hidden
+reasoning, and Chain-of-Thought.
+
 ## Environment
 
-Core variables:
+Core Web settings:
 
-```bash
+```dotenv
 PORT=3000
 NODE_ENV=development
+MARGIN_WEB_HOST=127.0.0.1
+MARGIN_CORE_DB_PATH=./data/terminal-pilot/margin-core.sqlite
 MARGIN_LOG_LEVEL=info
-MARGIN_LLM_PROVIDER=local
-MARGIN_DB_PATH=./data/margin.sqlite
 ```
 
-Optional provider variables:
+The default bind address is loopback. Remote exposure, authentication, and
+multi-user authorization are outside this phase.
 
-```bash
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
-ANTHROPIC_API_KEY=
-SILICONFLOW_API_KEY=
-```
+Settings such as `MARGIN_LLM_PROVIDER` and `MARGIN_DB_PATH` belong only to the
+explicit deprecated API. `ECHO_LOG_LEVEL`, `ECHO_LLM_PROVIDER`, and
+`ECHO_DB_PATH` remain temporary compatibility inputs for that legacy surface.
 
-Notes:
+## Verification
 
-- `MARGIN_LLM_PROVIDER` supports `local`, `openai`, `anthropic`
-- `ECHO_LOG_LEVEL`, `ECHO_LLM_PROVIDER`, and `ECHO_DB_PATH` are deprecated but remain supported for one compatibility period. `MARGIN_*` takes priority when both are present.
-- if a remote provider fails, Margin falls back to the local reflective engine
-- if `SILICONFLOW_API_KEY` is not set, `/tts` stays unavailable
+Run the browser build and full automated suite:
 
-## Logging
-
-Margin now emits lightweight JSON logs for:
-
-- server startup
-- configuration warnings
-- every HTTP request
-- unhandled route errors
-
-Each request receives an `x-request-id` response header for easier debugging.
-
-## API Overview
-
-All endpoints share the same response envelope:
-
-```json
-{ "ok": true, "data": {} }
-```
-
-```json
-{ "ok": false, "error": { "code": "...", "message": "..." } }
-```
-
-Main routes:
-
-| Group | Paths |
-|---|---|
-| chat | `/chat` |
-| state | `/state` |
-| actions | `/actions`, `/actions/suggested`, `/actions/:id/status` |
-| learning | `/learning`, `/learning/active`, `/learning/events` |
-| memory | `/memory`, `/memory/context`, `/memory/profile`, `/memory/calibration` |
-| summary | `/summary`, `/summary/recent` |
-| tts | `/tts` |
-
-## Testing
-
-```bash
+```powershell
+npm run build
 npm test
+npm run validate:stage1
+npm run audit:pi
 ```
 
-The current backend test suite covers:
+Focused coverage includes Gateway trust ownership, HTTP error safety, Workbench
+composition, browser state, Run controls, NeedsOwner, Artifacts, Activity
+polling, Pi coordination, non-model HTTP restart E2E, legacy gating, and
+sanitized Live Pi evidence.
 
-- chat flow
-- state flow
-- learning session continuity
-- summary idempotency
-- memory reinforcement and retrieval
-- profile synthesis
-- calibration behavior
-- backup export and import restore flow
+The earlier isolated continuity and Pi checks remain available:
 
-Test counts are reported by each run rather than kept as a static product-value claim.
+```powershell
+npm run spike:pi-continuity
+npm run verify:pi-stage-0
+```
 
-## Backup And Export
+Test counts are reported from each actual run instead of being maintained as a
+static claim.
 
-Create a JSON export and SQLite backup:
+## Legacy Backup and Export
 
-```bash
+The existing backup/import commands operate on the deprecated API data path and
+do not migrate it into the current Core automatically:
+
+```powershell
 npm run backup
-```
-
-Create JSON export only:
-
-```bash
 npm run export:data
-```
-
-Import a snapshot back into Margin:
-
-```bash
 npm run import:data -- --file=./data/exports/margin-export.json
 ```
+
+See `docs/BACKUP_AND_EXPORT.md` for those legacy data operations,
+`docs/architecture/phase_1_persistent_core.md` for the authoritative Core, and
+`docs/superpowers/specs/2026-08-24-phase2b-web-workbench-design.md` for the
+frozen Web design.
 
 ## License
 

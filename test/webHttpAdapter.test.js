@@ -28,6 +28,16 @@ function gatewayFixture({ resultFor = () => null } = {}) {
   };
 }
 
+test('HTTP adapter exposes a bounded readiness response without touching the Gateway', async () => {
+  const f = gatewayFixture();
+  await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
+    const response = await fetch(`${origin}/api/health`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true, status: 'ready', contractVersion: '1.0' });
+  });
+  assert.equal(f.calls.length, 0);
+});
+
 test('HTTP adapter routes native fetch command, query, and event requests through its injected gateway', async () => {
   const f = gatewayFixture();
   const app = createWebHttpAdapter({ webGateway: f.gateway });

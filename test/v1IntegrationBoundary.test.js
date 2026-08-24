@@ -50,12 +50,13 @@ test('legacy desktop dependencies are absent', () => {
 
 });
 
-test('start script launches the terminal pilot', () => {
+test('start script launches the Phase 2B Web Workbench and retains the terminal pilot as an explicit command', () => {
   assert.equal(
-    packageJson.scripts?.start,
-    'npm run pilot:terminal',
-    'package.json.scripts.start must equal npm run pilot:terminal',
+    packageJson.scripts?.start?.endsWith(' scripts/run-web-workbench.js'),
+    true,
+    'package.json.scripts.start must launch the Web Workbench directly',
   );
+  assert.equal(packageJson.scripts?.['pilot:terminal']?.endsWith(' scripts/run-terminal-pilot.js'), true);
 });
 
 for (const obsoleteDocumentPath of [
