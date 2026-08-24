@@ -35,12 +35,12 @@ test('legacy frontend scripts are absent', () => {
 
 });
 
-test('legacy frontend dependencies are absent', () => {
+test('legacy desktop dependencies are absent', () => {
   const dependencies = {
     ...packageJson.dependencies,
     ...packageJson.devDependencies,
   };
-  for (const dependency of ['react', 'react-dom', 'vite', 'electron']) {
+  for (const dependency of ['electron']) {
     assert.equal(
       dependencies[dependency],
       undefined,
@@ -50,12 +50,13 @@ test('legacy frontend dependencies are absent', () => {
 
 });
 
-test('start script launches the terminal pilot', () => {
+test('start script launches the Phase 2B Web Workbench and retains the terminal pilot as an explicit command', () => {
   assert.equal(
-    packageJson.scripts?.start,
-    'npm run pilot:terminal',
-    'package.json.scripts.start must equal npm run pilot:terminal',
+    packageJson.scripts?.start?.endsWith(' scripts/run-web-workbench.js'),
+    true,
+    'package.json.scripts.start must launch the Web Workbench directly',
   );
+  assert.equal(packageJson.scripts?.['pilot:terminal']?.endsWith(' scripts/run-terminal-pilot.js'), true);
 });
 
 for (const obsoleteDocumentPath of [
