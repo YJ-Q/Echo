@@ -35,6 +35,11 @@ function run(status = 'queued', version = 4) {
   };
 }
 
+function deferred() {
+  let resolve;
+  return { promise: new Promise((next) => { resolve = next; }), resolve };
+}
+
 async function mount(element) {
   const dom = installDom();
   const root = createRoot(document.getElementById('root'));
@@ -179,5 +184,76 @@ test('changing the selected workstream discards prior activity and starts a sepa
   assert.match(document.body.textContent, /Second activity/);
   assert.equal(document.body.textContent.includes('First activity'), false);
   assert.deepEqual(eventCalls.at(-1), { workstreamId: 'ws-2', afterCursor: 0, limit: 100 });
+  await unmount(view);
+});
+
+test('a pending Run command cannot reload or write an older workstream after selection changes', async () => {
+  const pending = deferred();
+  const calls = [];
+  const ws2 = { ...workstream(), id: 'ws-2', title: 'Second', activeRun: null };
+  const api = {
+    async query(type, payload = {}) {
+      calls.push({ kind: 'query', type, payload });
+      if (type === 'workstream.list') return { ok: true, data: { items: [workstream(), ws2] }, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [] }, meta: {} };
+      if (type === 'workstream.get') return { ok: true, data: payload.workstreamId === 'ws-2' ? ws2 : workstream(), meta: {} };
+      if (type === 'run.list') return { ok: true, data: { items: [run(payload.workstreamId === 'ws-2' ? 'paused' : 'queued')], nextCursor: null }, meta: {} };
+      throw new Error(`unexpected query ${type}`);
+    },
+    async events(_type, payload) { return { ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} }; },
+    command(type, payload, options) { calls.push({ kind: 'command', type, payload, options }); return pending.promise; }
+  };
+  const view = await mount(React.createElement(App, { api }));
+  await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); });
+  await act(async () => { document.querySelector('[data-run-action="Start"]').click(); });
+  await act(async () => { document.querySelector('[data-workstream-id="ws-2"]').click(); });
+  assert.equal(document.querySelector('[data-workstream-id="ws-2"]').getAttribute('aria-current'), 'true');
+  const callsBeforeResolution = calls.length;
+  await act(async () => { pending.resolve({ ok: true, data: run('running'), meta: {} }); await Promise.resolve(); });
+  assert.equal(document.querySelector('[data-workstream-id="ws-2"]').getAttribute('aria-current'), 'true');
+  assert.equal(calls.slice(callsBeforeResolution).some((call) => call.payload?.workstreamId === 'ws-1'), false);
+  await unmount(view);
+});
+
+test('a pending Event request from an older selection does not block immediate polling for the new workstream', async () => {
+  const first = deferred();
+  const eventCalls = [];
+  const api = {
+    events(_type, payload) {
+      eventCalls.push(payload);
+      if (payload.workstreamId === 'ws-1') return first.promise;
+      return Promise.resolve({ ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} });
+    },
+    async query() { throw new Error('activity should not be queried for an empty Event page'); }
+  };
+  const view = await mount(React.createElement(ActivityPanel, { api, workstreamId: 'ws-1' }));
+  await act(async () => { view.root.render(React.createElement(ActivityPanel, { api, workstreamId: 'ws-2' })); await Promise.resolve(); await Promise.resolve(); });
+  assert.deepEqual(eventCalls.at(-1), { workstreamId: 'ws-2', afterCursor: 0, limit: 100 });
+  await act(async () => { first.resolve({ ok: true, data: { items: [], nextCursor: 0, hasMore: false }, meta: {} }); await Promise.resolve(); });
+  await unmount(view);
+});
+
+test('Run controls query the contract-open statuses instead of treating a terminal first page as the current Run', async () => {
+  const calls = [];
+  const terminalPage = Array.from({ length: 51 }, (_, index) => run('completed', index + 1));
+  const api = {
+    async query(type, payload = {}) {
+      calls.push({ type, payload });
+      if (type === 'workstream.list') return { ok: true, data: { items: [workstream()] }, meta: {} };
+      if (type === 'needs_owner.list') return { ok: true, data: { items: [] }, meta: {} };
+      if (type === 'workstream.get') return { ok: true, data: workstream(), meta: {} };
+      if (type === 'run.list') {
+        return { ok: true, data: payload.statuses ? { items: [run('queued')], nextCursor: null } : { items: terminalPage, nextCursor: 'later' }, meta: {} };
+      }
+      throw new Error(`unexpected query ${type}`);
+    },
+    async events(_type, payload) { return { ok: true, data: { items: [], nextCursor: payload.afterCursor, hasMore: false }, meta: {} }; }
+  };
+  const view = await mount(React.createElement(App, { api }));
+  await act(async () => { document.querySelector('[data-workstream-id="ws-1"]').click(); });
+  assert.equal(document.querySelector('[data-run-status]').textContent, 'queued');
+  assert.deepEqual(calls.find((call) => call.type === 'run.list').payload, {
+    workstreamId: 'ws-1', statuses: ['queued', 'running', 'paused', 'needs_owner'], limit: 100
+  });
   await unmount(view);
 });

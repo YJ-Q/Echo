@@ -2,6 +2,7 @@ import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { errorLabel } from '../workbenchState.js';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
+const OPEN_STATUSES = Object.freeze(['queued', 'running', 'paused', 'needs_owner']);
 const ACTIONS = Object.freeze({
   queued: ['start', 'stop'], running: ['pause', 'stop'], paused: ['resume', 'stop'], needs_owner: ['resume', 'stop']
 });
@@ -16,9 +17,17 @@ export function RunControls({ api, workstreamId, onAuthoritativeReload }) {
   const [state, setState] = useState({ loading: false, submitting: false, error: null, run: null });
   const mounted = useRef(false);
   const request = useRef(0);
+  const selection = useRef({ id: workstreamId, generation: 0 });
   const requestSequence = useRef(0);
   const intentSequence = useRef(0);
   const intents = useRef(new Map());
+  if (selection.current.id !== workstreamId) {
+    selection.current = { id: workstreamId, generation: selection.current.generation + 1 };
+    ++request.current;
+  }
+
+  const isCurrentSelection = (id, generation) => mounted.current &&
+    selection.current.id === id && selection.current.generation === generation;
 
   useEffect(() => {
     mounted.current = true;
@@ -26,19 +35,39 @@ export function RunControls({ api, workstreamId, onAuthoritativeReload }) {
   }, []);
 
   const refreshRuns = useCallback(async () => {
-    if (!mounted.current || !workstreamId) return false;
-    const generation = ++request.current;
+    const selectedRunWorkstreamId = workstreamId;
+    const selectedGeneration = selection.current.generation;
+    if (!isCurrentSelection(selectedRunWorkstreamId, selectedGeneration) || !selectedRunWorkstreamId) return false;
+    const requestGeneration = ++request.current;
     setState((current) => ({ ...current, loading: true, error: null }));
-    let result;
-    try { result = await api.query('run.list', { workstreamId }); }
-    catch { result = { ok: false, error: { code: 'transport_unavailable', retryable: true } }; }
-    if (!mounted.current || generation !== request.current) return false;
-    if (result?.ok !== true) {
-      setState((current) => ({ ...current, loading: false, error: result?.error ?? { code: 'transport_unavailable' }, run: null }));
+    const runs = [];
+    const seenCursors = new Set();
+    let cursor = null;
+    let failure = null;
+    do {
+      let result;
+      try {
+        result = await api.query('run.list', {
+          workstreamId: selectedRunWorkstreamId, statuses: OPEN_STATUSES, limit: 100,
+          ...(cursor ? { cursor } : {})
+        });
+      } catch { result = { ok: false, error: { code: 'transport_unavailable', retryable: true } }; }
+      if (!isCurrentSelection(selectedRunWorkstreamId, selectedGeneration) || requestGeneration !== request.current) return false;
+      if (result?.ok !== true) {
+        failure = result?.error ?? { code: 'transport_unavailable' };
+        break;
+      }
+      runs.push(...(Array.isArray(result.data?.items) ? result.data.items : []));
+      const nextCursor = result.data?.nextCursor;
+      cursor = typeof nextCursor === 'string' && nextCursor.trim() && !seenCursors.has(nextCursor) ? nextCursor : null;
+      if (cursor) seenCursors.add(cursor);
+    } while (cursor);
+    if (!isCurrentSelection(selectedRunWorkstreamId, selectedGeneration) || requestGeneration !== request.current) return false;
+    if (failure) {
+      setState((current) => ({ ...current, loading: false, error: failure, run: null }));
       return false;
     }
-    const items = Array.isArray(result.data?.items) ? result.data.items : [];
-    setState((current) => ({ ...current, loading: false, error: null, run: currentRun(items) }));
+    setState((current) => ({ ...current, loading: false, error: null, run: currentRun(runs) }));
     return true;
   }, [api, workstreamId]);
 
@@ -48,24 +77,22 @@ export function RunControls({ api, workstreamId, onAuthoritativeReload }) {
     if (workstreamId) void refreshRuns();
   }, [refreshRuns, workstreamId]);
 
-  const reloadAuthority = useCallback(async () => {
-    await Promise.all([refreshRuns(), onAuthoritativeReload?.(workstreamId)]);
-  }, [onAuthoritativeReload, refreshRuns, workstreamId]);
-
   const command = useCallback(async (operation) => {
-    if (!workstreamId || state.submitting) return;
+    const commandWorkstreamId = workstreamId;
+    const commandGeneration = selection.current.generation;
+    if (!isCurrentSelection(commandWorkstreamId, commandGeneration) || !commandWorkstreamId || state.submitting) return;
     const run = state.run;
     const isCreate = operation === 'create';
     if (!isCreate && (!run || !ACTIONS[run.status]?.includes(operation))) {
       if (mounted.current) setState((current) => ({ ...current, error: { code: 'invalid_transition' } }));
       return;
     }
-    const identity = isCreate ? `create:${workstreamId}` : `${operation}:${run.id}:${run.version}`;
+    const identity = isCreate ? `create:${commandWorkstreamId}` : `${operation}:${run.id}:${run.version}`;
     if (!intents.current.has(identity)) {
       intents.current.set(identity, `web_run_${operation}_intent_${Date.now().toString(36)}_${++intentSequence.current}`);
     }
     const payload = isCreate
-      ? { workstreamId, workerKind: 'pi', scope: 'Web Workbench interactive run' }
+      ? { workstreamId: commandWorkstreamId, workerKind: 'pi', scope: 'Web Workbench interactive run' }
       : { runId: run.id };
     const options = {
       requestId: `web_run_${operation}_${Date.now().toString(36)}_${++requestSequence.current}`,
@@ -76,10 +103,11 @@ export function RunControls({ api, workstreamId, onAuthoritativeReload }) {
     let result;
     try { result = await api.command(`run.${operation}`, payload, options); }
     catch { result = { ok: false, error: { code: 'transport_unavailable', retryable: true } }; }
-    await reloadAuthority();
-    if (!mounted.current) return;
+    if (!isCurrentSelection(commandWorkstreamId, commandGeneration)) return;
+    await Promise.all([refreshRuns(), onAuthoritativeReload?.(commandWorkstreamId)]);
+    if (!isCurrentSelection(commandWorkstreamId, commandGeneration)) return;
     setState((current) => ({ ...current, submitting: false, error: result?.ok === true ? null : (result?.error ?? { code: 'transport_unavailable' }) }));
-  }, [api, reloadAuthority, state.run, state.submitting, workstreamId]);
+  }, [api, onAuthoritativeReload, refreshRuns, state.run, state.submitting, workstreamId]);
 
   if (!workstreamId) return null;
   if (state.loading && !state.run) return createElement('p', { className: 'muted' }, 'Loading run…');

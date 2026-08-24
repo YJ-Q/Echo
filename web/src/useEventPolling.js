@@ -15,7 +15,7 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
   const cursor = useRef(0);
   const timer = useRef(null);
   const generation = useRef(0);
-  const processing = useRef(false);
+  const processingGeneration = useRef(null);
   const callback = useRef(onPageProcessed);
 
   useEffect(() => { callback.current = onPageProcessed; }, [onPageProcessed]);
@@ -39,8 +39,8 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
     };
 
     const poll = async () => {
-      if (disposed || document.hidden || !workstreamId || processing.current) return;
-      processing.current = true;
+      if (disposed || document.hidden || !workstreamId || processingGeneration.current === requestGeneration) return;
+      processingGeneration.current = requestGeneration;
       try {
         let more = true;
         while (more && !disposed && !document.hidden && generation.current === requestGeneration) {
@@ -69,7 +69,7 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
           more = page?.hasMore === true;
         }
       } finally {
-        processing.current = false;
+        if (processingGeneration.current === requestGeneration) processingGeneration.current = null;
         schedule();
       }
     };
@@ -84,6 +84,7 @@ export function useEventPolling({ api, workstreamId, onPageProcessed, interval =
     return () => {
       disposed = true;
       ++generation.current;
+      if (processingGeneration.current === requestGeneration) processingGeneration.current = null;
       clear();
       document.removeEventListener('visibilitychange', visibilityChanged);
     };

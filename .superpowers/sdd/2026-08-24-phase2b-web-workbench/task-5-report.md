@@ -28,3 +28,16 @@
 - Browser code uses only the Task 5 Run, Activity, and Event contract methods introduced here; it has no Core, repository, runtime, Pi, or browser-persistence access.
 - Event cursor advancement occurs only after a matching Activity page has been processed. Duplicate activity cursors are not appended.
 - Timers are cleared and async generations invalidated on visibility changes, selection changes, and unmount.
+
+## Fix round 1
+
+1. RED/GREEN: Run command completion now carries a selected-workstream generation. A command that resolves after selection changes cannot reload Runs or Workstreams, and cannot write its older submitting/error state into the new selection.
+2. RED/GREEN: Event polling ownership is generation-specific. A pending Event request for a prior selection no longer blocks the new selection's immediate poll; old cleanup/finally paths cannot suppress the new generation.
+3. RED/GREEN: Run loading requests the Contract's closed open-status set (`queued`, `running`, `paused`, `needs_owner`) with bounded pages and follows cursor pages. Terminal history therefore cannot displace an open Run from the controls.
+
+### Fix verification
+
+- Focused Task 5: 7 passing.
+- Adjacent Web checks: 23 passing.
+- `npm run build`: passing.
+- Full `npm test`: 432 passing, 0 failing.
