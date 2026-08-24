@@ -95,6 +95,11 @@ export function useWorkbenchData(api) {
     if (selectedId) await refreshWorkstream(selectedId);
   }, [refreshWorkstream, refreshWorkstreams, selectedId]);
 
+  const refreshAfterRunCommand = useCallback(async (id = selectedId) => {
+    await refreshWorkstreams();
+    if (id) await refreshWorkstream(id);
+  }, [refreshWorkstream, refreshWorkstreams, selectedId]);
+
   useEffect(() => { refreshWorkstreams(); }, [refreshWorkstreams]);
 
   const rows = useMemo(() => rowsFor(workstreams, needsOwner), [workstreams, needsOwner]);
@@ -102,6 +107,6 @@ export function useWorkbenchData(api) {
 
   return {
     groups, selectedId, selectWorkstream, refreshWorkstreams, refreshWorkstream,
-    createdWorkstream, refreshAfterUncertainCreate, listState, detailState
+    createdWorkstream, refreshAfterUncertainCreate, refreshAfterRunCommand, listState, detailState
   };
 }

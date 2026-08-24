@@ -1,6 +1,8 @@
 import { createElement } from 'react';
 import { createApiClient } from './apiClient.js';
 import { CreateWorkstreamForm } from './components/CreateWorkstreamForm.js';
+import { ActivityPanel } from './components/ActivityPanel.js';
+import { RunControls } from './components/RunControls.js';
 import { WorkstreamDetail } from './components/WorkstreamDetail.js';
 import { WorkstreamList } from './components/WorkstreamList.js';
 import { useWorkbenchData } from './useWorkbenchData.js';
@@ -21,11 +23,12 @@ export function App({ api = createApiClient() }) {
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Workbench' },
       createElement('h2', null, 'Workbench'),
-      createElement(WorkstreamDetail, { selectedId: data.selectedId, state: data.detailState, onRefresh: data.refreshWorkstream })
+      createElement(WorkstreamDetail, { selectedId: data.selectedId, state: data.detailState, onRefresh: data.refreshWorkstream }),
+      createElement(RunControls, { api, workstreamId: data.selectedId, onAuthoritativeReload: data.refreshAfterRunCommand })
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Activity' },
       createElement('h2', null, 'Activity'),
-      createElement('p', null, 'Recent activity will appear here.')
+      createElement(ActivityPanel, { api, workstreamId: data.selectedId })
     )
   );
 }

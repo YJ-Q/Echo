@@ -8,6 +8,7 @@ const ERROR_LABELS = Object.freeze({
   transport_unavailable: 'Connection unavailable. Try again.',
   runtime_unavailable: 'The runtime is unavailable. Try again later.',
   version_conflict: 'This view is out of date. Refresh and try again.',
+  invalid_transition: 'This action is no longer available. Refresh and try again.',
   permission_denied: 'This action is not available from the workbench.',
   not_found: 'The requested item is no longer available.',
   invalid_request: 'The request could not be completed.',
