@@ -32,7 +32,10 @@ test('workbench state exposes deterministic status groups and stable error label
 test('App mounts three named regions, starts loading, and renders an empty workstream result', async () => {
   const dom = installDom();
   let resolveQuery;
-  const api = { query() { return new Promise((resolve) => { resolveQuery = resolve; }); } };
+  const api = { query(type) {
+    if (type === 'needs_owner.list') return Promise.resolve({ ok: true, data: { items: [] }, meta: {} });
+    return new Promise((resolve) => { resolveQuery = resolve; });
+  } };
   const root = createRoot(document.getElementById('root'));
 
   await act(async () => { root.render(React.createElement(App, { api })); });
@@ -43,6 +46,9 @@ test('App mounts three named regions, starts loading, and renders an empty works
 
   await act(async () => { resolveQuery({ ok: true, data: { items: [] }, meta: { requestId: 'list-1' } }); });
   assert.match(document.body.textContent, /No workstreams yet/);
+  assert.deepEqual([...document.querySelectorAll('[data-workstream-group]')].map((node) => node.getAttribute('data-workstream-group')), [
+    'Running', 'Needs Owner', 'Waiting', 'Paused', 'Completed'
+  ]);
   assert.equal(document.body.textContent.includes('list-1'), false);
   await act(async () => { root.unmount(); });
   dom.window.close();
@@ -65,7 +71,7 @@ test('App renders a stable error and retries the shell query', async () => {
   assert.match(document.body.textContent, /Connection unavailable\. Try again\./);
   assert.equal(document.body.textContent.includes('private'), false);
   await act(async () => { document.querySelector('button').dispatchEvent(new window.MouseEvent('click', { bubbles: true })); });
-  assert.equal(calls, 2);
+  assert.equal(calls, 4);
   assert.match(document.body.textContent, /No workstreams yet/);
   await act(async () => { root.unmount(); });
   dom.window.close();

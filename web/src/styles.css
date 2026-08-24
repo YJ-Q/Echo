@@ -29,6 +29,18 @@ h2 { font-size: 1rem; }
 p { margin: 0; color: #52606d; line-height: 1.5; }
 button { margin-top: 0.75rem; border: 1px solid #54616f; border-radius: 0.25rem; background: #fff; color: #18202a; padding: 0.4rem 0.7rem; font: inherit; }
 button:hover { background: #eef1f4; }
+button:disabled { cursor: wait; opacity: 0.65; }
+label { display: block; margin-top: 0.65rem; color: #3f4b57; font-size: 0.9rem; }
+input, select { display: block; width: 100%; margin-top: 0.25rem; border: 1px solid #b9c3ce; border-radius: 0.25rem; padding: 0.4rem; font: inherit; }
+ul { list-style: none; margin: 0; padding: 0; }
+.workstream-group { border-top: 1px solid #e2e6ea; margin-top: 0.75rem; padding-top: 0.75rem; }
+.workstream-group h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.workstream-row { display: grid; width: 100%; gap: 0.3rem; margin: 0.35rem 0 0; text-align: left; }
+.workstream-row[aria-current="true"] { border-color: #17633a; background: #eef7f0; }
+.workstream-row span, .workstream-row time { color: #52606d; font-size: 0.82rem; }
+.workstream-row .status-badge { width: fit-content; }
+.muted { color: #7a8793; font-size: 0.9rem; }
+.workstream-detail p { margin: 0.45rem 0; }
 
 .status-badge { border-radius: 999px; padding: 0.15rem 0.45rem; font-size: 0.8rem; font-weight: 600; }
 .status-badge[data-status="active"] { background: #e6f4ea; color: #17633a; }
