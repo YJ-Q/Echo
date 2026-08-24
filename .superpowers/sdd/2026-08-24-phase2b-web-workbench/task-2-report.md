@@ -66,3 +66,9 @@ No functional blockers. Pi services are intentionally created per session to pre
 
 - Focused: `.runtime\\node-v22.23.1-win-x64\\node.exe --test test\\piWebRuntimeCoordinator.test.js test\\interactionService.test.js test\\webGateway.test.js` — 23 passed.
 - Full: `npm test` — 408 passed, 0 failed.
+
+## Fix round 2 — queued-turn cancellation
+
+- RED: with turn 1 blocked and turn 2 queued, halting the Run then releasing turn 1 allowed turn 2 to call Pi and return a message.
+- GREEN: the queued callback now rechecks its record's closed state, map membership, and Run/Workstream/runtime-reference ownership immediately before `send`. A halted/closed session returns only stable `runtime_unavailable`; halt never waits for the active turn, avoiding a lifecycle deadlock.
+- Focused verification: 24 passed. Full verification: `npm test` — 409 passed, 0 failed.

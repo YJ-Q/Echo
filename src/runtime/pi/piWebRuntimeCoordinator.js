@@ -135,6 +135,7 @@ export function createPiWebRuntimeCoordinator({ runtime, tools, invocationContex
     const record = reference ? sessions.get(reference.id) : null;
     if (!record || record.closed || !ownsSession(record, run, reference) || typeof message !== 'string') return unavailableResult();
     const turn = record.turnTail.then(async () => {
+      if (record.closed || sessions.get(reference.id) !== record || !ownsSession(record, run, reference)) return unavailableResult();
       try {
         const response = await record.session.send({ context, message });
         return {

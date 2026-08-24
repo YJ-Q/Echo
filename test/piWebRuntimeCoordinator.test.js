@@ -159,6 +159,37 @@ test('concurrent turns for one session are serialized before Pi prompt execution
   ]);
 });
 
+test('a queued turn is cancelled after halt instead of sending after the Run is paused', async () => {
+  const sends = [];
+  let releaseFirst;
+  const coordinator = createPiWebRuntimeCoordinator({
+    runtime: {
+      async createSession() {
+        return {
+          id: 'pi-halt-race', async close() {},
+          async send({ message }) {
+            sends.push(message);
+            if (message === 'first') await new Promise((resolve) => { releaseFirst = resolve; });
+            return { text: message, toolResults: [] };
+          }
+        };
+      }
+    }, tools: {}, invocationContextFactory: async () => ({})
+  });
+  const activated = await coordinator.activate({ id: 'run-1', workstreamId: 'ws-1' }, { operation: 'run.start', key: 'start-halt-race' });
+  const run = { id: 'run-1', workstreamId: 'ws-1', runtimeReference: { kind: 'pi', id: activated.runtimeSessionId } };
+  const first = coordinator.interact({ run, context: {}, message: 'first' });
+  const second = coordinator.interact({ run, context: {}, message: 'second' });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  await coordinator.halt(run, { operation: 'run.pause', key: 'pause-halt-race', runtimeReference: run.runtimeReference });
+  releaseFirst();
+
+  assert.deepEqual(await first, { message: 'first', toolResults: [] });
+  assert.deepEqual(await second, { error: { code: 'runtime_unavailable', retryable: true } });
+  assert.deepEqual(sends, ['first']);
+});
+
 test('halt, reconciliation, and close do not leave duplicate or ghost Pi sessions', async () => {
   const f = fixture();
   const coordinator = createPiWebRuntimeCoordinator({ runtime: f.runtime, tools: {}, invocationContextFactory: async () => ({}) });
