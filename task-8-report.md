@@ -18,3 +18,11 @@ Status: complete.
 - Focused Phase 1/2A/2B restart, reconciliation, composition, Web E2E, and Live-evidence checks: exit 0; 27 passed, 0 failed.
 - Reused the existing ignored `data/phase2b-live/latest.json` only after confirming that it contains the allowed final status, Pi version, Margin identifiers, versions, cursors, and stable result code. It records `passed`; no credentialed Live interaction was rerun and no key, prompt, model response, Pi object, or reasoning content was read into this report.
 - `git diff --check`: exit 0; no whitespace errors. The expected Git line-ending notices were non-failing.
+
+## Fix Round 1 (2026-08-24)
+
+- Finding: development Vite middleware intercepted `/api/*` before the HTTP adapter, returning SPA HTML to API clients.
+- TDD RED: added `development routes health, commands, queries, and events before the Vite SPA fallback` in `test/webWorkbenchComposition.test.js`; `& .\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webWorkbenchComposition.test.js` exited 1 with `Unexpected token '<'`, because `/api/health` returned the synthetic Vite HTML fallback.
+- Fix: `src/http/createWebHttpAdapter.js` now bypasses `/api/*` only for Vite middleware. API route order, browser envelope handling, Core boundaries, and static middleware behavior remain unchanged.
+- TDD GREEN: `& .\\.runtime\\node-v22.23.1-win-x64\\node.exe --test test/webWorkbenchComposition.test.js test/webHttpAdapter.test.js` exited 0; 20 passed, 0 failed. The development regression exercises health, command, query, and event routes against an injected SPA fallback.
+- Final validation: `npm test` exited 0; 462 passed, 0 failed, 0 cancelled, 0 skipped, 0 todo. `npm run build` exited 0; Vite production build completed.

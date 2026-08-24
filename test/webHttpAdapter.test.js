@@ -122,7 +122,7 @@ test('HTTP adapter converts injected middleware errors to sanitized storage fail
     assert.equal(JSON.stringify(body).includes('middleware private detail'), false);
   });
 
-  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, viteMiddleware: (request, response, next) => {
+  await assertFailure(createWebHttpAdapter({ webGateway: f.gateway, staticDir: (request, response, next) => {
     response.write('middleware private detail');
     response.end('middleware private detail');
     next(new Error('middleware private detail'));
@@ -134,7 +134,7 @@ test('injected middleware retains native response methods while buffered headers
   const f = gatewayFixture();
   const app = createWebHttpAdapter({
     webGateway: f.gateway,
-    viteMiddleware: (request, response, next) => {
+    staticDir: (request, response, next) => {
       assert.equal(typeof response.on, 'function');
       assert.equal(typeof response.once, 'function');
       assert.equal(typeof response.getHeaders, 'function');
@@ -164,7 +164,7 @@ test('buffered middleware observes native sent and ended state without leaking a
   const observed = [];
   const app = createWebHttpAdapter({
     webGateway: f.gateway,
-    viteMiddleware: (request, response, next) => {
+    staticDir: (request, response, next) => {
       const operation = request.headers['x-buffer-operation'];
       if (operation === 'writeHead') response.writeHead(202, { 'x-private-middleware': 'yes' });
       if (operation === 'write') response.write('middleware private detail');
@@ -196,7 +196,7 @@ test('buffered middleware does not commit before an async post-end failure settl
   const f = gatewayFixture();
   const app = createWebHttpAdapter({
     webGateway: f.gateway,
-    viteMiddleware: async (request, response, next) => {
+    staticDir: async (request, response, next) => {
       response.writeHead(202, { 'x-private-middleware': 'yes' });
       response.end('middleware private detail');
       await Promise.resolve();

@@ -8,7 +8,7 @@ export function createWebHttpAdapter({ webGateway, interactionService, staticDir
   app.use(express.json({ limit: '64kb' }));
   if (typeof staticDir === 'function') app.use(bufferedMiddleware(staticDir));
   else if (staticDir) app.use(express.static(staticDir));
-  if (typeof viteMiddleware === 'function') app.use(bufferedMiddleware(viteMiddleware));
+  if (typeof viteMiddleware === 'function') app.use(bufferedMiddleware(viteMiddleware, { bypass: isApiRequest }));
 
   app.get('/api/health', (_request, response) => response.json({ ok: true, status: 'ready', contractVersion: CONTRACT_VERSION }));
   app.post('/api/commands', asyncRoute((request) => webGateway.execute(request)));
@@ -22,13 +22,16 @@ export function createWebHttpAdapter({ webGateway, interactionService, staticDir
     try { return respond(response, interactionEnvelope(await interactionService.submit(input), input.requestId)); }
     catch { return respond(response, failureEnvelope({ code: 'storage_failure', requestId })); }
   });
-
   app.use((error, request, response, _next) => {
     if (error?.type === 'entity.parse.failed' || error?.status === 413) return respond(response, failureEnvelope({ code: 'invalid_request', requestId: request.body?.requestId }));
     if (response.headersSent) return response.destroy();
     return respond(response, failureEnvelope({ code: 'storage_failure', requestId: request.body?.requestId }));
   });
   return app;
+}
+
+function isApiRequest(request) {
+  return request.path.startsWith('/api/');
 }
 
 function interactionInput(value) {
@@ -104,8 +107,9 @@ function respond(response, envelope) {
   return response.status(httpStatusFor(envelope)).json(envelope);
 }
 
-function bufferedMiddleware(middleware) {
+function bufferedMiddleware(middleware, { bypass } = {}) {
   return (request, response, next) => {
+    if (bypass?.(request)) return next();
     const capture = interceptResponse(response);
     let completed = false;
     let middlewareCompletion = null;

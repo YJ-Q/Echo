@@ -49,6 +49,7 @@ async function fixture({ dev = false } = {}) {
       return {
         middlewares(request, response, next) {
           if (request.url === '/__vite_probe') return response.end('vite-ok');
+          if (request.url.startsWith('/api/')) return response.end('<!doctype html><main>vite-spa</main>');
           return next();
         },
         async close() { viteCloseCount += 1; }
@@ -97,6 +98,43 @@ test('development uses injected Vite middleware and closes it once', async () =>
     await f.workbench.close();
     await f.workbench.close();
     assert.equal(f.viteCloseCount, 1);
+  } finally { await f.cleanup(); }
+});
+
+test('development routes health, commands, queries, and events before the Vite SPA fallback', async () => {
+  const f = await fixture({ dev: true });
+  try {
+    const started = await f.workbench.start();
+    const api = async (route, options) => {
+      const response = await fetch(`${started.origin}${route}`, options);
+      return { status: response.status, body: await response.json() };
+    };
+    const health = await api('/api/health');
+    assert.deepEqual(health, { status: 200, body: { ok: true, status: 'ready', contractVersion: '1.0' } });
+
+    const query = await api('/api/queries', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'workstream.list', requestId: 'dev-query', payload: { limit: 10 } })
+    });
+    assert.equal(query.body.ok, true);
+    assert.deepEqual(query.body.data.items, []);
+
+    const command = await api('/api/commands', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        type: 'workstream.create', requestId: 'dev-command', idempotencyKey: 'dev-command-intent',
+        payload: {
+          title: 'Development API route', goal: 'Exercise the adapter before Vite', scenario: 'career_project',
+          currentPlan: ['call the API'], nextAction: 'verify the event route'
+        }
+      })
+    });
+    assert.equal(command.body.ok, true);
+
+    const eventPayload = encodeURIComponent(JSON.stringify({ workstreamId: command.body.data.id, afterCursor: 0, limit: 10 }));
+    const events = await api(`/api/events?type=event.list&requestId=dev-events&payload=${eventPayload}`);
+    assert.equal(events.body.ok, true);
+    assert.ok(events.body.data.items.length > 0);
   } finally { await f.cleanup(); }
 });
 
