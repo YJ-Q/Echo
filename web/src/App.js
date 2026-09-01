@@ -5,6 +5,7 @@ import { ActivityPanel } from './components/ActivityPanel.js';
 import { ArtifactPanel } from './components/ArtifactPanel.js';
 import { ConversationPanel } from './components/ConversationPanel.js';
 import { NeedsOwnerPanel } from './components/NeedsOwnerPanel.js';
+import { ResumeBriefPanel } from './components/ResumeBriefPanel.js';
 import { RunControls } from './components/RunControls.js';
 import { WorkstreamDetail } from './components/WorkstreamDetail.js';
 import { WorkstreamList } from './components/WorkstreamList.js';
@@ -14,7 +15,8 @@ import { createInitialWorkbenchState } from './workbenchState.js';
 const TABS = Object.freeze([
   { id: 'conversation', label: 'Conversation' },
   { id: 'artifacts', label: 'Artifacts' },
-  { id: 'activity', label: 'Activity' }
+  { id: 'activity', label: 'Activity' },
+  { id: 'brief', label: 'Resume Brief' }
 ]);
 
 export function App({ api = createApiClient() }) {
@@ -58,7 +60,9 @@ export function App({ api = createApiClient() }) {
       tabPanel('artifacts', activeTab,
         createElement(ArtifactPanel, { key: `artifacts:${data.selectedId}:${authorityGeneration}`, api, workstreamId: data.selectedId })),
       tabPanel('activity', activeTab,
-        createElement(ActivityPanel, { api, workstreamId: data.selectedId, refreshToken: activityGeneration + authorityGeneration }))
+        createElement(ActivityPanel, { api, workstreamId: data.selectedId, refreshToken: activityGeneration + authorityGeneration })),
+      tabPanel('brief', activeTab,
+        createElement(ResumeBriefPanel, { key: `brief:${data.selectedId}:${authorityGeneration}`, api, workstreamId: data.selectedId }))
     ),
     createElement('section', { className: 'workbench-region', 'aria-label': 'Control and Context' },
       createElement('h2', null, 'Control and Context'),
