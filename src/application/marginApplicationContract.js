@@ -191,14 +191,10 @@ export function createMarginApplicationContract({ services, repository, runtimeC
     'memory.archive': async (command, context, actor) => mapped(await services.memories.archive({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
     'memory.restore': async (command, context, actor) => mapped(await services.memories.restore({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
     'workstream.switch': async (command, context, actor) => {
-      const p = command.payload;
-      const sourceRun = await repository.getRun(p.sourceRunId);
-      if (!sourceRun || sourceRun.workstream_id !== p.sourceWorkstreamId) throw new CoreContractError('cross_workstream_reference', 'Source Run does not belong to source Workstream');
-      const target = await repository.getWorkstream(p.targetWorkstreamId);
-      if (!target) throw new CoreContractError('not_found', 'Target Workstream not found');
-      const paused = await services.runs.pause({ requestId: command.idempotencyKey, runId: p.sourceRunId, expectedVersion: command.expectedVersion }, actor, runtime);
-      const sourceWorkstream = await mapWorkstream(await repository.getWorkstream(p.sourceWorkstreamId).then((ws) => ws || notFound()));
-      return { data: { sourceWorkstream, sourceRun: await mapRun(paused.data), targetWorkstreamId: p.targetWorkstreamId } };
+      const input = { ...mutationInput(command), expectedVersion: command.expectedVersion };
+      const result = await services.workstreamSwitch.switch(input, actor, runtime);
+      const sourceWorkstream = await mapWorkstream(await repository.getWorkstream(command.payload.sourceWorkstreamId).then((ws) => ws || notFound()));
+      return { data: { sourceWorkstream, sourceRun: await mapRun(result.sourceRun), targetBrief: result.targetBrief, targetWorkstreamId: command.payload.targetWorkstreamId } };
     }
   });
 

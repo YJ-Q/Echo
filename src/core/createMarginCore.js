@@ -10,6 +10,8 @@ import { createArtifactService } from '../application/artifactService.js';
 import { createCheckpointService } from '../application/checkpointService.js';
 import { createNeedsOwnerService } from '../application/needsOwnerService.js';
 import { createMemoryService } from '../application/memoryService.js';
+import { createResumeBriefService } from '../application/resumeBriefService.js';
+import { createWorkstreamSwitchService } from '../application/workstreamSwitchService.js';
 import { createMarginApplicationContract } from '../application/marginApplicationContract.js';
 import { createContinuityService } from '../application/continuityService.js';
 import { createV1ToolSet } from '../application/v1ToolSet.js';
@@ -62,7 +64,9 @@ export async function createMarginCore({ enabled = false, dbPath, clock, idFacto
   const checkpoints = createCheckpointService({ repository });
   const needsOwner = createNeedsOwnerService({ repository });
   const memories = createMemoryService({ repository, authorization: (actor) => actor?.[hostControlCapability] === true, clock: store.clock });
-  const services = { workstreams, runs, artifacts, checkpoints, needsOwner, memories };
+  const resumeBriefs = createResumeBriefService({ repository, memories, clock: store.clock });
+  const workstreamSwitch = createWorkstreamSwitchService({ repository, runs, resumeBriefs, authorization: (actor) => actor?.[hostControlCapability] === true });
+  const services = { workstreams, runs, artifacts, checkpoints, needsOwner, memories, resumeBriefs, workstreamSwitch };
   return {
     enabled: true,
     store,
