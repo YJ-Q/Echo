@@ -1,5 +1,5 @@
 import { boundedJsonClone, ContractValidationError, deepFreeze } from './validation.js';
-import { NEEDS_OWNER_STATUSES, NEEDS_OWNER_TYPES, RUN_STATUSES, WORKER_KINDS, WORKSTREAM_STATUSES } from './contractTypes.js';
+import { NEEDS_OWNER_STATUSES, NEEDS_OWNER_TYPES, RUN_STATUSES, WORKER_KINDS, WORKSTREAM_STATUSES, MEMORY_LIFECYCLE_STATUSES } from './contractTypes.js';
 
 const storageFailure = (message) => new ContractValidationError('storage_failure', message);
 
@@ -91,3 +91,32 @@ function integer(value, label) { if (!Number.isInteger(value) || value < 0) thro
 function nullableInteger(value, label) { return value === undefined || value === null ? null : integer(value, label); }
 function enumValue(value, allowed, label) { if (!allowed.includes(value)) throw storageFailure(`Invalid persisted ${label}`); return value; }
 function plain(value) { if (!value || typeof value !== 'object' || Array.isArray(value)) return false; const prototype = Object.getPrototypeOf(value); return prototype === Object.prototype || prototype === null; }
+
+function memoryLifecycle(row) {
+  if (row.confirmation_status === 'proposed') return 'candidate';
+  if (row.confirmation_status === 'confirmed' && !row.archived_at && !row.superseded_by) return 'active';
+  return 'archive';
+}
+
+export function toMemoryDTO(row) {
+  return deepFreeze({
+    id: string(row.id, 'id'),
+    workstreamId: string(row.project_id ?? row.workstream_id ?? row.workstreamId, 'workstreamId'),
+    content: string(row.content, 'content'),
+    memoryType: string(row.memory_type ?? row.memoryType, 'memoryType'),
+    lifecycleStatus: memoryLifecycle(row),
+    confidence: typeof row.confidence === 'number' ? row.confidence : 0,
+    validFrom: nullableString(row.valid_from ?? row.validFrom),
+    expiresAt: nullableString(row.expires_at ?? row.expiresAt),
+    supersededBy: nullableString(row.superseded_by ?? row.supersededBy),
+    archivedAt: nullableString(row.archived_at ?? row.archivedAt),
+    source: { sourceEventId: nullableString(row.source_event_id ?? row.sourceEventId) },
+    version: integer(row.version, 'version'),
+    createdAt: nullableString(row.created_at ?? row.createdAt),
+    updatedAt: nullableString(row.updated_at ?? row.updatedAt)
+  });
+}
+
+export function toMemoryRecallDTO(row) {
+  return deepFreeze({ ...toMemoryDTO(row), score: typeof row.score === 'number' ? row.score : null, retrievalReason: nullableString(row.retrievalReason) });
+}

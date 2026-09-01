@@ -21,15 +21,15 @@ function fixture({ response, throws } = {}) {
     async execute(request, context) {
       calls.push({ method: 'execute', request, context });
       if (throws) throw new Error('private storage failure');
-      return response ?? { ok: true, data: { id: 'workstream-1' }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: context.correlationId } };
+      return response ?? { ok: true, data: { id: 'workstream-1' }, meta: { contractVersion: '1.1', requestId: request.requestId, correlationId: context.correlationId } };
     },
     async query(request, context) {
       calls.push({ method: 'query', request, context });
-      return { ok: true, data: { items: [] }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: context.correlationId } };
+      return { ok: true, data: { items: [] }, meta: { contractVersion: '1.1', requestId: request.requestId, correlationId: context.correlationId } };
     },
     async events(request, context) {
       calls.push({ method: 'events', request, context });
-      return { ok: true, data: { items: [] }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: context.correlationId } };
+      return { ok: true, data: { items: [] }, meta: { contractVersion: '1.1', requestId: request.requestId, correlationId: context.correlationId } };
     }
   });
   return {
@@ -117,10 +117,10 @@ test('web gateway sanitizes thrown failures and private response values', async 
   assert.deepEqual(failedResult, {
     ok: false,
     error: { code: 'storage_failure', retryable: true },
-    meta: { contractVersion: '1.0', requestId: 'browser-request-1', correlationId: 'web_correlation-generated' }
+    meta: { contractVersion: '1.1', requestId: 'browser-request-1', correlationId: 'web_correlation-generated' }
   });
 
-  const unsafe = fixture({ response: { ok: true, data: { stack: 'secret' }, meta: { contractVersion: '1.0', requestId: 'browser-request-1', correlationId: 'x' } } });
+  const unsafe = fixture({ response: { ok: true, data: { stack: 'secret' }, meta: { contractVersion: '1.1', requestId: 'browser-request-1', correlationId: 'x' } } });
   const unsafeGateway = createWebGateway({ core: unsafe.core, instanceId: 'web-1', idFactory: (prefix) => `${prefix}-generated` });
   const unsafeResult = await unsafeGateway.execute(command);
   assert.deepEqual(unsafeResult.data, {});

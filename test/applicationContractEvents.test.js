@@ -113,7 +113,7 @@ test('event envelopes whitelist aggregate identity and activity is a determinist
     assert.deepEqual(update.source, { kind: 'application', surfaceKind: 'web', runtimeReference: null, correlationId: 'events-correlation' });
     assert.equal(update.summary, 'Workstream updated');
     assert.deepEqual(update.data, {});
-    assert.equal(update.contractVersion, '1.0');
+    assert.equal(update.contractVersion, '1.1');
     assert.equal(Object.isFrozen(events), true);
     const serialized = JSON.stringify(events);
     for (const forbidden of ['chainOfThought', 'prompt', 'runtime_session_id', 'apiKey', 'sessionObject', 'sourceSessionId', 'payload']) {

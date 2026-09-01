@@ -92,7 +92,7 @@ function interactionBody(payload, requestId) {
 function stableEnvelope(value, fallbackRequestId) {
   const meta = value?.meta && typeof value.meta === 'object' ? value.meta : {};
   const requestId = validId(meta.requestId) ? meta.requestId : fallbackRequestId;
-  const contractVersion = typeof meta.contractVersion === 'string' && meta.contractVersion.trim() ? meta.contractVersion : '1.0';
+  const contractVersion = typeof meta.contractVersion === 'string' && meta.contractVersion.trim() ? meta.contractVersion : '1.1';
   const correlationId = validId(meta.correlationId) ? meta.correlationId : 'invalid';
   if (value?.ok === true) return Object.freeze({
     ok: true, data: safeValue(value.data), meta: Object.freeze({ contractVersion, requestId, correlationId })
@@ -110,6 +110,6 @@ function transportEnvelope(requestId) {
   return Object.freeze({
     ok: false,
     error: Object.freeze({ code: 'transport_unavailable', retryable: true }),
-    meta: Object.freeze({ contractVersion: '1.0', requestId, correlationId: 'invalid' })
+    meta: Object.freeze({ contractVersion: '1.1', requestId, correlationId: 'invalid' })
   });
 }

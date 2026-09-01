@@ -17,8 +17,8 @@ async function withServer(app, action) {
 
 function envelope(requestId, code = null) {
   return code
-    ? { ok: false, error: { code, retryable: code === 'runtime_unavailable' || code === 'storage_failure' }, meta: { contractVersion: '1.0', requestId, correlationId: 'web-correlation' } }
-    : { ok: true, data: { requestId }, meta: { contractVersion: '1.0', requestId, correlationId: 'web-correlation' } };
+    ? { ok: false, error: { code, retryable: code === 'runtime_unavailable' || code === 'storage_failure' }, meta: { contractVersion: '1.1', requestId, correlationId: 'web-correlation' } }
+    : { ok: true, data: { requestId }, meta: { contractVersion: '1.1', requestId, correlationId: 'web-correlation' } };
 }
 
 function gatewayFixture({ resultFor = () => null } = {}) {
@@ -38,7 +38,7 @@ test('HTTP adapter exposes a bounded readiness response without touching the Gat
   await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
     const response = await fetch(`${origin}/api/health`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, status: 'ready', contractVersion: '1.0' });
+    assert.deepEqual(await response.json(), { ok: true, status: 'ready', contractVersion: '1.1' });
   });
   assert.equal(f.calls.length, 0);
 });
@@ -79,7 +79,7 @@ test('HTTP adapter maps stable contract errors, preserves version metadata, and 
       assert.equal(response.status, status, code);
       const body = await response.json();
       assert.equal(body.error.code, code);
-      assert.equal(body.meta.contractVersion, '1.0');
+      assert.equal(body.meta.contractVersion, '1.1');
       assert.equal(JSON.stringify(body).includes('stack'), false);
     }
   });
@@ -92,7 +92,7 @@ test('HTTP adapter preserves only safe application error fields and original ret
       code: 'version_conflict', retryable: true, message: 'private conflict detail',
       details: { currentVersion: 7, expectedVersion: 6, sql: 'private sql' }
     },
-    meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' }
+    meta: { contractVersion: '1.1', requestId: request.requestId, correlationId: 'web-correlation' }
   }) });
 
   await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
@@ -356,7 +356,7 @@ test('GET events rejects forbidden and unknown URL query parameters before dispa
 
 test('HTTP adapter removes nested Pi and reasoning internals from browser output', async () => {
   const f = gatewayFixture({ resultFor: (request) => request.payload.leak
-    ? { ok: true, data: { safe: 'visible', nested: { piSession: 'secret', piConfig: { token: 'secret' }, piCredentials: 'secret', piEnvironment: 'secret', piRequest: 'secret', reasoningTrace: 'secret' } }, meta: { contractVersion: '1.0', requestId: request.requestId, correlationId: 'web-correlation' } }
+    ? { ok: true, data: { safe: 'visible', nested: { piSession: 'secret', piConfig: { token: 'secret' }, piCredentials: 'secret', piEnvironment: 'secret', piRequest: 'secret', reasoningTrace: 'secret' } }, meta: { contractVersion: '1.1', requestId: request.requestId, correlationId: 'web-correlation' } }
     : null });
   await withServer(createWebHttpAdapter({ webGateway: f.gateway }), async (origin) => {
     const response = await fetch(`${origin}/api/queries`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'workstream.list', requestId: 'private-output', payload: { leak: true } }) });

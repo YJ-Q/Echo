@@ -20,7 +20,14 @@ const EVENT_TYPE_BY_EVIDENCE = new Map([
   ['decision|revoked|decision_revoke', 'decision.revoked'],
   ['needs_owner|created|needs_owner_create', 'needs_owner.created'],
   ['needs_owner|updated|needs_owner_resolve', 'needs_owner.resolved'],
-  ['needs_owner|cancelled|needs_owner_cancel', 'needs_owner.cancelled']
+  ['needs_owner|cancelled|needs_owner_cancel', 'needs_owner.cancelled'],
+  ['memory|created|memory_propose', 'memory.proposed'],
+  ['memory|updated|memory_confirm', 'memory.confirmed'],
+  ['memory|superseded|memory_correct', 'memory.superseded'],
+  ['memory|updated|memory_archive', 'memory.archived'],
+  ['memory|restored|memory_restore', 'memory.restored'],
+  ['memory|created', 'memory.proposed'],
+  ['memory|updated', 'memory.confirmed']
 ]);
 
 const EVENT_TYPE_BY_LEGACY_IDENTITY = new Map([
@@ -34,7 +41,7 @@ const EVENT_TYPE_BY_LEGACY_IDENTITY = new Map([
 
 const AGGREGATE_TYPES = Object.freeze({
   project: 'workstream', workstream: 'workstream', run: 'run', artifact: 'artifact', checkpoint: 'checkpoint',
-  decision: 'decision', needs_owner: 'needs_owner'
+  decision: 'decision', needs_owner: 'needs_owner', memory: 'memory'
 });
 
 const ACTIVITY_MESSAGES = Object.freeze({
@@ -55,7 +62,12 @@ const ACTIVITY_MESSAGES = Object.freeze({
   'decision.revoked': 'Decision revoked',
   'needs_owner.created': 'Needs owner created',
   'needs_owner.resolved': 'Needs owner resolved',
-  'needs_owner.cancelled': 'Needs owner cancelled'
+  'needs_owner.cancelled': 'Needs owner cancelled',
+  'memory.proposed': 'Memory proposed',
+  'memory.confirmed': 'Memory confirmed',
+  'memory.superseded': 'Memory superseded',
+  'memory.archived': 'Memory archived',
+  'memory.restored': 'Memory restored'
 });
 
 function safeString(value, max = 2_000) {

@@ -12,6 +12,7 @@ import {
   toArtifactDTO,
   toCheckpointDTO,
   toDecisionDTO,
+  toMemoryDTO,
   toNeedsOwnerDTO,
   toRunDTO,
   toWorkstreamDTO
@@ -29,7 +30,12 @@ const COMMAND_CAPABILITIES = Object.freeze({
   'checkpoint.create': 'checkpoint:write',
   'artifact.create': 'artifact:write',
   'needs_owner.create': 'needs_owner:write',
-  'needs_owner.resolve': 'needs_owner:resolve'
+  'needs_owner.resolve': 'needs_owner:resolve',
+  'workstream.switch': 'run:control',
+  'memory.confirm': 'memory:confirm',
+  'memory.correct': 'memory:correct',
+  'memory.archive': 'memory:archive',
+  'memory.restore': 'memory:restore'
 });
 
 const QUERY_CAPABILITIES = Object.freeze({
@@ -41,7 +47,10 @@ const QUERY_CAPABILITIES = Object.freeze({
   'decision.list': 'decision:read',
   'needs_owner.list': 'needs_owner:read',
   'activity.list': 'activity:read',
-  'checkpoint.latest': 'checkpoint:read'
+  'checkpoint.latest': 'checkpoint:read',
+  'resume_brief.get': 'resume_brief:read',
+  'memory.list': 'memory:read',
+  'memory.search': 'memory:read'
 });
 
 const KNOWN_ERROR_CODES = new Set([
@@ -176,7 +185,21 @@ export function createMarginApplicationContract({ services, repository, runtimeC
       return mapped(await services.artifacts.create(input, actor), toArtifactDTO);
     },
     'needs_owner.create': async (command, context, actor) => mapped(await services.needsOwner.create(mutationInput(command), actor), toNeedsOwnerDTO),
-    'needs_owner.resolve': async (command, context, actor) => mapped(await services.needsOwner.resolve(mutationInput(command), actor), toNeedsOwnerDTO)
+    'needs_owner.resolve': async (command, context, actor) => mapped(await services.needsOwner.resolve(mutationInput(command), actor), toNeedsOwnerDTO),
+    'memory.confirm': async (command, context, actor) => mapped(await services.memories.confirm({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
+    'memory.correct': async (command, context, actor) => mapped(await services.memories.correct({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
+    'memory.archive': async (command, context, actor) => mapped(await services.memories.archive({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
+    'memory.restore': async (command, context, actor) => mapped(await services.memories.restore({ ...mutationInput(command), expectedVersion: command.expectedVersion }, actor), toMemoryDTO),
+    'workstream.switch': async (command, context, actor) => {
+      const p = command.payload;
+      const sourceRun = await repository.getRun(p.sourceRunId);
+      if (!sourceRun || sourceRun.workstream_id !== p.sourceWorkstreamId) throw new CoreContractError('cross_workstream_reference', 'Source Run does not belong to source Workstream');
+      const target = await repository.getWorkstream(p.targetWorkstreamId);
+      if (!target) throw new CoreContractError('not_found', 'Target Workstream not found');
+      const paused = await services.runs.pause({ requestId: command.idempotencyKey, runId: p.sourceRunId, expectedVersion: command.expectedVersion }, actor, runtime);
+      const sourceWorkstream = await mapWorkstream(await repository.getWorkstream(p.sourceWorkstreamId).then((ws) => ws || notFound()));
+      return { data: { sourceWorkstream, sourceRun: await mapRun(paused.data), targetWorkstreamId: p.targetWorkstreamId } };
+    }
   });
 
   async function runControl(operation, command, actor) {
@@ -210,6 +233,51 @@ export function createMarginApplicationContract({ services, repository, runtimeC
     'checkpoint.latest': async (request) => {
       const row = await services.checkpoints.latest(request.payload);
       return row ? toCheckpointDTO(row) : null;
+    },
+    'resume_brief.get': async (request) => {
+      const { workstreamId } = request.payload;
+      const ws = await repository.getWorkstream(workstreamId);
+      if (!ws) return notFound();
+      const openRun = await repository.findOpenRun(workstreamId);
+      const checkpoint = openRun ? await repository.latestCheckpoint(openRun.id) : await repository.latestCheckpointFor({ workstreamId });
+      const needsOwnerItems = await services.needsOwner.list({ workstreamId, statuses: ['open'], limit: 5 });
+      const decisions = await repository.listDecisions({ workstreamId, statuses: ['confirmed'], limit: 10 });
+      const memories = await repository.listMemories({ workstreamId, lifecycleStatuses: ['active'], limit: 10 });
+      const recentEvents = await repository.listRecentEventRows(workstreamId, 20);
+      const needsOwner = needsOwnerItems.items ?? [];
+      let primaryAction;
+      if (needsOwner[0]) { primaryAction = `Resolve: ${needsOwner[0].reason}`; }
+      else if (ws.blockers?.length) { primaryAction = `Address blocker: ${ws.blockers[0]}`; }
+      else if (ws.next_action) { primaryAction = ws.next_action; }
+      else if (ws.current_plan?.length) { primaryAction = JSON.parse(typeof ws.current_plan === 'string' ? ws.current_plan : JSON.stringify(ws.current_plan))[0] ?? `Define the next action for ${ws.title}`; }
+      else { primaryAction = `Define the next action for ${ws.title}`; }
+      return {
+        workstreamId,
+        generatedAt: new Date().toISOString(),
+        facts: {
+          goal: ws.goal,
+          currentState: ws.current_state ?? null,
+          currentPlan: (() => { try { return JSON.parse(typeof ws.current_plan === 'string' ? ws.current_plan : JSON.stringify(ws.current_plan ?? [])); } catch { return []; } })(),
+          nextAction: ws.next_action ?? null,
+          blockers: (() => { try { return JSON.parse(typeof ws.blockers === 'string' ? ws.blockers : JSON.stringify(ws.blockers ?? [])); } catch { return []; } })()
+        },
+        run: openRun ? toRunDTO(openRun, { checkpoint }) : null,
+        checkpoint: checkpoint ? toCheckpointDTO(checkpoint) : null,
+        needsOwner: needsOwner.map(toNeedsOwnerDTO),
+        decisions: decisions.items?.map(toDecisionDTO) ?? [],
+        memories: memories.items ?? [],
+        recentActivity: recentEvents.slice(0, 20).map((e) => ({ id: e.id, entityType: e.entity_type, eventType: e.event_type, createdAt: e.created_at })),
+        recommendations: [{ id: `rec-${workstreamId}`, kind: 'primary', action: primaryAction, hypothesis: null, evidence: needsOwner[0] ? [{ aggregateType: 'needsOwner', aggregateId: needsOwner[0].id, aggregateVersion: needsOwner[0].version, reason: 'ownerDecisionRequired' }] : [{ aggregateType: 'workstream', aggregateId: workstreamId, reason: 'workstreamState' }] }],
+        sourceVersions: [{ aggregateType: 'workstream', aggregateId: workstreamId, aggregateVersion: ws.version }]
+      };
+    },
+    'memory.list': async (request) => {
+      const result = await services.memories.list(request.payload);
+      return { items: result.items.map(toMemoryDTO) };
+    },
+    'memory.search': async (request) => {
+      const result = await services.memories.search(request.payload);
+      return { items: result.items.map(toMemoryDTO) };
     }
   });
 
