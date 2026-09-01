@@ -399,6 +399,99 @@ export function createPersistentWorkRepository(store) {
       const replayEvidence = await evidence(tx, { operation: 'needs_owner_resolve', requestId: input.requestId, actor, workstreamId: current.workstream_id, entityType: 'needs_owner', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'resolved' });
       return { data: await tx.get('SELECT * FROM margin_needs_owner WHERE id=?', current.id), ...replayEvidence };
     }),
+    listMemories: async (input = {}) => {
+      const { workstreamId, lifecycleStatuses, limit = 50 } = input;
+      if (!workstreamId) throw new CoreContractError('invalid_request', 'workstreamId is required');
+      const clauses = ['project_id=?', 'deleted_at IS NULL'];
+      const values = [workstreamId];
+      if (lifecycleStatuses && lifecycleStatuses.length) {
+        const statusClauses = lifecycleStatuses.map((s) => {
+          if (s === 'candidate') return "(confirmation_status='proposed')";
+          if (s === 'active') return "(confirmation_status='confirmed' AND archived_at IS NULL AND superseded_by IS NULL)";
+          if (s === 'archive') return "(archived_at IS NOT NULL OR superseded_by IS NOT NULL)";
+          throw new CoreContractError('invalid_request', `Unknown lifecycle status: ${s}`);
+        });
+        clauses.push(`(${statusClauses.join(' OR ')})`);
+      }
+      const lim = Number.isInteger(limit) && limit >= 1 && limit <= 200 ? limit : 50;
+      const rows = await store.db.all(
+        `SELECT * FROM margin_memories WHERE ${clauses.join(' AND ')} ORDER BY updated_at DESC,id DESC LIMIT ?`,
+        ...values, lim
+      );
+      return { items: rows };
+    },
+    searchMemories: async (input = {}) => {
+      const { workstreamId, query, includeArchive = false, asOf, limit = 10 } = input;
+      if (!workstreamId) throw new CoreContractError('invalid_request', 'workstreamId is required');
+      const asOfVal = asOf ?? store.clock();
+      const lim = Number.isInteger(limit) && limit >= 1 && limit <= 100 ? limit : 10;
+      let sql = `SELECT * FROM margin_memories WHERE project_id=? AND confirmation_status='confirmed' AND deleted_at IS NULL AND superseded_by IS NULL AND valid_from<=? AND (expires_at IS NULL OR expires_at>?)`;
+      const values = [workstreamId, asOfVal, asOfVal];
+      if (!includeArchive) { sql += ' AND archived_at IS NULL'; }
+      const rows = await store.db.all(sql + ' ORDER BY updated_at DESC,id DESC LIMIT ?', ...values, lim);
+      const ranked = query ? await store.rankMemories(rows, { query, asOf: asOfVal, topK: lim }) : rows;
+      return { items: ranked };
+    },
+    confirmMemory: (input, actor) => mutation(actor, async (tx) => {
+      const operation = 'memory_confirm';
+      const prior = await replay(tx, operation, input.requestId, 'margin_memories', input, actor);
+      if (prior) return prior;
+      const current = await tx.get('SELECT * FROM margin_memories WHERE id=?', input.memoryId);
+      if (!current || current.project_id !== input.workstreamId) throw new CoreContractError('not_found', 'Memory not found');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+      const now = store.clock(); const nextVersion = current.version + 1;
+      await tx.run('UPDATE margin_memories SET confirmation_status=?,version=?,source_session_id=?,source_event_id=?,updated_at=? WHERE id=?', 'confirmed', nextVersion, actor.sourceSessionId, actor.sourceEventId, now, current.id);
+      await evidence(tx, { operation, requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: current.id, version: nextVersion, eventType: 'updated', input, status: 'confirmed' });
+      return { data: await tx.get('SELECT * FROM margin_memories WHERE id=?', current.id) };
+    }),
+    correctMemory: (input, actor) => mutation(actor, async (tx) => {
+      const operation = 'memory_correct';
+      const prior = await replay(tx, operation, input.requestId, 'margin_memories', input, actor);
+      if (prior) return prior;
+      const current = await tx.get('SELECT * FROM margin_memories WHERE id=?', input.memoryId);
+      if (!current || current.project_id !== input.workstreamId) throw new CoreContractError('not_found', 'Memory not found');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+      const now = store.clock();
+      const successorId = store.idFactory('memory');
+      await tx.run(
+        `INSERT INTO margin_memories (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at)
+         VALUES (?,?,?,?,?,?,'confirmed',?,?,NULL,1,?,?,?,?,NULL,NULL)`,
+        successorId, current.project_id, current.task_id, input.content, input.memoryType, input.confidence, input.validFrom ?? now, input.expiresAt ?? null, actor.sourceSessionId, actor.sourceEventId, now, now
+      );
+      await tx.run('UPDATE margin_memories SET superseded_by=?,version=version+1,updated_at=? WHERE id=?', successorId, now, current.id);
+      await evidence(tx, { operation, requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: current.id, version: current.version + 1, eventType: 'superseded', input });
+      await evidence(tx, { operation, requestId: `${input.requestId}_created`, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: successorId, version: 1, eventType: 'created', input });
+      return { data: await tx.get('SELECT * FROM margin_memories WHERE id=?', successorId) };
+    }),
+    archiveMemory: (input, actor) => mutation(actor, async (tx) => {
+      const operation = 'memory_archive';
+      const prior = await replay(tx, operation, input.requestId, 'margin_memories', input, actor);
+      if (prior) return prior;
+      const current = await tx.get('SELECT * FROM margin_memories WHERE id=?', input.memoryId);
+      if (!current || current.project_id !== input.workstreamId) throw new CoreContractError('not_found', 'Memory not found');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+      const now = store.clock(); const nextVersion = current.version + 1;
+      await tx.run('UPDATE margin_memories SET archived_at=?,version=?,updated_at=? WHERE id=?', now, nextVersion, now, current.id);
+      await evidence(tx, { operation, requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: current.id, version: nextVersion, eventType: 'updated', input });
+      return { data: await tx.get('SELECT * FROM margin_memories WHERE id=?', current.id) };
+    }),
+    restoreMemory: (input, actor) => mutation(actor, async (tx) => {
+      const operation = 'memory_restore';
+      const prior = await replay(tx, operation, input.requestId, 'margin_memories', input, actor);
+      if (prior) return prior;
+      const current = await tx.get('SELECT * FROM margin_memories WHERE id=?', input.memoryId);
+      if (!current || current.project_id !== input.workstreamId) throw new CoreContractError('not_found', 'Memory not found');
+      if (current.version !== input.expectedVersion) throw versionConflict(current.version);
+      if (current.superseded_by) throw new CoreContractError('invalid_request', 'Cannot restore a superseded Memory');
+      const now = store.clock(); const nextVersion = current.version + 1;
+      await tx.run('UPDATE margin_memories SET archived_at=NULL,version=?,updated_at=? WHERE id=?', nextVersion, now, current.id);
+      await evidence(tx, { operation, requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: current.id, version: nextVersion, eventType: 'restored', input });
+      return { data: await tx.get('SELECT * FROM margin_memories WHERE id=?', current.id) };
+    }),
+    listRecentEventRows: async (workstreamId, limit = 20) => {
+      const lim = Number.isInteger(limit) && limit >= 1 && limit <= 100 ? limit : 20;
+      return store.db.all('SELECT * FROM margin_events WHERE project_id=? ORDER BY created_at DESC,id DESC LIMIT ?', workstreamId, lim);
+    },
     listEventRows: async ({ workstreamId, afterCursor = 0, limit = 50 } = {}) => {
       if (!Number.isInteger(afterCursor) || afterCursor < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new CoreContractError('invalid_request', 'Valid event cursor and limit are required');
       const filters = ['c.sequence>?']; const values = [afterCursor];

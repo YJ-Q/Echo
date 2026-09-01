@@ -146,7 +146,7 @@ export async function openMarginCoreStore({
         ),
         db.all(
           `SELECT * FROM margin_memories
-           WHERE project_id = ? AND confirmation_status = 'confirmed' AND deleted_at IS NULL
+           WHERE project_id = ? AND confirmation_status = 'confirmed' AND archived_at IS NULL AND deleted_at IS NULL
              AND superseded_by IS NULL AND valid_from <= ? AND (expires_at IS NULL OR expires_at > ?)`,
           projectId, asOf, asOf
         )

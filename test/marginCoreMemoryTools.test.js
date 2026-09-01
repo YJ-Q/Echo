@@ -69,8 +69,9 @@ test('a host-only trusted confirmation atomically promotes a proposed memory for
 
 test('confirmed Chinese memory is recalled across wording variants', async (t) => {
   const { fixture, project, tools } = await setup(t);
-  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
-    ('zh-memory', ?, NULL, '昨天完成了新版简历并优化项目经历，后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-zh', 'event-zh', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL)`, project.id);
+  await fixture.store.db.run(`INSERT INTO margin_memories
+    (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at) VALUES
+    ('zh-memory', ?, NULL, '昨天完成了新版简历并优化项目经历，后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-zh', 'event-zh', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL, NULL)`, project.id);
   const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: '继续简历投递', topK: 5, asOf: '2026-08-23T00:00:00.000Z' }, context);
   assert.deepEqual(recalled.data.items.map((item) => item.id), ['zh-memory']);
 });
@@ -102,8 +103,9 @@ test('embedding failure degrades to Chinese lexical recall', async (t) => {
   const project = await fixture.store.createProject({ scenario: 'career_project', goal: '求职', phase: 'pilot' }, {
     requestId: 'seed-fallback', actorType: 'user', sourceSessionId: 's', sourceEventId: 'e', inputDigest: 'a'.repeat(64), permissionDecision: 'allowed'
   });
-  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
-    ('fallback-memory', ?, NULL, '后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-fallback', 'event-fallback', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL)`, project.id);
+  await fixture.store.db.run(`INSERT INTO margin_memories
+    (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at) VALUES
+    ('fallback-memory', ?, NULL, '后续使用新版简历投递', 'context', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 2, 'session-fallback', 'event-fallback', '2026-01-01T00:00:00.000Z', '2026-08-22T00:00:00.000Z', NULL, NULL)`, project.id);
   const tools = createMemoryTools({ store: fixture.store });
   const recalled = await tools.memorySearch({ ...base, projectId: project.id, query: '继续简历投递', topK: 5, asOf: '2026-08-23T00:00:00.000Z' }, context);
   assert.deepEqual(recalled.data.items.map((item) => item.id), ['fallback-memory']);
@@ -112,10 +114,11 @@ test('embedding failure degrades to Chinese lexical recall', async (t) => {
 
 test('search is isolated, deterministic, bounded, and does not mutate memories', async (t) => {
   const { fixture, project, tools } = await setup(t);
-  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
-    ('m1', ?, NULL, 'sqlite migration research', 'fact', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 1, 's1', 'e1', '2026-01-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('m2', ?, NULL, 'unrelated note', 'context', .8, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 1, 's2', 'e2', '2026-01-01T00:00:00.000Z', '2026-08-18T00:00:00.000Z', NULL),
-    ('m3', ?, NULL, 'sqlite expired', 'fact', 1, 'confirmed', '2026-01-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z', NULL, 1, 's3', 'e3', '2026-01-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z', NULL)`, project.id, project.id, project.id);
+  await fixture.store.db.run(`INSERT INTO margin_memories
+    (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at) VALUES
+    ('m1', ?, NULL, 'sqlite migration research', 'fact', .9, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 1, 's1', 'e1', '2026-01-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('m2', ?, NULL, 'unrelated note', 'context', .8, 'confirmed', '2026-01-01T00:00:00.000Z', NULL, NULL, 1, 's2', 'e2', '2026-01-01T00:00:00.000Z', '2026-08-18T00:00:00.000Z', NULL, NULL),
+    ('m3', ?, NULL, 'sqlite expired', 'fact', 1, 'confirmed', '2026-01-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z', NULL, 1, 's3', 'e3', '2026-01-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z', NULL, NULL)`, project.id, project.id, project.id);
   const before = await fixture.store.db.get("SELECT * FROM margin_memories WHERE id='m1'");
   const result = await tools.memorySearch({ ...base, projectId: project.id, query: 'sqlite research', topK: 1, asOf: '2026-08-20T00:00:00.000Z' }, context);
   assert.deepEqual(result.data.items.map((item) => item.id), ['m1']);

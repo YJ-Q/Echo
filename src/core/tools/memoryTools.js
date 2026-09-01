@@ -37,7 +37,7 @@ export function createMemoryTools({ store }) {
       }
       const rows = await store.db.all(
         `SELECT * FROM margin_memories WHERE project_id = ? AND confirmation_status = 'confirmed'
-         AND deleted_at IS NULL AND superseded_by IS NULL AND valid_from <= ? AND (expires_at IS NULL OR expires_at > ?)
+         AND archived_at IS NULL AND deleted_at IS NULL AND superseded_by IS NULL AND valid_from <= ? AND (expires_at IS NULL OR expires_at > ?)
          ${taskClause} ${typeClause}`,
         ...params
       );

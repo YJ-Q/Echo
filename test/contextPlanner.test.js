@@ -38,9 +38,10 @@ test('snapshot and plan select bounded source-addressable continuity context det
     ('decision-2', ?, ?, 'format', 'Use concise format.', 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 'decision-session-2', 'decision-event-2', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z'),
     ('decision-1', ?, ?, 'scope', 'Review only the latest draft.', 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 2, 'decision-session-1', 'decision-event-1', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z')`,
   project.id, task.id, project.id, task.id);
-  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
-    ('memory-best', ?, ?, 'resume review uses the latest draft', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 3, 'memory-session', 'memory-event', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-lower', ?, NULL, 'resume review is scheduled', 'context', .6, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 'memory-session-2', 'memory-event-2', '2026-08-01T00:00:00.000Z', '2026-07-01T00:00:00.000Z', NULL)`,
+  await fixture.store.db.run(`INSERT INTO margin_memories
+    (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at) VALUES
+    ('memory-best', ?, ?, 'resume review uses the latest draft', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 3, 'memory-session', 'memory-event', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-lower', ?, NULL, 'resume review is scheduled', 'context', .6, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 'memory-session-2', 'memory-event-2', '2026-08-01T00:00:00.000Z', '2026-07-01T00:00:00.000Z', NULL, NULL)`,
   project.id, task.id, project.id);
   const before = await coreRows(fixture.store.db);
 
@@ -80,14 +81,15 @@ test('snapshot excludes cross-project, stale, unconfirmed, superseded, deleted, 
     ('decision-replaced', ?, ?, 'replaced', 'Replaced decision', 'confirmed', '2026-08-01T00:00:00.000Z', NULL, 'decision-current', 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z'),
     ('decision-other', ?, NULL, 'other', 'Other decision', 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z')`,
   project.id, task.id, project.id, task.id, project.id, task.id, project.id, task.id, project.id, task.id, other.id);
-  await fixture.store.db.run(`INSERT INTO margin_memories VALUES
-    ('memory-current', ?, ?, 'current resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-proposed', ?, NULL, 'proposed resume review', 'context', .9, 'proposed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-expired', ?, NULL, 'expired resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z', NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-future', ?, NULL, 'future resume review', 'context', .9, 'confirmed', '2026-08-21T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-superseded', ?, NULL, 'superseded resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, 'memory-current', 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
-    ('memory-deleted', ?, NULL, 'deleted resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', '2026-08-19T00:00:00.000Z'),
-    ('memory-other', ?, NULL, 'other resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL)`,
+  await fixture.store.db.run(`INSERT INTO margin_memories
+    (id,project_id,task_id,content,memory_type,confidence,confirmation_status,valid_from,expires_at,superseded_by,version,source_session_id,source_event_id,created_at,updated_at,deleted_at,archived_at) VALUES
+    ('memory-current', ?, ?, 'current resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-proposed', ?, NULL, 'proposed resume review', 'context', .9, 'proposed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-expired', ?, NULL, 'expired resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z', NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-future', ?, NULL, 'future resume review', 'context', .9, 'confirmed', '2026-08-21T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-superseded', ?, NULL, 'superseded resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, 'memory-current', 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL),
+    ('memory-deleted', ?, NULL, 'deleted resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL),
+    ('memory-other', ?, NULL, 'other resume review', 'context', .9, 'confirmed', '2026-08-01T00:00:00.000Z', NULL, NULL, 1, 's', 'e', '2026-08-01T00:00:00.000Z', '2026-08-19T00:00:00.000Z', NULL, NULL)`,
   project.id, task.id, project.id, project.id, project.id, project.id, project.id, other.id);
 
   const snapshot = await fixture.store.getContinuitySnapshot({ projectId: project.id, query: 'resume review', asOf, memoryTopK: 11, recentDialogue: [] });
