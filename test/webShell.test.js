@@ -76,6 +76,8 @@ test('App keeps the Workstream summary fixed, switches three center tabs, and ke
       if (type === 'run.list') return { ok: true, data: { items: [run], nextCursor: null }, meta: {} };
       if (type === 'artifact.list') return { ok: true, data: { items: [], nextCursor: null }, meta: {} };
       if (type === 'activity.list') return { ok: true, data: { items: [], nextCursor: payload.afterCursor ?? 0 }, meta: {} };
+      if (type === 'resume_brief.get') return { ok: true, data: { workstreamId: payload.workstreamId, generatedAt: '2026-09-01T00:00:00Z', facts: { goal: 'Keep authority visible', nextAction: null, currentPlan: [], blockers: [], currentState: null }, run: null, checkpoint: null, needsOwner: [], decisions: [], memories: [], recentActivity: [], recommendations: [], sourceVersions: [] }, meta: {} };
+      if (type === 'memory.list') return { ok: true, data: { items: [] }, meta: {} };
       throw new Error(`unexpected query ${type}`);
     },
     async events(_type, payload) {
@@ -90,7 +92,7 @@ test('App keeps the Workstream summary fixed, switches three center tabs, and ke
     const right = document.querySelector('[aria-label="Control and Context"]');
     assert.match(center.textContent, /Frozen IA/);
     assert.match(center.textContent, /Keep authority visible/);
-    assert.deepEqual([...center.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent), ['Conversation', 'Artifacts', 'Activity']);
+    assert.deepEqual([...center.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent), ['Conversation', 'Artifacts', 'Activity', 'Resume Brief', 'Memories']);
     assert.equal(center.querySelector('[role="tab"][aria-selected="true"]').textContent, 'Conversation');
     assert.equal(center.querySelector('[data-conversation-panel]').closest('[role="tabpanel"]').hidden, false);
     assert.match(right.textContent, /Run controls/);
