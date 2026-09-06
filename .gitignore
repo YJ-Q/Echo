@@ -18,3 +18,7 @@ design-references/
 .runtime/
 data/pi-spike/
 web/dist/
+out*/
+electron-*.log
+handoff-output/
+.margin/

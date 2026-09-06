@@ -2,18 +2,19 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('package exposes the Web Workbench by default and isolates the deprecated API', async () => {
+test('package defaults to the Margin Surface while exposing the Electron host separately', async () => {
   const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   const appSource = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
   const legacyServerSource = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
 
-  assert.equal(packageJson.main, undefined);
-  assert.equal(packageJson.scripts?.desktop, undefined);
-  assert.equal(packageJson.devDependencies?.electron, undefined);
+  assert.equal(packageJson.main, 'electron/main.js');
+  assert.equal(packageJson.scripts?.['electron:start'], 'electron .');
+  assert.ok(packageJson.devDependencies?.electron);
   assert.equal(packageJson.scripts?.test, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe --test "test/*.test.js"');
   assert.equal(packageJson.scripts?.['audit:pi'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/audit-pi-baseline.js');
-  assert.equal(packageJson.scripts?.start, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js');
-  assert.equal(packageJson.scripts?.dev, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js --dev');
+  assert.equal(packageJson.scripts?.start, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-margin-surface.js');
+  assert.equal(packageJson.scripts?.dev, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-margin-surface.js --dev');
+  assert.equal(packageJson.scripts?.['legacy:workbench'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js');
   assert.equal(packageJson.scripts?.['legacy:api'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-legacy-api.js');
   assert.doesNotMatch(appSource, /express\.static|publicDir/);
   assert.doesNotMatch(appSource, /desktop-style frontend|ui-connected/);

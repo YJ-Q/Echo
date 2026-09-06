@@ -22,10 +22,10 @@ RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV MARGIN_WEB_HOST=0.0.0.0
-ENV MARGIN_CORE_DB_PATH=/app/data/terminal-pilot/margin-core.sqlite
+ENV MARGIN_SURFACE_HOST=0.0.0.0
+ENV MARGIN_SURFACE_PORT=3000
 
 EXPOSE 3000
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "scripts/run-web-workbench.js"]
+CMD ["node", "scripts/run-margin-surface.js"]

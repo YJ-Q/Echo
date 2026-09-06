@@ -187,8 +187,7 @@ test('environment selects the configured Core path and ephemeral listen port', a
 test('package, Docker, environment example, and launchers expose exact Phase 2B entrypoint semantics', async () => {
   const packageJson = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'));
   assert.equal(packageJson.scripts.build, 'vite build --config web/vite.config.js');
-  assert.equal(packageJson.scripts.start, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js');
-  assert.equal(packageJson.scripts.dev, '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js --dev');
+  assert.equal(packageJson.scripts['legacy:workbench'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-web-workbench.js');
   assert.equal(packageJson.scripts['pilot:terminal'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-terminal-pilot.js');
   assert.equal(packageJson.scripts['legacy:api'], '.\\.runtime\\node-v22.23.1-win-x64\\node.exe scripts/run-legacy-api.js');
   assert.doesNotMatch(packageJson.scripts.start, /build/u);
@@ -199,17 +198,18 @@ test('package, Docker, environment example, and launchers expose exact Phase 2B 
     readFile(path.resolve('.env.example'), 'utf8')
   ]);
   assert.match(dockerfile, /npm run build/u);
-  assert.match(dockerfile, /scripts\/run-web-workbench\.js/u);
-  assert.match(dockerfile, /MARGIN_WEB_HOST=0\.0\.0\.0/u);
-  assert.match(compose, /terminal-pilot\/margin-core\.sqlite/u);
-  assert.match(compose, /MARGIN_WEB_HOST=0\.0\.0\.0/u);
+  assert.match(dockerfile, /scripts\/run-margin-surface\.js/u);
+  assert.match(dockerfile, /MARGIN_SURFACE_HOST=0\.0\.0\.0/u);
+  assert.match(dockerfile, /MARGIN_SURFACE_PORT=3000/u);
+  assert.match(compose, /MARGIN_SURFACE_HOST=0\.0\.0\.0/u);
+  assert.match(compose, /MARGIN_SURFACE_PORT=3000/u);
   assert.match(compose, /['"]127\.0\.0\.1:3000:3000['"]/u);
   assert.doesNotMatch(compose, /['"]3000:3000['"]/u);
-  assert.match(marginLauncher, /scripts\\run-web-workbench\.js/u);
+  assert.match(marginLauncher, /scripts\\run-margin-surface\.js/u);
   assert.doesNotMatch(marginLauncher, /src\\server\.js/u);
   assert.match(echoLauncher, /deprecated/iu);
   assert.match(echoLauncher, /scripts\\run-legacy-api\.js/u);
-  assert.match(envExample, /MARGIN_CORE_DB_PATH=.*terminal-pilot\/margin-core\.sqlite/u);
+  assert.match(envExample, /MARGIN_SURFACE_HOST=127\.0\.0\.1/u);
 });
 
 test('legacy server direct launch is gated and the deliberate wrapper owns the opt-in flag', async () => {

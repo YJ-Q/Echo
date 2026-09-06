@@ -8,4 +8,4 @@ if not exist "%NODE_HOME%\node.exe" (
 )
 set "PATH=%NODE_HOME%;%PATH%"
 cd /d "%ROOT%"
-"%NODE_HOME%\node.exe" scripts\run-web-workbench.js
+"%NODE_HOME%\node.exe" scripts\run-margin-surface.js
