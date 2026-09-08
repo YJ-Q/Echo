@@ -77,6 +77,9 @@ export function createHandoffHttpAdapter({
   if (typeof rootDir !== 'string' || !rootDir.trim()) throw new TypeError('invalid_handoff_adapter_dependencies');
   const app = express();
   const hasInjectedCodexDiscovery = discoverSessions !== discoverSessionsCore;
+  const hasInjectedDependencies = hasInjectedCodexDiscovery
+    || readRegistry !== readAgentSourceRegistry
+    || writeRegistry !== writeAgentSourceRegistry;
   // Keep every surface on the same Core discovery path. Passing the process
   // environment makes the user-profile resolution explicit instead of letting
   // a packaged Electron runtime accidentally select a different home.
@@ -93,10 +96,12 @@ export function createHandoffHttpAdapter({
   // Startup detection is convenience only: persisted manual sources keep priority and
   // remain untouched. Doing it at the shared HTTP boundary gives Electron the same
   // standard-source behavior as `margin agent detect`.
-  try {
-    const detected = detectAgentSources(registry(), registryOptions);
-    writeRegistry(detected.registry, registryOptions);
-  } catch { /* Registry failure is fail-safe: never replace it with detected defaults. */ }
+  if (!hasInjectedDependencies) {
+    try {
+      const detected = detectAgentSources(registry(), registryOptions);
+      writeRegistry(detected.registry, registryOptions);
+    } catch { /* Registry failure is fail-safe: never replace it with detected defaults. */ }
+  }
   const activeCodex = () => resolveActiveSource(registry(), 'codex', registryOptions);
   const enabledSources = () => AGENT_TYPES.map((type) => resolveActiveSource(registry(), type, registryOptions)).filter((source) => source?.enabled);
   // Each enabled source is isolated: a malformed or unreadable Claude/Pi home must never
@@ -106,9 +111,12 @@ export function createHandoffHttpAdapter({
   // in-memory LKG cache, not a session shadow store.
   const sourceLastKnownGood = new Map();
   const sourceReadStatus = new Map(); // { stale, unavailable, error }; diagnostic-only, never UI truth
+  const injectedCodexSource = { id: 'injected-codex', sourceId: 'injected-codex', type: 'codex', agentType: 'codex', path: rootDir, enabled: true,
+    capabilities: { sessions: true, handoff: true, apiUsage: true, quota: true, executionStatus: true, attentionStatus: false } };
   const discover = async (_unused, options = {}) => {
-    const current = registry();
-    const sources = (hasInjectedCodexDiscovery ? ['codex'] : AGENT_TYPES).map((type) => resolveActiveSource(current, type, registryOptions)).filter(Boolean);
+    const sources = hasInjectedCodexDiscovery
+      ? [injectedCodexSource]
+      : AGENT_TYPES.map((type) => resolveActiveSource(registry(), type, registryOptions)).filter(Boolean);
     let sourceReadFailed = false;
     const settled = await Promise.all(sources.map(async (source) => {
       const adapter = adapterResolver(source.type);
@@ -140,7 +148,8 @@ export function createHandoffHttpAdapter({
   // S2 live-sync aggregates adapter-owned source revisions. A revision is only a cheap re-read
   // signal: adapters remain the sole owners of session facts and lifecycle semantics.
   const currentRevision = () => {
-    const signatures = enabledSources().map((source) => {
+    const sources = hasInjectedCodexDiscovery ? [injectedCodexSource] : enabledSources();
+    const signatures = sources.map((source) => {
       const adapter = adapterResolver(source.type);
       if (!adapter?.getSessionRevision) throw new Error(`No revision reader for ${source.type}`);
       const revision = adapter.getSessionRevision(source, { computeCodexRevision: computeSourceRevision });

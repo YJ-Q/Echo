@@ -59,7 +59,18 @@ export function writeAgentSourceRegistry(registry, options = {}) {
   const target = registryPath(options);
   const sources = (registry?.sources ?? []).map(normalizeSource).filter(Boolean);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, JSON.stringify({ version: 1, sources }, null, 2), 'utf8');
+  // Adapter startup performs best-effort detection in every process.  A direct write lets a
+  // reader in another test/host observe a truncated JSON document between open/write/close.
+  // Write beside the target and publish with one rename so readers see either the old complete
+  // registry or the new complete registry, never an intermediate buffer.
+  const temporary = `${target}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  try {
+    fs.writeFileSync(temporary, JSON.stringify({ version: 1, sources }, null, 2), 'utf8');
+    fs.renameSync(temporary, target);
+  } catch (error) {
+    try { fs.rmSync(temporary, { force: true }); } catch { /* preserve the original write error */ }
+    throw error;
+  }
   return { version: 1, sources };
 }
 
