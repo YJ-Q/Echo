@@ -10,6 +10,7 @@ import { observeFile, refreshRepoTruth, sha256 } from '../src/core/handoff/repo-
 import { unwrapExec, commandKinds } from '../src/core/handoff/exec.js';
 import { renderSmartHandoff } from '../src/core/handoff/handoff.js';
 import { captureSession, discoverSessions, readSessionSource } from '../src/core/handoff/session-source.js';
+import { createHandoffArtifact, snapshotPathForCanonicalSession } from '../src/core/handoff/handoffArtifact.js';
 
 // Fixture helpers — plain objects, no phase0Evidence coupling
 const source = entries => ({
@@ -51,6 +52,54 @@ test('parallel allSettled results are associated by emission order, not completi
   const e = buildEvidence(source([call('a', 'const r=await Promise.allSettled([tools.exec_command({cmd:"first"}),tools.exec_command({cmd:"second"})]); r.forEach(text);'),
     result('a', { status: 'fulfilled', value: { exit_code: 1 } }, { status: 'fulfilled', value: { exit_code: 0 } })]));
   assert.deepEqual(e.operations.map(o => [o.command, o.status]), [['first', 'failed'], ['second', 'succeeded']]);
+});
+
+test('simple local-variable exec emission is statically recovered without inventing an exit status', () => {
+  const e = buildEvidence(source([call('a', 'const r = await tools.exec_command({cmd:"npm test"}); text(r.output);'),
+    { type: 'custom_tool_call_output', call_id: 'a', output: [{ type: 'input_text', text: 'Script completed\nOutput:\nall tests passed\n' }] }]));
+  assert.equal(e.operations[0].command, 'npm test');
+  assert.equal(e.operations[0].mapping, 'static local-variable output emission');
+  assert.equal(e.operations[0].status, 'unknown');
+});
+
+test('native CommandExecution is direct historical validation evidence, never current validation', () => {
+  const input = source([]);
+  input.records.push({ line: 9, event: { type: 'event_msg', payload: { type: 'item_completed', item: {
+    type: 'CommandExecution', parsed_cmd: [{ cmd: 'npm test' }], cwd: 'file:///D:/fixture', exit_code: 0, stdout: 'ok', status: 'completed',
+  } } } });
+  const e = buildEvidence(input);
+  assert.deepEqual(e.operations.map(op => [op.id, op.command, op.status]), [['native:L9', 'npm test', 'succeeded']]);
+  const s = distill(e, truth());
+  assert.ok(s.progress.some(item => item.kind === 'historical-validation' && /exited 0/.test(item.text)));
+  assert.ok(s.progress.some(item => item.kind === 'current-validation' && /unknown/.test(item.text)));
+});
+
+test('terminal labelled reports preserve historical report, pending, blockers, and follow-up without prose completion promotion', () => {
+  const e = buildEvidence(source([{ type: 'message', role: 'assistant', content: [{ text: `Terminal conclusion:\nReport: PASS — implementation and focused checks completed.\nPending: Run the packaging smoke.\nBlockers: Missing host Python.\nRecommended follow-up: Restore Python, then run the bounded package check.` }] }]));
+  const s = distill(e, truth());
+  assert.equal(s.historicalReport[0].text, 'PASS — implementation and focused checks completed.');
+  assert.deepEqual(s.historicalPending.map(item => item.text), ['Run the packaging smoke.', 'Missing host Python.']);
+  assert.match(s.historicalFollowUp[0].text, /Restore Python/);
+  assert.equal(s.completed.length, 0);
+  const md = renderSmartHandoff(s, truth());
+  assert.match(md, /## Historical Report/);
+  assert.match(md, /\*\*Inferred · Historical\*\*/);
+  assert.doesNotMatch(md, /## Current Applicability/);
+});
+
+test('terminal final-answer excerpt retains a bounded research outcome and pending plan as historical reporting', () => {
+  const e = buildEvidence(source([
+    { type: 'message', role: 'assistant', phase: 'commentary', content: [{ text: 'Inspecting sources.' }] },
+    { type: 'message', role: 'assistant', phase: 'final_answer', content: [{ text: `## Findings\nResearch identified the native source and recommended a bounded implementation model.\n\n## Recommended implementation\nImplement the read-only slice with fixtures after reconciling the current repository.\n\n## Verdict\nPASS — enough evidence for implementation.` }] },
+  ]));
+  const s = distill(e, truth());
+  const report = s.historicalReport.find(item => item.kind === 'historical-terminal-report');
+  assert.ok(report);
+  assert.match(report.text, /Research identified the native source/);
+  assert.match(report.text, /Implement the read-only slice/);
+  assert.match(report.text, /PASS — enough evidence/);
+  assert.equal(report.temporalScope, 'historical');
+  assert.match(report.basis, /not independent completion or current repository truth/);
 });
 
 test('truncated output cannot be repaired by borrowing a later success', () => {
@@ -483,6 +532,32 @@ test('captureSession recovers from a snapshot with a missing or corrupt .capture
   assert.equal(third.sha256, first.sha256);
   const sidecar = JSON.parse(fs.readFileSync(snapshotPath + '.capture.json', 'utf8'));
   assert.equal(sidecar.sha256, first.sha256);
+});
+
+test('user generation uses a Windows-safe canonical snapshot name and freshly freezes appended complete records', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-fresh-capture-'));
+  const original = path.join(dir, 'rollout.jsonl');
+  const canonicalId = 'codex:source:session:with:colons';
+  fs.writeFileSync(original, '{"type":"initial"}\n');
+  const session = { id: 'session:with:colons', nativeSessionId: 'session:with:colons', canonicalId, sourceId: 'source', agentType: 'codex', cwd: dir, originalPath: original };
+  const snapshotPath = snapshotPathForCanonicalSession(dir, canonicalId);
+  assert.doesNotMatch(path.basename(snapshotPath), /:/);
+
+  const artifact = () => createHandoffArtifact({ session, canonicalId, rootDir: dir, workspace: dir, captureSession,
+    generateHandoff: (capture) => ({ markdown: fs.readFileSync(capture.snapshotPath, 'utf8'), resumeSummary: {} }) });
+  const first = artifact();
+  fs.appendFileSync(original, '{"type":"complete-new-evidence"}\n{"type":"partial');
+  const second = artifact();
+  assert.notEqual(second.capture.sha256, first.capture.sha256);
+  assert.match(second.markdown, /complete-new-evidence/);
+  assert.doesNotMatch(second.markdown, /partial/);
+  assert.equal(second.capture.canonicalId, canonicalId);
+  assert.equal(second.capture.nativeSessionId, session.nativeSessionId);
+
+  fs.appendFileSync(original, '-record"}\n');
+  const third = artifact();
+  assert.notEqual(third.capture.sha256, second.capture.sha256);
+  assert.match(third.markdown, /partial-record/);
 });
 
 test('session source exposes discovery independent of a single --session id, ready for a future picker', () => {

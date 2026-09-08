@@ -21,6 +21,29 @@ export function buildEvidence({ records, capture, session }) {
     && ['function_call_output', 'custom_tool_call_output'].includes(r.event.payload?.type));
   const pointer = (line, extra = {}) => ({ path: capture.snapshotPath, sha256: capture.sha256, line, ...extra });
   const internalThread = isInternalControlThread(session);
+  // Native process records live outside response_item tool envelopes.
+  for (const r of records) {
+    const item = r.event?.type === 'event_msg' && r.event.payload?.type === 'item_completed' ? r.event.payload.item : null;
+    if (item?.type !== 'CommandExecution') continue;
+    const command = item.parsed_cmd?.find(entry => typeof entry?.cmd === 'string')?.cmd
+      ?? (Array.isArray(item.command) ? item.command.join(' ') : item.command);
+    const exitCode = typeof item.exit_code === 'number' ? item.exit_code : undefined;
+    const operation = { id: `native:L${r.line}`, name: 'CommandExecution', command,
+      cwd: typeof item.cwd === 'string' ? item.cwd.replace(/^file:\/\//i, '') : session?.cwd,
+      status: exitCode !== undefined ? (exitCode === 0 ? 'succeeded' : 'failed') : item.status === 'failed' ? 'failed' : 'unknown',
+      confidence: exitCode !== undefined || item.status === 'failed' ? 'Confirmed' : 'Uncertain',
+      reason: exitCode !== undefined ? `exit_code=${exitCode}` : 'Native command record has no explicit exit status',
+      value: { exit_code: exitCode, output: item.stdout ?? item.aggregated_output ?? item.formatted_output },
+      mapping: 'native CommandExecution', evidence: [pointer(r.line)], warnings: [] };
+    if (typeof command === 'string') {
+      operation.kinds = commandKinds(command);
+      nodes.push({ id: `${operation.id}/shell`, kind: 'Shell command', confidence: 'Confirmed',
+        scope: 'Native CommandExecution record; execution outcome tracked separately', operationId: operation.id, evidence: operation.evidence });
+      if (operation.kinds.test) nodes.push({ id: `${operation.id}/test`, kind: 'Test execution', confidence: operation.confidence,
+        operationId: operation.id, status: operation.status, evidence: operation.evidence });
+    }
+    operations.push(operation);
+  }
   for (const r of records) {
     const p = r.event?.payload;
     if (r.event?.type !== 'response_item' || p?.type !== 'message') continue;
@@ -38,7 +61,7 @@ export function buildEvidence({ records, capture, session }) {
         scope: 'The request was made, not that it was completed', text: requirement, evidence: [pointer(r.line)] });
     } else if (p.role === 'assistant') {
       nodes.push({ id: `claim:L${r.line}`, kind: 'Assistant claim', confidence: 'Inferred',
-        scope: 'Unverified narrative; not completion evidence', text, evidence: [pointer(r.line)] });
+        scope: 'Unverified narrative; not completion evidence', phase: p.phase, text, evidence: [pointer(r.line)] });
     }
   }
   const waitCalls = calls.filter(r => r.event.payload.name === 'wait');
@@ -79,7 +102,11 @@ export function buildEvidence({ records, capture, session }) {
         if (d.completed) break;
       }
     }
-    const canMap = plan.reliable && !decodeWarnings.length && emitted.length === plan.slots.length && matched.length === 1;
+    const propertyOnlyEmission = plan.slots.length > 0 && plan.slots.every(slot => slot?.emittedProperty) && matched.length === 1;
+    // An emitted `.output` is arbitrary text rather than a serialized tool
+    // result. Its call association is still statically known, while its exit
+    // status remains unknown (decode warnings are retained below).
+    const canMap = plan.reliable && (propertyOnlyEmission || (!decodeWarnings.length && emitted.length === plan.slots.length && matched.length === 1));
     const localWarnings = [...plan.warnings, ...decodeWarnings];
     if (!canMap) localWarnings.push('No reliable one-to-one ordered mapping for emitted slots');
     if (!plan.slots.filter(Boolean).length) operations.push({ id: `${id}/opaque`, name: p.name,
@@ -90,7 +117,7 @@ export function buildEvidence({ records, capture, session }) {
       const state = canMap ? operationOutcome(emitted[i], slot.name)
         : { status: 'unknown', confidence: 'Uncertain', reason: 'Missing, partial, ambiguous or unmappable output' };
       const operation = { id: `${id}/op${i + 1}`, parentCallId: id, name: slot.name,
-        args: slot.args, ...state, mapping: canMap ? 'static ordered emission' : 'unresolved',
+        args: slot.args, ...state, mapping: canMap ? (slot.emittedProperty ? `static local-variable ${slot.emittedProperty} emission` : 'static ordered emission') : 'unresolved',
         evidence: [pointer(call.line, { codeRange: slot.codeRange }), ...resultLines.map(l => pointer(l, { outputSlot: canMap ? i : null }))],
         warnings: [...localWarnings, ...(slot.unresolved ? [slot.unresolved] : [])] };
       if (['exec_command', 'shell_command', 'shell'].includes(slot.name)) {

@@ -6,6 +6,8 @@ export { selectSmart } from './smartSelect.js';
 export { renderSmartHandoff } from './handoff.js';
 export { projectResumeSummary } from './resume-summary.js';
 export { createWorkspaceOverview, selectLatestSession } from './workspace-overview.js';
+export { createHandoffArtifact, snapshotPathForCanonicalSession } from './handoffArtifact.js';
+export { saveHandoffArtifact } from './save.js';
 
 import { readSessionSource } from './session-source.js';
 import { buildEvidence } from './evidence.js';

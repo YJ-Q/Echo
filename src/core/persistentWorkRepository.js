@@ -488,6 +488,24 @@ export function createPersistentWorkRepository(store) {
       await evidence(tx, { operation, requestId: input.requestId, actor, workstreamId: input.workstreamId, entityType: 'memory', entityId: current.id, version: nextVersion, eventType: 'restored', input });
       return { data: await tx.get('SELECT * FROM margin_memories WHERE id=?', current.id) };
     }),
+    findSwitchReplay: async (input, actor) => {
+      const audit = await store.db.get("SELECT id, operation, entity_id, actor_type, input_digest, metadata FROM margin_audit_log WHERE request_id=? AND result_code='allowed' AND operation='workstream_switch' ORDER BY created_at LIMIT 1", input.requestId);
+      if (!audit) return null;
+      let meta; try { meta = JSON.parse(audit.metadata || '{}'); } catch { return null; }
+      if (audit.input_digest !== digestInput(input)) throw new CoreContractError('idempotency_conflict', 'Request ID was already used with different input or actor');
+      return { sourceRunId: meta.sourceRunId ?? audit.entity_id };
+    },
+    recordSwitchResult: async (input, actor, sourceRunId) => {
+      const now = store.clock();
+      const auditId = store.idFactory('audit');
+      await store.db.run(
+        `INSERT INTO margin_audit_log (id,operation,request_id,actor_type,project_id,entity_type,entity_id,permission_decision,result_code,input_digest,metadata,created_at)
+         VALUES (?,?,?,?,?,?,?,'allowed','allowed',?,?,?)`,
+        auditId, 'workstream_switch', input.requestId, actor.actorType, input.sourceWorkstreamId, 'workstream', sourceRunId, digestInput(input),
+        JSON.stringify({ actorSubjectId: actor.subjectId ?? null, sourceRunId }), now
+      );
+      return auditId;
+    },
     listRecentEventRows: async (workstreamId, limit = 20) => {
       const lim = Number.isInteger(limit) && limit >= 1 && limit <= 100 ? limit : 20;
       return store.db.all('SELECT * FROM margin_events WHERE project_id=? ORDER BY created_at DESC,id DESC LIMIT ?', workstreamId, lim);

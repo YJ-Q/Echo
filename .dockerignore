@@ -8,3 +8,19 @@ npm-debug.log*
 data/
 test/
 .git-commit-msg.txt
+# S5A: keep heavy dev/generated trees out of the Docker build context; the
+# node web surface only needs src, scripts, web (source for the vite build),
+# package files, and pruned production node_modules.
+.runtime/
+out*/
+design-references/
+experiments/
+.margin/
+.superpowers/
+.claude/
+.agents/
+handoff-output/
+docs/validation/
+evaluation/
+.worktrees/
+web/dist/

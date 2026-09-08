@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import fs from 'node:fs';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -23,14 +24,19 @@ async function withRepo(action) {
 test('GET /api/resources/status is independent, read-only, and fail-soft', async () => {
   const app = createHandoffHttpAdapter({
     rootDir: os.tmpdir(),
+    readRegistry: () => ({ version: 1, sources: [] }),
+    writeRegistry: (registry) => registry,
     getAgentResourceStatus: () => ({ agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] })
   });
   await withServer(app, async (origin) => {
     const response = await fetch(`${origin}/api/resources/status`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] });
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.status, 'ok');
+    assert.deepEqual(body.agents, [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }, { agent: 'pi', provider: 'pi', revision: null, freshAt: null, stale: false, unavailable: true, resources: [] }]);
   });
-  const failed = createHandoffHttpAdapter({ rootDir: os.tmpdir(), getAgentResourceStatus: () => { throw new Error('source failed'); } });
+  const failed = createHandoffHttpAdapter({ rootDir: os.tmpdir(), readRegistry: () => ({ version: 1, sources: [] }), writeRegistry: (registry) => registry, getAgentResourceStatus: () => { throw new Error('source failed'); } });
   await withServer(failed, async (origin) => {
     const body = await (await fetch(`${origin}/api/resources/status`)).json();
     assert.equal(body.agents[0].unavailable, true);
@@ -49,10 +55,13 @@ test('GET /api/sessions returns only fields the discovery layer actually provide
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.ok, true);
-    assert.deepEqual(body.data.sessions, [{
-      id: 's1', agent: 'Codex', cwd: 'D:\\repo', workspaceKey: null, workspaceName: null,
-      branch: 'main', summary: null, label: null, updatedAt: '2026-01-02T00:00:00.000Z'
-    }]);
+    const [session] = body.data.sessions;
+    assert.equal(session.id, 's1'); assert.equal(session.nativeSessionId, 's1'); assert.equal(session.agentType, 'codex');
+    assert.equal(session.canonicalId, `codex:${session.sourceId}:s1`); assert.equal(session.agent, 'Codex'); assert.equal(session.cwd, 'D:\\repo');
+    assert.deepEqual(session.workspace, { key: null, name: null }); assert.equal(session.branch, 'main');
+    assert.deepEqual([session.displayTitle, session.titleSource], ['Untitled session Â· s1', 'fallback-id']);
+    assert.deepEqual([session.createdAt, session.updatedAt, session.executionStatus, session.attentionStatus], ['2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 'unknown', 'none']);
+    assert.deepEqual(session.capabilities, { sessions: true, handoff: true, apiUsage: true, quota: true, executionStatus: true, attentionStatus: false });
   });
 });
 
@@ -104,7 +113,7 @@ test('Slice 3.3: workspace session navigation returns all and only that workspac
 
 test('POST /api/handoff/generate calls the real Core pipeline and returns only browser-safe checkpoint fields', async () => {
   await withRepo(async (repo) => {
-    const meta = { id: 'abc', cwd: repo, originalPath: 'orig.jsonl' };
+    const meta = { id: 'abc', nativeSessionId: 'abc', canonicalId: 'codex:source-a:abc', sourceId: 'source-a', agentType: 'codex', cwd: repo, originalPath: 'orig.jsonl' };
     let capturedRepo, capturedSessionMeta;
     const app = createHandoffHttpAdapter({
       rootDir: os.tmpdir(),
@@ -118,7 +127,7 @@ test('POST /api/handoff/generate calls the real Core pipeline and returns only b
     });
     await withServer(app, async (origin) => {
       const response = await fetch(`${origin}/api/handoff/generate`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'abc' })
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: meta.canonicalId })
       });
       const body = await response.json();
       assert.equal(response.status, 200);
@@ -141,6 +150,30 @@ test('POST /api/handoff/generate returns not_found for an unknown session id', a
     });
     assert.equal(response.status, 404);
     assert.equal((await response.json()).error.code, 'not_found');
+  });
+});
+
+test('POST /api/handoff/generate never resolves a shared native id across sources', async () => {
+  await withRepo(async (repo) => {
+    const first = { id: 'same-native-id', nativeSessionId: 'same-native-id', canonicalId: 'codex:source-a:same-native-id', sourceId: 'source-a', agentType: 'codex', cwd: repo, originalPath: 'first.jsonl' };
+    const second = { ...first, canonicalId: 'codex:source-b:same-native-id', sourceId: 'source-b', originalPath: 'second.jsonl' };
+    let captured;
+    const app = createHandoffHttpAdapter({
+      rootDir: repo, discoverSessions: async () => [first, second],
+      captureSession: (meta) => { captured = meta; return { snapshotPath: 'ignored', sha256: 'ignored' }; },
+      generateHandoff: () => ({ markdown: '# exact', resumeSummary: {} }),
+    });
+    await withServer(app, async (origin) => {
+      const exact = await fetch(`${origin}/api/handoff/generate`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: second.canonicalId }),
+      });
+      assert.equal(exact.status, 200);
+      assert.equal(captured.originalPath, second.originalPath);
+      const ambiguous = await fetch(`${origin}/api/handoff/generate`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: first.nativeSessionId }),
+      });
+      assert.equal(ambiguous.status, 404);
+    });
   });
 });
 
@@ -179,6 +212,40 @@ test('POST /api/handoff/save overwrites an existing checkpoint with the new one 
   });
 });
 
+test('HTTP generation uses canonical identity, fresh capture, and saves the exact returned artifact', async () => {
+  await withRepo(async (repo) => {
+    const native = path.join(repo, 'rollout.jsonl');
+    const canonicalId = 'codex:source-a:native:with:colon';
+    await writeFile(native, '{"type":"first"}\n');
+    const meta = { id: 'native:with:colon', nativeSessionId: 'native:with:colon', canonicalId, sourceId: 'source-a', agentType: 'codex', cwd: repo, originalPath: native };
+    const app = createHandoffHttpAdapter({
+      rootDir: repo,
+      discoverSessions: async () => [meta],
+      generateHandoff: (capture) => ({ markdown: fs.readFileSync(capture.snapshotPath, 'utf8'), resumeSummary: {} }),
+    });
+    await withServer(app, async (origin) => {
+      const generate = async () => (await (await fetch(`${origin}/api/handoff/generate`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: canonicalId }),
+      })).json());
+      const first = await generate();
+      assert.equal(first.ok, true);
+      await writeFile(native, '{"type":"first"}\n{"type":"new-complete"}\n{"type":"partial');
+      const second = await generate();
+      assert.equal(second.ok, true);
+      assert.match(second.data.markdown, /new-complete/);
+      assert.doesNotMatch(second.data.markdown, /partial/);
+      assert.notEqual(second.data.markdown, first.data.markdown);
+      const snapshotNames = await readdir(path.join(repo, 'handoff-output', 'web-sessions'));
+      assert.ok(snapshotNames.every((name) => !name.includes(':')));
+      const save = await fetch(`${origin}/api/handoff/save`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repo, markdown: second.data.markdown }),
+      });
+      assert.equal(save.status, 200);
+      assert.equal(await readFile(path.join(repo, '.margin', 'HANDOFF.md'), 'utf8'), second.data.markdown);
+    });
+  });
+});
+
 test('POST /api/handoff/save rejects a repo path that is not a real directory', async () => {
   const app = createHandoffHttpAdapter({ rootDir: os.tmpdir() });
   await withServer(app, async (origin) => {
@@ -207,9 +274,9 @@ test('Slice 2.3: GET /api/sessions serves the already-filtered resumable list â€
     // output) has already dropped g1 before this list reaches the adapter.
     const discovered = [
       { id: 'g1', cwd: 'D:\\Code\\margin', branch: 'main', createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-09-05T11:00:00.000Z'), originalPath: internal },
+        updatedAt: new Date('2026-09-05T11:00:00.000Z'), originalPath: internal, threadSource: 'guardian_review' },
       { id: 'u1', cwd: 'D:\\Code\\margin', branch: 'main', createdAt: new Date('2026-01-02T00:00:00.000Z'),
-        updatedAt: new Date('2026-09-05T12:00:00.000Z'), originalPath: normal },
+        updatedAt: new Date('2026-09-05T12:00:00.000Z'), originalPath: normal, threadSource: 'user' },
     ];
     const app = createHandoffHttpAdapter({
       rootDir: os.tmpdir(),

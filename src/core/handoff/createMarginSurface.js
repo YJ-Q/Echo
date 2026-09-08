@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { createHandoffHttpAdapter } from './httpAdapter.js';
+import { createMarginTelemetryService } from '../../telemetry/marginTelemetryService.js';
+import { telemetryProfileDir } from '../../telemetry/paths.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 
@@ -56,6 +58,7 @@ export async function createMarginSurface({
 
   let vite;
   let server;
+  let telemetry = null;
   let startPromise;
   let closePromise;
 
@@ -75,23 +78,38 @@ export async function createMarginSurface({
       ...(dev ? { viteMiddleware: rewriteToMarginHtml(vite.middlewares) } : { staticDir: resolvedStaticDir })
     });
 
+    // S4 Cost Telemetry (main-process): additive, error-isolated, deliberately independent of the
+    // renderer's visibility/expansion gating so usage is captured even while the window is hidden or
+    // collapsed. Optional because the surface must never fail if telemetry cannot initialize.
+    const telemetryEnabled = env.MARGIN_TELEMETRY_DISABLED ? env.MARGIN_TELEMETRY_DISABLED.trim().toLowerCase() !== '1' && env.MARGIN_TELEMETRY_DISABLED.trim().toLowerCase() !== 'true' : true;
+    telemetry = telemetryEnabled ? createMarginTelemetryService({
+      dir: dependencies.telemetryDir ?? telemetryProfileDir({ env }),
+      env,
+    }) : null;
+
     async function start() {
       if (closePromise) throw new Error('margin_surface_closed');
       if (startPromise) return startPromise;
       startPromise = (async () => {
         server = http.createServer(app);
-        return listen(server, listenPort, listenHost);
+        const origin = await listen(server, listenPort, listenHost);
+        telemetry?.start();
+        return origin;
       })();
       return startPromise;
     }
 
     async function close() {
       if (closePromise) return closePromise;
-      closePromise = (async () => { await closeServer(server); await vite?.close?.(); })();
+      closePromise = (async () => {
+        telemetry?.stop();
+        await closeServer(server);
+        await vite?.close?.();
+      })();
       return closePromise;
     }
 
-    return Object.freeze({ app, start, close });
+    return Object.freeze({ app, start, close, telemetryStatus: () => telemetry?.status?.() ?? { enabled: false } });
   } catch (error) {
     await vite?.close?.().catch(() => {});
     throw error;

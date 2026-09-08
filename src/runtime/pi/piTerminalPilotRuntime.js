@@ -20,8 +20,8 @@ export function buildPiTerminalPilotOptions(extensionFactory) {
   return { policy: buildContinuityToolPolicy(), resources: buildContinuityResourceOptions(extensionFactory) };
 }
 
-function providerExtension({ provider, modelId, customProvider, tools, getInvocationContext, onToolResult }) {
-  const margin = createMarginPiExtension({ tools, getInvocationContext, onToolResult });
+function providerExtension({ provider, modelId, customProvider, tools, extraTools, getInvocationContext, onToolResult }) {
+  const margin = createMarginPiExtension({ tools, extraTools, getInvocationContext, onToolResult });
   return async (pi) => {
     if (customProvider) {
       pi.registerProvider(provider, {
@@ -35,7 +35,7 @@ function providerExtension({ provider, modelId, customProvider, tools, getInvoca
 }
 
 export async function createPiTerminalPilotRuntime({
-  repositoryRoot, agentDir, provider, modelId, customProvider, tools, getInvocationContext,
+  repositoryRoot, agentDir, provider, modelId, customProvider, tools, extraTools = [], getInvocationContext,
   dependencies = {}
 }) {
   const deps = {
@@ -51,7 +51,7 @@ export async function createPiTerminalPilotRuntime({
       const invocationContextProvider = sessionInvocationContext ?? getInvocationContext ?? (async () => undefined);
       let currentToolResults = [];
       const extension = providerExtension({
-        provider, modelId, customProvider, tools,
+        provider, modelId, customProvider, tools, extraTools,
         getInvocationContext: (input) => invocationContextProvider(input),
         onToolResult: (result) => currentToolResults.push(result)
       });

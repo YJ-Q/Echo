@@ -1,12 +1,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { resolveCodexHome } from '../core/handoff/session-source.js';
 
-export function resolveCodexResourceHome(codexHome, { env = process.env, homedir = os.homedir } = {}) {
-  if (typeof codexHome === 'string' && codexHome.trim()) return codexHome;
-  const profile = env.USERPROFILE?.trim() || homedir();
-  return path.join(profile, '.codex');
-}
+export const resolveCodexResourceHome = resolveCodexHome;
 function quotaSnapshot(record) {
   const rateLimits = record?.type === 'event_msg' && record.payload?.type === 'token_count' ? record.payload.rate_limits : null;
   const timestamp = new Date(record?.timestamp);

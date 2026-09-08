@@ -93,7 +93,7 @@ function selectNextAction(claims) {
 
 const COMPLETION_REPORT = /\b(?:research|implementation|phase\s*\d+(?:\s+\w+)*|poc|work|changes?|requested changes?|all requested changes?)\s+(?:is\s+)?(?:complete|completed|done)\b|(?:研究|实现|开发|修改|工作|PoC|阶段).{0,24}(?:已完成|完成了|完成)|(?:全部|所有).{0,16}(?:已完成|完成)/i;
 const COMPLETION_NEGATION = /\b(?:not|isn't|is not|aren't|are not)\s+(?:yet\s+)?(?:complete|completed|done)\b|(?:regression|issue).{0,48}\b(?:remains|remaining)\b|(?:尚未|并未|没有).{0,16}(?:完成|实现)|(?:回归|问题).{0,32}(?:仍然|尚存)/i;
-const RESEARCH_SUFFICIENT = /(?:research\s+stop\s+verdict\s*[:：]?\s*)?(?:stop\s*[-—:：]\s*)?enough\s+evidence\s+to\s+implement|(?:研究|调研).{0,24}(?:证据充分|足以实现|可以实现)/i;
+const RESEARCH_SUFFICIENT = /(?:research\s+stop\s+verdict\s*[:：]?\s*)?(?:stop\s*[-—:：]\s*)?enough\s+evidence\s+(?:to\s+implement|for\s+(?:the\s+)?(?:next\s+)?(?:slice|implementation))|(?:研究|调研).{0,24}(?:证据充分|足以实现|可以实现)/i;
 
 function reportSentence(text) {
   return text.split(/(?<=[.!?。！？])\s+|\r?\n+/)
@@ -114,6 +114,145 @@ function selectReportedMilestone(claims) {
       evidence: [claim.id], basis: 'Assistant completion report; not independent proof that a task, feature, or slice is complete' };
   }
   return milestone;
+}
+
+const TERMINAL_LABELS = {
+  report: /^(?:historical\s+)?(?:terminal\s+)?(?:report|progress|status|conclusion)\s*[:：-]\s*(.*)$/i,
+  pending: /^(?:historical\s+)?(?:pending(?:\s+work)?|blockers?)\s*[:：-]\s*(.*)$/i,
+  followUp: /^(?:historical\s+)?(?:recommended\s+(?:follow[- ]?up|next\s+step)|follow[- ]?up)\s*[:：-]\s*(.*)$/i,
+};
+const TERMINAL_REPORT = /^(?:pass|partial|verdict|结论)\s*[—:：-]\s*(.+)$/i;
+const TERMINAL_PENDING_HEADING = /^(?:#{1,6}\s*)?(?:remaining(?:\s+(?:blockers?|work|issues?))?|deviations?\s*\/\s*blockers?|unresolved(?:\s+work)?)\s*[:：]?\s*$/i;
+const TERMINAL_PENDING_LINE = /^(?:remaining(?:\s+(?:blockers?|work|issues?))?|deviations?\s*\/\s*blockers?|unresolved(?:\s+work)?)\s*[:：-]\s*(.+)$/i;
+const TERMINAL_FOLLOW_UP = /^(?:the\s+)?(?:smallest|safest|recommended)\s+(?:next\s+action|follow[- ]?up)\s+(?:is|:)\s*(.+)$/i;
+const TERMINAL_FOLLOW_UP_HEADING = /^(?:#{1,6}\s*)?(?:\d+[.)]\s*)?(?:recommended\s+(?:implementation|slice)|(?:first|next)\s+implementation\s+(?:slice|objective|step)|safest\s+next\s+action)\s*[:：]?\s*$/i;
+const cleanHistoricalText = text => text.replace(/^[-*]\s*/, '').trim().replace(/\s+/g, ' ').slice(0, 600);
+
+// Final answers often contain the only durable account of a research/audit or a
+// partial implementation.  Keeping just their first line loses that state;
+// copying them wholesale makes Smart Handoff a transcript.  Recover a bounded
+// historical excerpt from structurally relevant terminal sections instead.
+const TERMINAL_EXCERPT_HEADING = /(?:\brecommend(?:ed)?\b|\bimplementation\b|\bminimum\b|\bnext\b|\bfollow[- ]?up\b|\bpending\b|\bremaining\b|\bblockers?\b|\bvalidation\b|\btests?\b|\bverdict\b|\bconclusion\b|\bplan\b|完成|实现|建议|下一步|待办|阻塞|验证|测试|结论)/i;
+const TERMINAL_VERDICT = /(?:^|\s)(?:PASS|PARTIAL|STOP)\s*[—:-]/i;
+
+function terminalExcerpt(text) {
+  const lines = text.split(/\r?\n/);
+  const parts = [];
+  const add = value => {
+    const clean = cleanHistoricalText(value);
+    if (clean && !parts.includes(clean) && parts.join(' ').length + clean.length <= 1200) parts.push(clean);
+  };
+  // A prose opening commonly says what was completed and its primary boundary.
+  const opening = [];
+  for (const line of lines) {
+    if (/^\s*#{1,6}\s+/.test(line)) break;
+    opening.push(line);
+  }
+  add(opening.join(' ').slice(0, 400));
+  const firstHeading = lines.findIndex(line => /^\s*#{1,6}\s+/.test(line));
+  if (firstHeading >= 0 && /(?:\bfindings?\b|\bsummary\b|\bresults?\b|发现|结果|摘要)/i.test(lines[firstHeading])) {
+    const block = [lines[firstHeading].trim()];
+    for (let next = firstHeading + 1; next < lines.length && block.length < 5; next += 1) {
+      if (/^\s*#{1,6}\s+/.test(lines[next])) break;
+      if (lines[next].trim()) block.push(lines[next].trim());
+    }
+    add(block.join(' ').slice(0, 360));
+  }
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    const isHeading = /^(?:#{1,6}\s+|\d+[.)]\s+)/.test(line);
+    const isLabel = /^[^#\n]{1,70}[:：]\s*$/.test(line);
+    const heading = line.replace(/^#{1,6}\s*/, '').replace(/[:：]\s*$/, '');
+    if (!TERMINAL_VERDICT.test(line) && (!isHeading && !isLabel || !TERMINAL_EXCERPT_HEADING.test(heading))) continue;
+    const block = [line];
+    for (let next = index + 1; next < lines.length && block.length < 5; next += 1) {
+      if (/^\s*#{1,6}\s+/.test(lines[next])) break;
+      if (lines[next].trim()) block.push(lines[next].trim());
+    }
+    add(block.join(' ').slice(0, 360));
+  }
+  return parts.join(' ');
+}
+
+// Label-only recovery prevents ordinary narrative prose from becoming a
+// continuation fact. It is historical reporting, never a completion verdict.
+function historicalConclusionFields(claims) {
+  const result = { report: [], pending: [], followUp: [] };
+  for (const claim of claims) {
+    const lines = claim.text.split(/\r?\n/);
+    for (let index = 0; index < lines.length; index += 1) {
+      const rawLine = lines[index];
+      const line = rawLine.trim().replace(/^[-*]\s*/, '');
+      for (const [field, pattern] of Object.entries(TERMINAL_LABELS)) {
+        const match = line.match(pattern);
+        const text = match && cleanHistoricalText(match[1]);
+        if (!text) continue;
+        const item = { confidence: 'Inferred', temporalScope: 'historical', kind: `historical-${field}`,
+          text, evidence: [claim.id], basis: `Explicit ${field} label in a terminal assistant conclusion; historical report only, not current repository truth` };
+        result[field] = [...result[field].filter(existing => existing.text !== text), item].slice(-2);
+      }
+      const report = line.match(TERMINAL_REPORT);
+      if (report) {
+        const text = cleanHistoricalText(line);
+        const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-report', text,
+          evidence: [claim.id], basis: 'Explicit PASS/PARTIAL terminal assistant report; historical report only, not current repository truth' };
+        result.report = [...result.report.filter(existing => existing.text !== text), item].slice(-2);
+      }
+      const followUp = line.match(TERMINAL_FOLLOW_UP);
+      if (followUp?.[1]) {
+        const text = cleanHistoricalText(followUp[1]);
+        const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-followUp', text,
+          evidence: [claim.id], basis: 'Explicit terminal assistant follow-up recommendation; historical only, not a current executable action' };
+        result.followUp = [...result.followUp.filter(existing => existing.text !== text), item].slice(-2);
+      }
+      const pending = line.match(TERMINAL_PENDING_LINE);
+      if (pending?.[1]) {
+        const text = cleanHistoricalText(pending[1]);
+        const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-pending', text,
+          evidence: [claim.id], basis: 'Explicit terminal assistant pending/blocker label; historical only, not current repository truth' };
+        result.pending = [...result.pending.filter(existing => existing.text !== text), item].slice(-2);
+      }
+      if (TERMINAL_PENDING_HEADING.test(line)) {
+        const next = cleanHistoricalText(lines[index + 1] ?? '');
+        if (next) {
+          const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-pending', text: next,
+            evidence: [claim.id], basis: 'Explicit terminal assistant blockers section; historical only, not current repository truth' };
+          result.pending = [...result.pending.filter(existing => existing.text !== next), item].slice(-2);
+        }
+      }
+      if (TERMINAL_FOLLOW_UP_HEADING.test(line)) {
+        const next = cleanHistoricalText(lines.slice(index + 1).find(candidate => candidate.trim()) ?? '');
+        if (next) {
+          const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-followUp', text: next,
+            evidence: [claim.id], basis: 'Explicit terminal assistant follow-up section; historical only, not a current executable action' };
+          result.followUp = [...result.followUp.filter(existing => existing.text !== next), item].slice(-2);
+        }
+      }
+    }
+    // The final assistant response is the session's terminal report. Preserve
+    // a bounded opening only when no explicit report label was recovered; it
+    // remains an Inferred historical report rather than a completion fact.
+    if (claim === claims.at(-1) && !result.report.length) {
+      const text = cleanHistoricalText(lines.find(line => line.trim()) ?? '');
+      if (text) result.report = [{ confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-report', text,
+        evidence: [claim.id], basis: 'Bounded terminal assistant report; historical reporting only, not current repository truth' }];
+    }
+    if (claim === claims.at(-1) && !result.pending.length) {
+      const blocker = claim.text.match(/(?:\b(?:pending|blockers?|blocked|remaining)\b|(?:待办|阻塞|剩余|未完成))[^.。!！\n]{0,360}[.。!！]?/i)?.[0];
+      const text = blocker && cleanHistoricalText(blocker);
+      if (text && text.length >= 12 && !/(?:none identified|\bnone\b|无。?$)/i.test(text)) result.pending = [{ confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-pending', text,
+        evidence: [claim.id], basis: 'Explicit pending/blocker language in the terminal assistant report; historical only, not current repository truth' }];
+    }
+  }
+  const terminal = claims.filter(claim => claim.phase === 'final_answer').at(-1) ?? claims.at(-1);
+  const excerpt = terminal && terminalExcerpt(terminal.text);
+  if (excerpt) {
+    const item = { confidence: 'Inferred', temporalScope: 'historical', kind: 'historical-terminal-report',
+      text: `Terminal assistant report (excerpt): ${excerpt}`, evidence: [terminal.id],
+      basis: 'Bounded excerpt from the terminal assistant answer; historical reporting only, not independent completion or current repository truth' };
+    result.report = [...result.report.filter(existing => existing.text !== item.text), item].slice(-2);
+  }
+  return result;
 }
 
 function progressFromEvidence(evidence, truth, latest) {
@@ -177,7 +316,8 @@ export function distill(evidence, truth) {
     generatedAt: new Date().toISOString(), repoTruthAt: truth.capturedAt,
     scope: 'Historical Session checkpoint reconciled with present Workspace; no automatic task completion inference',
     goal: selectGoal(requirements),
-    currentState: [], completed: [], failed: [], openIssues: [], changedFiles: [], tests: [], progress: [], nextStep: [] };
+    currentState: [], completed: [], failed: [], openIssues: [], changedFiles: [], tests: [], progress: [], nextStep: [],
+    historicalReport: [], historicalPending: [], historicalFollowUp: [] };
   const git = truth.git;
   state.currentState.push({ confidence: git.status === 'available' && truth.stableDuringObservation ? 'Confirmed' : 'Uncertain',
     text: git.status === 'available' ? `当前仓库 ${truth.workspace}；branch=${git.branch ?? '(detached)'}；HEAD=${git.head}；${git.changes.length} 个已跟踪修改/未跟踪文件。`
@@ -224,6 +364,10 @@ export function distill(evidence, truth) {
     text: `测试命令 ${shortCommand(op.command)}：${op.status}；${op.reason}。`, evidence: refs(op) });
   if (!testOps.length) state.tests.push({ confidence: 'Uncertain', text: '冻结 Session 未识别到直接测试执行/结果，不能声称测试已通过。', evidence: ['coverage:source'] });
   state.progress = progressFromEvidence(evidence, truth, latest);
+  const historical = historicalConclusionFields(claims);
+  state.historicalReport = historical.report;
+  state.historicalPending = historical.pending;
+  state.historicalFollowUp = historical.followUp;
   for (const claim of claims.filter(c => /(?:all tests passed|所有测试.*通过|测试全部通过)/i.test(c.text))) {
     const failedTests = testOps.filter(o => o.status === 'failed');
     if (failedTests.length) state.openIssues.push({ confidence: 'Uncertain', text: 'Assistant 声称测试全通过，但最新测试进程证据存在失败；以失败事实为准，成功自述不进入 Completed。',

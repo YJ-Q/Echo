@@ -20,7 +20,12 @@ export function createMarginApiClient({ fetchImpl = globalThis.fetch, baseUrl = 
       const query = Number.isFinite(limit) ? `?limit=${encodeURIComponent(limit)}` : '';
       return request(`/api/sessions${query}`, { method: 'GET' });
     },
+    getSessionsRevision() { return request('/api/sessions/revision', { method: 'GET' }); },
     getResourceStatus() { return request('/api/resources/status', { method: 'GET' }); },
+    listAgentSources() { return request('/api/agent-sources', { method: 'GET' }); },
+    detectAgentSources() { return request('/api/agent-sources/detect', { method: 'POST' }); },
+    addAgentSource({ type, path, replaceId }) { return request('/api/agent-sources', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type, path, replaceId }) }); },
+    removeAgentSource(id) { return request(`/api/agent-sources/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
     listWorkspaceSessions(workspaceKey) {
       return request(`/api/sessions?workspaceKey=${encodeURIComponent(workspaceKey)}`, { method: 'GET' });
     },

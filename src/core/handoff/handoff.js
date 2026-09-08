@@ -21,6 +21,12 @@ export function renderSmartHandoff(state, truth) {
     s => `- **${s.confidence}** ${s.text}`);
   section('Progress', state.progress ?? [],
     p => `- **${p.confidence} · ${p.temporalScope === 'historical' ? 'Historical' : 'Current'}** ${p.text}`);
+  section('Historical Report', state.historicalReport ?? [],
+    item => `- **${item.confidence} · Historical** ${item.text}`);
+  section('Historical Pending / Blockers', state.historicalPending ?? [],
+    item => `- **${item.confidence} · Historical** ${item.text}`);
+  section('Historical Recommended Follow-up', state.historicalFollowUp ?? [],
+    item => `- **${item.confidence} · Historical** ${item.text}`);
   section('约束', state.constraints ?? [],
     c => `- **${c.confidence}** ${c.text}`);
   section('已完成（事实范围）', state.completed,

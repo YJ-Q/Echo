@@ -7,7 +7,7 @@ import { groupSessions, SessionBoard, UsageBar } from '../web/src/margin/Session
 import { MarginApp } from '../web/src/margin/MarginApp.js';
 
 const sessions = [
-  { id: 'a', agent: 'Codex', workspaceKey: 'git:one', workspaceName: 'one', cwd: 'D:\\one', label: 'A deliberately long session title that must remain one visual row', updatedAt: '2026-09-06T10:00:00Z', bytes: 4000 },
+  { id: 'a', agent: 'Codex', capabilities: { handoff: true }, workspaceKey: 'git:one', workspaceName: 'one', cwd: 'D:\\one', label: 'A deliberately long session title that must remain one visual row', updatedAt: '2026-09-06T10:00:00Z', bytes: 4000 },
   { id: 'b', agent: 'Claude', workspaceKey: 'git:one', workspaceName: 'one', cwd: 'D:\\one', label: 'Second', updatedAt: '2026-09-06T09:00:00Z', bytes: 2000 },
   { id: 'c', agent: 'Codex', workspaceKey: 'git:two', workspaceName: 'two', cwd: 'D:\\two', label: 'Third', updatedAt: '2026-09-06T08:00:00Z', bytes: 1000 },
 ];
@@ -23,13 +23,24 @@ test('R3.3 window controls keep content expansion first and Quit at the far righ
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
-  await act(async () => root.render(React.createElement(UsageBar, { resourceStatus: { agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }, { windowDurationMinutes: 10080, percentUsed: 51, resetsAt: 2 }] }, { agent: 'claude-code', unavailable: true }] }, expanded: false, settings: {}, alwaysOnTop: false, onToggle() {}, onPin() {}, onHide() {}, onQuit() {} })));
+  await act(async () => root.render(React.createElement(UsageBar, { resourceStatus: { agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }, { windowDurationMinutes: 10080, percentUsed: 51, resetsAt: 2 }] }, { agent: 'pi', resources: [{ accessMode: 'api', scope: 'today', totalTokens: 126000, trustedResponseCount: 3 }] }, { agent: 'claude-code', unavailable: true }] }, expanded: false, settings: {}, alwaysOnTop: false, onToggle() {}, onPin() {}, onHide() {}, onQuit() {} })));
   assert.deepEqual([...document.querySelectorAll('.margin-control-dock button')].map((button) => button.getAttribute('aria-label')), ['Expand sessions', 'Pin', 'Hide', 'Quit']);
   assert.equal(document.querySelectorAll('[data-agent="codex"]').length, 1);
-  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 59% · 7d 51%/);
+  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 41% · 7d 49%/);
+  assert.equal(document.querySelector('[data-agent="pi"]').textContent, 'Pi · API 126k');
   assert.match(document.querySelector('[data-agent="claude-code"]').textContent, /^Claude —$/);
   assert.equal(document.body.textContent.includes('Today'), false);
   assert.equal(document.body.textContent.includes(' W'), false);
+});
+
+test('S7.1 Codex resource hover has no normal-state detail card', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => root.render(React.createElement(UsageBar, { resourceStatus: { agents: [{ agent: 'codex', freshAt: '2026-09-08T03:04:00.000Z', token: { model: 'GPT-5.2', totalTokens: 12345, cachedInputTokens: 9000, outputTokens: 345, reasoningTokens: 99, responseId: 'resp-secret' }, resources: [{ windowDurationMinutes: 300, remaining: 41, resetsAt: 1788611748, plan: 'plus' }, { windowDurationMinutes: 10080, remaining: 59, resetsAt: 1789198548 }] }] }, expanded: false, onToggle() {}, onPin() {}, onHide() {}, onQuit() {} })));
+  assert.equal(document.querySelector('.margin-resource-details'), null);
+  assert.doesNotMatch(document.body.textContent, /GPT-5\.2|Session usage|Total tokens|Quota|Updated|resp-secret/i);
 });
 
 test('resource bar refreshes its native snapshot when the Board expands', async (t) => {
@@ -42,25 +53,33 @@ test('resource bar refreshes its native snapshot when the Board expands', async 
   await act(async () => { root.render(React.createElement(MarginApp, { api })); await new Promise((resolve) => setTimeout(resolve, 0)); });
   await act(async () => { document.querySelector('.margin-usage-toggle').click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
   assert.equal(reads, 2);
-  assert.match(document.querySelector('[data-agent="codex"]').textContent, /5h 2%/);
+  assert.match(document.querySelector('[data-agent="codex"]').textContent, /5h 98%/);
 });
 
-test('resource bar keeps last-known-good and never flickers to — when a later refresh fails', async (t) => {
+// S8.5C: the UI renders ONLY service-declared truth. A failed read with an LKG is returned by the
+// service as stale (value kept, marked); a declared unavailable-without-LKG renders — and is never
+// silently replaced by a previously shown value.
+test('resource bar renders service truth: stale LKG stays marked, true unavailable renders —', async (t) => {
   const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let calls = 0;
-  const api = { listSessions: async () => ({ ok: true, data: { sessions: [] } }), getResourceStatus: async () => { calls += 1; return calls === 1 ? { agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 71, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] } : { agents: [{ agent: 'codex', unavailable: true, resources: [] }, { agent: 'claude-code', unavailable: true }] }; } };
+  const api = { listSessions: async () => ({ ok: true, data: { sessions: [] } }), getResourceStatus: async () => {
+    calls += 1;
+    if (calls === 1) return { agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 71, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] };
+    if (calls === 2) return { agents: [{ agent: 'codex', stale: true, resources: [{ windowDurationMinutes: 300, percentUsed: 71, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] };
+    return { agents: [{ agent: 'codex', unavailable: true, resources: [] }, { agent: 'claude-code', unavailable: true }] };
+  } };
   const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
   await act(async () => { root.render(React.createElement(MarginApp, { api })); await new Promise((resolve) => setTimeout(resolve, 0)); });
-  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 71%/);
-  // Expand arms the focus/interval refresh path; the expand refresh itself reads unavailable.
-  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
-  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 71%/);
-  // A focus-driven refresh also reads unavailable; the value must stay put, not flicker to —.
+  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 29%/);
+  // A failed read with an LKG comes back stale and stays visible + marked — never flickers to —.
   await act(async () => { window.dispatchEvent(new window.Event('focus')); await new Promise((resolve) => setTimeout(resolve, 0)); });
-  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 71%/);
+  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 29% · stale/);
   assert.doesNotMatch(document.querySelector('[data-agent="codex"]').textContent, /Codex —/);
+  // A declared unavailable-without-LKG is rendered honestly (—), not hidden behind the old value.
+  await act(async () => { window.dispatchEvent(new window.Event('focus')); await new Promise((resolve) => setTimeout(resolve, 0)); });
+  assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex —/);
   assert.equal(calls, 3);
 });
 
@@ -77,6 +96,66 @@ test('R3 board Copy and Save each use the exact Core handoff markdown', async (t
   assert.equal(copied, '# Core handoff'); assert.equal(saved, '# Core handoff');
 });
 
+test('S8.2.2 Workspace rows use a persistent resizable Agent column', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.setItem('margin.workspace.agent-column-width', '156');
+  const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => root.render(React.createElement(SessionBoard, { api: {}, sessions: [sessions[0]], loading: false, error: null, onRetry() {} })));
+  const board = document.querySelector('.margin-board');
+  const row = document.querySelector('.margin-session-row');
+  assert.equal(row.dataset.mode, 'workspace');
+  assert.equal(board.style.getPropertyValue('--margin-workspace-agent-width'), '156px');
+  assert.equal(document.querySelector('.margin-row-resize-handle').getAttribute('aria-label'), 'Resize Agent column');
+
+  await act(async () => { document.querySelector('.margin-row-resize-handle').dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true })); });
+  assert.equal(board.style.getPropertyValue('--margin-workspace-agent-width'), '112px');
+  assert.equal(window.localStorage.getItem('margin.workspace.agent-column-width'), '112');
+
+  const handle = document.querySelector('.margin-row-resize-handle');
+  await act(async () => {
+    handle.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+    window.dispatchEvent(new dom.window.MouseEvent('pointermove', { clientX: 400 }));
+  });
+  assert.equal(board.style.getPropertyValue('--margin-workspace-agent-width'), '220px');
+  assert.equal(window.localStorage.getItem('margin.workspace.agent-column-width'), '220');
+});
+
+test('S8.4 Agent and Sessions rows share resize behavior without sharing widths', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.setItem('margin.workspace.agent-column-width', '150');
+  window.localStorage.setItem('margin.agent.workspace-column-width', '170');
+  window.localStorage.setItem('margin.sessions.metadata-column-width', '190');
+  const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => root.render(React.createElement(SessionBoard, { api: {}, sessions: [sessions[0]], loading: false, error: null, onRetry() {} })));
+  const board = document.querySelector('.margin-board');
+  const modeButton = (name) => [...document.querySelectorAll('.margin-board-modes button')].find((button) => button.textContent === name);
+  const resize = async (start, end) => {
+    await act(async () => {
+      const handle = document.querySelector('.margin-row-resize-handle');
+      handle.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, clientX: start }));
+      window.dispatchEvent(new dom.window.MouseEvent('pointermove', { clientX: end }));
+    });
+  };
+
+  await act(async () => modeButton('Agent').click());
+  assert.equal(board.style.getPropertyValue('--margin-metadata-width'), '170px');
+  assert.equal(document.querySelector('.margin-row-resize-handle').getAttribute('aria-label'), 'Resize Workspace column');
+  await resize(100, 400);
+  assert.equal(window.localStorage.getItem('margin.agent.workspace-column-width'), '220');
+  assert.equal(window.localStorage.getItem('margin.workspace.agent-column-width'), '150');
+
+  await act(async () => modeButton('Sessions').click());
+  assert.equal(board.style.getPropertyValue('--margin-metadata-width'), '190px');
+  assert.equal(document.querySelector('.margin-row-resize-handle').getAttribute('aria-label'), 'Resize Session metadata column');
+  await act(async () => { document.querySelector('.margin-row-resize-handle').dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true })); });
+  assert.equal(window.localStorage.getItem('margin.sessions.metadata-column-width'), '128');
+  assert.equal(window.localStorage.getItem('margin.agent.workspace-column-width'), '220');
+});
+
 test('R3 board treats timestamp-only discoveries as neutral historical sessions', async (t) => {
   const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
   globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
@@ -86,5 +165,110 @@ test('R3 board treats timestamp-only discoveries as neutral historical sessions'
   const dot = document.querySelector('.margin-status-dot');
   assert.ok(dot.classList.contains('is-neutral'));
   assert.ok(!dot.classList.contains('is-recent'));
-  assert.match(dot.title, /no runtime state/i);
+  assert.match(dot.title, /no live runtime evidence/i);
+});
+
+test('S8.2.3 source revision renders unified execution and attention colors', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const state = { revision: 'R0' };
+  const api = {
+    listSessions: async () => ({ ok: true, data: { revision: state.revision, sessions: [{ id: 'old', agent: 'Codex', workspaceName: 'one', label: 'Old', updatedAt: state.revision === 'R0' ? '2026-09-08T03:00:00Z' : '2026-09-08T03:01:00Z', executionStatus: state.revision === 'R1' ? 'working' : state.revision === 'R3' ? 'error' : 'idle', attentionStatus: state.revision === 'R2' ? 'needs-input' : 'none' }] } }),
+    getSessionsRevision: async () => ({ ok: true, data: { revision: state.revision } }),
+    listAgentSources: async () => ({ ok: true, data: { sources: [{ type: 'codex' }] } }),
+    getResourceStatus: async () => ({ agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 5, resetsAt: 1 }] }] }),
+  };
+  const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => { root.render(React.createElement(MarginApp, { api, pollMs: 20, refreshGapMs: 0 })); await wait(30); });
+  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await wait(50); });
+  state.revision = 'R1';
+  await act(async () => { await wait(100); });
+  const dot = document.querySelector('.margin-status-dot');
+  assert.ok(dot.classList.contains('is-working'));
+  assert.match(dot.title, /agent is working/i);
+  state.revision = 'R2';
+  await act(async () => { await wait(100); });
+  assert.ok(dot.classList.contains('is-attention'));
+  state.revision = 'R3';
+  await act(async () => { await wait(100); });
+  assert.ok(dot.classList.contains('is-error'));
+});
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function liveApi(state) {
+  return {
+    listSessions: async () => { state.listCalls += 1; return { ok: true, data: { revision: state.revision, sessions: [] } }; },
+    getSessionsRevision: async () => { state.revisionCalls += 1; return { ok: true, data: { revision: state.revision } }; },
+    listAgentSources: async () => ({ ok: true, data: { sources: [] } }),
+    getResourceStatus: async () => ({ agents: [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 10, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }] }),
+  };
+}
+
+// S2 live revision sync: unchanged revision never triggers an extra full discovery; a real
+// change triggers exactly one quiet refresh; collapsing stops polling entirely.
+test('S2 Board live-sync polls only when expanded and refreshes only on a revision change', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const state = { revision: 'R0', listCalls: 0, revisionCalls: 0 };
+  const root = createRoot(document.getElementById('root'));
+  t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => { root.render(React.createElement(MarginApp, { api: liveApi(state), pollMs: 20, refreshGapMs: 60 })); await wait(30); });
+
+  assert.equal(state.listCalls, 1, 'initial mount loads sessions once');
+  assert.equal(state.revisionCalls, 0, 'collapsed Board does not poll the revision');
+
+  // Expand: arm the live sync. Unchanged revision must not cause extra full discovery.
+  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await wait(120); });
+  assert.ok(state.revisionCalls > 0, 'expanded Board polls the revision');
+  const afterExpand = state.listCalls;
+  assert.ok(afterExpand >= 2, 'expand performs an immediate quiet refresh');
+  const settled = state.listCalls;
+  await act(async () => { await wait(120); });
+  assert.equal(state.listCalls, settled, 'unchanged revision never triggers an extra full discovery');
+
+  // Native change: exactly one quiet full refresh follows.
+  state.revision = 'R1';
+  await act(async () => { await wait(200); });
+  assert.equal(state.listCalls, settled + 1, 'a revision change triggers exactly one quiet refresh');
+  const afterChange = state.listCalls;
+  await act(async () => { await wait(160); });
+  assert.equal(state.listCalls, afterChange, 'no spurious refreshes once settled on the new revision');
+
+  // Collapse stops polling and no further source change is picked up while collapsed.
+  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await wait(60); });
+  const revisionAtCollapse = state.revisionCalls;
+  state.revision = 'R2';
+  await act(async () => { await wait(160); });
+  assert.equal(state.revisionCalls, revisionAtCollapse, 'collapsed Board stops revision polling');
+  assert.equal(state.listCalls, afterChange, 'collapsed Board does not refresh');
+});
+
+// S2 live sync pauses when the window is hidden and refreshes immediately on return to visible.
+test('S2 Board live-sync pauses while hidden and refreshes on return to visible', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement; globalThis.Event = dom.window.Event;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const state = { revision: 'R0', listCalls: 0, revisionCalls: 0 };
+  const root = createRoot(document.getElementById('root'));
+  t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => { root.render(React.createElement(MarginApp, { api: liveApi(state), pollMs: 20, refreshGapMs: 60 })); await wait(30); });
+  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await wait(80); });
+  assert.ok(state.revisionCalls > 0, 'expanded visible Board polls the revision');
+
+  // Hide the window: revision polling must stop (zero revision requests while hidden).
+  Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+  document.dispatchEvent(new window.Event('visibilitychange'));
+  const atHide = state.revisionCalls; const listAtHide = state.listCalls;
+  state.revision = 'R3';
+  await act(async () => { await wait(160); });
+  assert.equal(state.revisionCalls, atHide, 'hidden Board issues zero revision requests');
+  assert.equal(state.listCalls, listAtHide, 'hidden Board does not refresh');
+
+  // Return to visible: an immediate full refresh runs and polling resumes.
+  Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+  await act(async () => { document.dispatchEvent(new window.Event('visibilitychange')); await wait(80); });
+  assert.ok(state.listCalls > listAtHide, 'return to visible triggers an immediate refresh');
+  assert.ok(state.revisionCalls > atHide, 'visible Board resumes revision polling');
 });

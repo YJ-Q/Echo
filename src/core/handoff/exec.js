@@ -46,12 +46,25 @@ export function unwrapExec(source) {
           const ops = init.arguments[0].elements.map(n => tool(n, source));
           if (ops.every(Boolean)) variables.set(d.id.name, ops);
           else warnings.push('Unsupported parallel expression');
+        } else if (d.id.type === 'Identifier') {
+          // This statically proves the call/emission link, but not an exit
+          // status when only its textual output is emitted.
+          const op = tool(init, source);
+          if (op) variables.set(d.id.name, [op]);
+          else warnings.push('Unsupported variable declaration');
         } else warnings.push('Unsupported variable declaration');
       }
     } else if (statement.type === 'ExpressionStatement') {
       const e = unwrap(statement.expression);
       if (e?.type === 'CallExpression' && e.callee.type === 'Identifier' && e.callee.name === 'text') {
-        slots.push(tool(e.arguments[0], source));
+        const value = e.arguments[0];
+        const direct = tool(value, source);
+        if (direct) slots.push(direct);
+        else if (value?.type === 'Identifier' && variables.has(value.name)) slots.push(...variables.get(value.name));
+        else if (value?.type === 'MemberExpression' && !value.computed && value.object.type === 'Identifier'
+          && value.property.type === 'Identifier' && variables.has(value.object.name)) {
+          slots.push(...variables.get(value.object.name).map(op => ({ ...op, emittedProperty: value.property.name })));
+        } else { slots.push(null); warnings.push('Unsupported text emission'); }
       } else if (e?.type === 'CallExpression' && e.callee.type === 'MemberExpression'
         && member(e.callee).endsWith('.forEach') && e.arguments[0]?.name === 'text'
         && variables.has(e.callee.object.name)) slots.push(...variables.get(e.callee.object.name));

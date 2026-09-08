@@ -128,7 +128,7 @@ function createExecutor({ toolName, handler, getInvocationContext, onToolResult,
   });
 }
 
-export function createMarginPiExtension({ tools, getInvocationContext, onToolResult }) {
+export function createMarginPiExtension({ tools, extraTools = [], getInvocationContext, onToolResult }) {
   let executionTail = Promise.resolve();
   const schedule = (work) => {
     const result = executionTail.then(work, work);
@@ -156,5 +156,13 @@ export function createMarginPiExtension({ tools, getInvocationContext, onToolRes
       parameters: actionUpdateParameters,
       execute: createExecutor({ toolName: 'action_update', handler: tools.action_update, getInvocationContext, onToolResult, schedule })
     }));
+
+    // Register extra tools (job assistant, etc.)
+    for (const { name, label, description, parameters, handler } of extraTools) {
+      pi.registerTool(defineTool({
+        name, label, description, parameters,
+        execute: createExecutor({ toolName: name, handler, getInvocationContext, onToolResult, schedule })
+      }));
+    }
   };
 }

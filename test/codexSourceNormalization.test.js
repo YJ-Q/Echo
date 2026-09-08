@@ -174,11 +174,11 @@ const rollout = (metaPayload, moreLines = []) =>
   [JSON.stringify({ timestamp: '2026-09-05T10:10:08.267Z', type: 'session_meta', payload: metaPayload }), ...moreLines]
     .join('\n') + '\n';
 
-const unifiedSession = (id, originalPath) => ({
+const unifiedSession = (id, originalPath, threadSource = 'user') => ({
   id, cwd: 'D:\\Code\\margin', branch: 'main',
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-09-05T12:00:00.000Z'),
-  originalPath,
+  originalPath, threadSource,
 });
 
 test('Slice 2.3 Case A: an explicit guardian_review thread is excluded from the resumable list', () => {
@@ -191,7 +191,7 @@ test('Slice 2.3 Case A: an explicit guardian_review thread is excluded from the 
       [JSON.stringify({ type: 'response_item', payload: { type: 'message', role: 'user',
         content: [{ type: 'input_text', text: REVIEW_ENVELOPE_TEXT }] } })],
     ));
-    assert.deepEqual(resumableSessions([unifiedSession('g1', original)]), []);
+    assert.deepEqual(resumableSessions([unifiedSession('g1', original, 'guardian_review')]), []);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -219,7 +219,7 @@ test('Slice 2.3 Case B: a normal thread_source="user" session stays in the resum
   }
 });
 
-test('Slice 2.3 Case C: missing, unreadable, and malformed metadata all fail open to visible', () => {
+test('Slice 2.3 Case C: missing, unreadable, and malformed metadata are not foreground sessions', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-resumable-'));
   try {
     // Older capture: session_meta present but no thread_source key at all.
@@ -233,12 +233,11 @@ test('Slice 2.3 Case C: missing, unreadable, and malformed metadata all fail ope
     fs.writeFileSync(partial, '{"timestamp":"2026-09-05T10:10:08.267Z","type":"session_meta","payload":{"thread_source":"guar');
 
     const list = resumableSessions([
-      unifiedSession('c1', older),
-      unifiedSession('c2', gone),
-      unifiedSession('c3', partial),
+      unifiedSession('c1', older, null),
+      unifiedSession('c2', gone, null),
+      unifiedSession('c3', partial, null),
     ]);
-    // None of these carry positive "this is an internal thread" evidence, so all stay visible.
-    assert.deepEqual(list.map(s => s.id), ['c1', 'c2', 'c3']);
+    assert.deepEqual(list, []);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

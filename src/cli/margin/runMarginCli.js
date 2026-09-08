@@ -4,9 +4,11 @@
 // All I/O and every Core dependency is injectable so the flow is testable
 // without a terminal or a real Codex home.
 
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs';
+import { saveHandoffArtifact } from '../../core/handoff/save.js';
+import { snapshotPathForCanonicalSession } from '../../core/handoff/handoffArtifact.js';
 import { CANCELLED } from './prompt.js';
 import {
   groupSessionsByWorkspace,
@@ -20,15 +22,9 @@ import {
   renderSuccess,
 } from './render.js';
 
-// Verified .margin/HANDOFF.md save semantics: create the directory if needed,
-// overwrite any previous HANDOFF (no history, no checkpoint lifecycle). This
-// mirrors the HTTP adapter's /api/handoff/save exactly.
+// Kept as the CLI injection seam; implementation is shared with HTTP.
 export function writeHandoff({ repo, markdown }) {
-  const dir = path.join(repo, '.margin');
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, 'HANDOFF.md');
-  fs.writeFileSync(filePath, markdown, 'utf8');
-  return filePath;
+  return saveHandoffArtifact({ repo, markdown });
 }
 
 // Exit codes: 0 success · 1 error (no sessions, bad input, generation/save
@@ -38,9 +34,9 @@ export async function runMarginCli({
   captureSession,
   generateHandoff,
   writeHandoff: writeHandoffImpl = writeHandoff,
-  snapshotPath = (sessionId) => {
+  snapshotPath = (canonicalId) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-cli-'));
-    return path.join(dir, `session-${sessionId}.jsonl`);
+    return snapshotPathForCanonicalSession(dir, canonicalId);
   },
   prompt,
   now = () => Date.now(),
@@ -91,7 +87,8 @@ export async function runMarginCli({
   let markdown;
   let resumeSummary;
   try {
-    const capture = captureSession(session, snapshotPath(session.id), { refreshSnapshot: true });
+    const canonicalId = session.canonicalId ?? `codex:${session.sourceId ?? 'default'}:${session.nativeSessionId ?? session.id}`;
+    const capture = captureSession({ ...session, canonicalId }, snapshotPath(canonicalId), { refreshSnapshot: true });
     ({ markdown, resumeSummary } = generateHandoff(capture, repo));
   } catch (cause) {
     error(`Error: handoff generation failed: ${cause?.message ?? 'unknown error'}\n`);

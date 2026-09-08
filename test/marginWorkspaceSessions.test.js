@@ -58,7 +58,7 @@ test('resumable sessions include derived workspace and label fields after intern
   try {
     const source = path.join(dir, 'source.jsonl');
     fs.writeFileSync(source, `${JSON.stringify({ type: 'session_meta', payload: { thread_source: 'user' } })}\n${userRecord('Implement grouped sessions')}\n`);
-    const [session] = resumableSessions([{ id: 'session123', cwd: dir, summary: null, updatedAt: new Date(), originalPath: source }]);
+    const [session] = resumableSessions([{ id: 'session123', cwd: dir, summary: null, updatedAt: new Date(), originalPath: source, threadSource: 'user' }]);
     assert.equal(session.label, 'Implement grouped sessions');
     assert.ok(session.workspaceKey.startsWith('cwd:'));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }

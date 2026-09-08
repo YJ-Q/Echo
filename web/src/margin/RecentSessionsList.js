@@ -37,7 +37,7 @@ export function RecentSessionsList({ sessions, loading, error, selectedId, onSel
         'aria-current': selectedId === session.id ? 'true' : undefined,
         onClick: () => onSelect(session.id)
       },
-        createElement('strong', null, session.label ?? session.summary ?? session.id),
+        createElement('strong', null, session.displayTitle ?? session.label ?? session.summary ?? session.id),
         createElement('span', { className: 'margin-session-meta' },
           [session.agent, session.branch, formatUpdatedAt(session.updatedAt)].filter(Boolean).join(' · ')
         )

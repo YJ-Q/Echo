@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { titleDto } from '../../agents/sessionTitle.js';
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
@@ -13,12 +14,9 @@ function readCapture(snapshotPath) {
   catch { return null; }
 }
 
-// The default resumable Recent Sessions list never includes an explicitly internal Codex
-// thread. continues 4.1.1 discovery exposes originalPath but not the session_meta's
-// thread_source, so discovery enriches each session with a metadata-only probe of its native
-// JSONL here — at the source boundary — and drops internal threads before the list leaves this
-// module. Neither the HTTP adapter nor the UI ever sees a Codex-internal thread or the
-// thread_source value itself.
+// Codex session facts are read at the source boundary. The resumable projection admits only
+// explicit foreground (`thread_source: "user"`) rollouts, so internal work can never advance
+// a user-visible canonical session.
 export function resolveCodexHome(codexHome, { env = process.env, homedir = os.homedir } = {}) {
   if (typeof codexHome === 'string' && codexHome.trim()) return path.resolve(codexHome);
   // Electron can be launched by a shell whose Node home resolves to a service or
@@ -30,20 +28,62 @@ export function resolveCodexHome(codexHome, { env = process.env, homedir = os.ho
   return path.join(profile, '.codex');
 }
 
-export async function discoverSessions(codexHome, { limit, env, homedir } = {}) {
+export async function discoverSessions(codexHome, { limit, env, homedir, sourceId, agentType = 'codex' } = {}) {
   const home = resolveCodexHome(codexHome, { env, homedir });
-  const discovered = parseCodexSessions(home, { limit });
-  return resumableSessions(discovered);
+  // A discovery is one complete active-source snapshot.  Eligibility and
+  // canonicalization deliberately happen before ordering and pagination.
+  return resumableSessions(parseCodexSessions(home), { limit, sourceId, agentType });
 }
 
 function sessionFiles(dir) {
   let entries;
-  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
+  catch (error) { if (error?.code === 'ENOENT') return []; throw error; }
   return entries.flatMap((entry) => {
     const entryPath = path.join(dir, entry.name);
     if (entry.isDirectory()) return sessionFiles(entryPath);
     return entry.isFile() && /^rollout-.+\.jsonl$/i.test(entry.name) ? [entryPath] : [];
   });
+}
+
+// Cheap stat-only traversal of the S1 default-resumable read tree under `{home}/sessions`.
+// Mirrors sessionFiles() (recursive, rollout-*.jsonl only) but never reads file contents, so a
+// full signature costs ≈1 ms. `archived_sessions` is deliberately excluded: it is not part of
+// the default resumable projection, and an archive/delete is observed here as the rollout
+// leaving this tree (its mtime/size changes as Codex appends, and file creation/moves change
+// the enumerated set). A stat-only signature cannot miss a real Codex op: appends grow the
+// file (size + mtime), and create/archive/delete/source-switch change the entry set.
+function collectRolloutStats(dir, prefix, entries) {
+  let items;
+  try { items = fs.readdirSync(dir, { withFileTypes: true }); }
+  catch (error) { if (error?.code === 'ENOENT') return; throw error; }
+  for (const item of items) {
+    const rel = prefix ? `${prefix}/${item.name}` : item.name;
+    if (item.isDirectory()) { collectRolloutStats(path.join(dir, item.name), rel, entries); continue; }
+    if (!/^rollout-.+\.jsonl$/i.test(item.name)) continue;
+    let stat;
+    try { stat = fs.statSync(path.join(dir, item.name)); }
+    catch (error) { if (error?.code === 'ENOENT') continue; throw error; }
+    entries.push(`${rel}|${stat.size}|${Math.floor(stat.mtimeMs)}`);
+  }
+}
+
+// Content-independent source revision used by the S2 live sync contract. It hashes the source's
+// own config (active source identity/type/path/enabled) together with the stat list of the active
+// sessions tree, so it changes exactly when a native create/update/archive/delete or an
+// active-source switch could change the S1 projection, and is computable in ≈1 ms. The revision
+// carries no session data: it only tells a caller "re-read".
+export function computeSourceRevision({ codexHome, source = null } = {}) {
+  const entries = [];
+  if (codexHome) collectRolloutStats(path.join(codexHome, 'sessions'), '', entries);
+  // Desktop's user/auto-generated thread name is indexed separately from rollouts. Its stat is
+  // only a reconciliation signal; timestamps and lifecycle still come exclusively from JSONL.
+  if (codexHome) { try { const stat = fs.statSync(path.join(codexHome, 'session_index.jsonl')); entries.push(`session_index.jsonl|${stat.size}|${Math.floor(stat.mtimeMs)}`); } catch {} }
+  entries.sort();
+  const context = source
+    ? JSON.stringify({ id: source.id, type: source.type, path: source.path, enabled: source.enabled })
+    : '';
+  return createHash('sha256').update(`${context}\n${entries.join('\n')}`).digest('hex');
 }
 
 function parseFilename(filePath) {
@@ -56,28 +96,128 @@ function parseFilename(filePath) {
 // continues 4.1.1 captures CODEX_HOME when its module is imported and silently
 // ignores parseSessions({ codexRoot }). Keep the Codex source adapter here so
 // the supplied root is authoritative for both CLI and every UI host.
-function parseCodexSessions(codexHome, { limit } = {}) {
-  const byId = new Map();
-  for (const originalPath of [...sessionFiles(path.join(codexHome, 'sessions')), ...sessionFiles(path.join(codexHome, 'archived_sessions'))]) {
+function validNativeSessionId(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+// Runtime state deliberately belongs to this Margin process only. A tracker is created with a
+// cold baseline for every rollout that already exists, then advances byte cursors only when the
+// source appends complete records during this process lifetime. Recreating Margin recreates the
+// tracker, so an old unmatched `task_started` can never revive a green dot after restart.
+const runtimeTrackersByHome = new Map();
+
+function trackerFor(codexHome) {
+  let tracker = runtimeTrackersByHome.get(codexHome);
+  if (!tracker) {
+    tracker = { initialized: false, rollouts: new Map(), executionStatus: new Map() };
+    runtimeTrackersByHome.set(codexHome, tracker);
+  }
+  return tracker;
+}
+
+function validRecordTime(value) {
+  return typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? new Date(value) : null;
+}
+
+function lifecycleExecutionStatus(record) {
+  if (record?.type !== 'event_msg') return null;
+  if (!validRecordTime(record.timestamp)) return null;
+  if (record.payload?.type === 'task_started') return 'working';
+  if (record.payload?.type === 'task_complete' || record.payload?.type === 'turn_aborted') return 'idle';
+  // The locally observed Codex schema currently has no explicit failed/error lifecycle record.
+  // Keep `error` in the DTO/UI, but do not turn generic messages, tool failures, or unknown
+  // events into red without a source-backed native event contract.
+  return null;
+}
+
+// Reads complete JSONL records only. The byte cursor advances through valid complete lines even
+// when a trailing line is partial: a complete `task_started` immediately before streamed output
+// is therefore observed, while the partial line waits for a later reconciliation to complete.
+function readRolloutFacts(originalPath, file, tracker) {
+  const info = fs.statSync(originalPath);
+  const previous = tracker.rollouts.get(originalPath);
+  const signature = `${info.size}:${Math.floor(info.mtimeMs)}`;
+  if (previous?.signature === signature) return { ...previous.facts, lifecycleEvents: [], tracker };
+
+  const rawText = fs.readFileSync(originalPath, 'utf8');
+  const bomBytes = rawText.charCodeAt(0) === 0xFEFF ? Buffer.byteLength(rawText[0]) : 0;
+  const raw = bomBytes ? rawText.slice(1) : rawText;
+  const lastNewline = raw.lastIndexOf('\n');
+  const complete = lastNewline < 0 ? '' : raw.slice(0, lastNewline + 1);
+  const hasPartialTail = lastNewline !== raw.length - 1;
+  const records = [];
+  let offset = bomBytes;
+  let malformed = false;
+  for (const line of complete.split('\n')) {
+    const bytes = Buffer.byteLength(`${line}\n`);
+    const endOffset = offset + bytes;
+    offset = endOffset;
+    if (!line.trim()) continue;
+    try { records.push({ record: JSON.parse(line), endOffset }); }
+    catch { malformed = true; }
+  }
+  const meta = records.find(({ record }) => record.type === 'session_meta')?.record?.payload ?? {};
+  const timestamps = records.map(({ record }) => validRecordTime(record.timestamp)).filter(Boolean);
+  const previousCompleteBytes = previous?.facts.completeBytes ?? 0;
+  const lifecycleEvents = tracker.initialized
+    ? records.filter(({ endOffset }) => !previous || endOffset > previousCompleteBytes)
+      .flatMap(({ record }) => {
+        const executionStatus = lifecycleExecutionStatus(record);
+        return executionStatus ? [{ executionStatus, at: validRecordTime(record.timestamp) }] : [];
+      })
+    : [];
+  const facts = {
+    signature,
+    completeBytes: bomBytes + Buffer.byteLength(complete),
+    id: validNativeSessionId(meta.session_id) ?? file.id,
+    nativeSessionId: validNativeSessionId(meta.session_id) ?? file.id,
+    rolloutId: file.id,
+    lifecycle: 'active',
+    threadSource: meta.thread_source ?? null,
+    cwd: meta.cwd ?? '', branch: meta.git?.branch ?? null,
+    gitSha: meta.git?.commit_hash ?? meta.git?.sha ?? null, summary: null,
+    createdAt: timestamps.length ? new Date(Math.min(...timestamps.map(Number))) : null,
+    updatedAt: timestamps.length ? new Date(Math.max(...timestamps.map(Number))) : null,
+    originalPath,
+    hasPartialTail,
+    malformed,
+  };
+  tracker.rollouts.set(originalPath, { signature, facts });
+  return { ...facts, lifecycleEvents, tracker };
+}
+
+function parseCodexSessions(codexHome) {
+  const sessions = [];
+  const titles = new Map();
+  try {
+    for (const line of fs.readFileSync(path.join(codexHome, 'session_index.jsonl'), 'utf8').split(/\r?\n/)) {
+      try { const item = JSON.parse(line); if (validNativeSessionId(item.id) && typeof item.thread_name === 'string' && item.thread_name.trim()) titles.set(item.id, item.thread_name); } catch {}
+    }
+  } catch { /* title index is optional; rollout fallback remains available */ }
+  const tracker = trackerFor(codexHome);
+  const foundPaths = new Set();
+  // The default resumable projection is active-only. archived_sessions has a
+  // separate native lifecycle and must never be admitted as a fallback.
+  for (const originalPath of sessionFiles(path.join(codexHome, 'sessions'))) {
     const file = parseFilename(originalPath);
     if (!file) continue;
     try {
-      const info = fs.statSync(originalPath);
-      const firstLine = fs.readFileSync(originalPath, 'utf8').split('\n').find((line) => line.trim());
-      const meta = firstLine ? JSON.parse(firstLine) : null;
-      const payload = meta?.payload ?? {};
-      const createdAt = typeof payload.timestamp === 'string' && !Number.isNaN(Date.parse(payload.timestamp)) ? new Date(payload.timestamp) : file.createdAt;
-      const session = {
-        id: file.id, cwd: payload.cwd ?? '', branch: payload.git?.branch ?? null,
-        gitSha: payload.git?.commit_hash ?? payload.git?.sha ?? null, summary: null,
-        createdAt, updatedAt: info.mtime, originalPath,
-      };
-      const existing = byId.get(session.id);
-      if (!existing || existing.updatedAt < session.updatedAt) byId.set(session.id, session);
-    } catch { /* skip an unreadable or half-written native session file */ }
+      foundPaths.add(originalPath);
+      const parsed = readRolloutFacts(originalPath, file, tracker);
+      sessions.push({ ...parsed, nativeTitle: titles.get(parsed.nativeSessionId) ?? null });
+    } catch {
+      // Codex can briefly hold its active rollout with restrictive Windows sharing flags. Keep
+      // the last complete snapshot visible; the next revision reconciliation will retry from
+      // its byte cursor rather than resetting this session's runtime state.
+      const cached = tracker.rollouts.get(originalPath)?.facts;
+      if (cached) sessions.push({ ...cached, lifecycleEvents: [], tracker, nativeTitle: titles.get(cached.nativeSessionId) ?? null });
+    }
   }
-  const sessions = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
-  return limit ? sessions.slice(0, limit) : sessions;
+  for (const originalPath of tracker.rollouts.keys()) {
+    if (!foundPaths.has(originalPath)) tracker.rollouts.delete(originalPath);
+  }
+  tracker.initialized = true;
+  return sessions;
 }
 
 const MAX_META_PROBE_BYTES = 256 * 1024; // bounded metadata head read; never the conversation
@@ -91,11 +231,18 @@ export function canonicalizeWorkspacePath(value) {
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
 
-// Resolve identity where the source still owns the filesystem. Git is deliberately probed
-// here, rather than in HTTP or React, so different subdirectories of one repository group.
-export function resolveWorkspaceIdentity(session) {
-  const cwd = canonicalizeWorkspacePath(session.cwd);
-  if (!cwd) return { workspaceKey: 'cwd:unknown', workspaceName: 'Unknown workspace' };
+// Per-canonical-cwd git-root identity cache. A session's cwd is immutable and its repo root /
+// basename are stable, so repeat full discoveries (now driven near-real-time by the S2 revision
+// poll) must not re-spawn `git rev-parse` once per session per refresh — that was ≈390 ms of a
+// ≈480 ms discovery on the real source. A short TTL bounds memory and lets a cwd that lacked Git
+// (or that later becomes a repo) recover within the TTL. The projection is unaffected: identity
+// is a deterministic function of the canonicalized cwd alone. Exported only so tests can isolate
+// cache state between fixture runs.
+const WORKSPACE_IDENTITY_TTL_MS = 10_000;
+const workspaceIdentityCache = new Map();
+export function resetWorkspaceIdentityCache() { workspaceIdentityCache.clear(); }
+
+function probeWorkspaceIdentity(cwd) {
   let repoRoot = null;
   try {
     const result = spawnSync('git', ['-C', cwd, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', windowsHide: true });
@@ -103,6 +250,17 @@ export function resolveWorkspaceIdentity(session) {
   } catch { /* non-Git or unavailable Git falls back to cwd */ }
   const root = repoRoot ?? cwd;
   return { workspaceKey: `${repoRoot ? 'git' : 'cwd'}:${root}`, workspaceName: path.basename(root) || root };
+}
+
+export function resolveWorkspaceIdentity(session) {
+  const cwd = canonicalizeWorkspacePath(session.cwd);
+  if (!cwd) return { workspaceKey: 'cwd:unknown', workspaceName: 'Unknown workspace' };
+  const now = Date.now();
+  const cached = workspaceIdentityCache.get(cwd);
+  if (cached && cached.expiresAt > now) return cached.identity;
+  const identity = probeWorkspaceIdentity(cwd);
+  workspaceIdentityCache.set(cwd, { expiresAt: now + WORKSPACE_IDENTITY_TTL_MS, identity });
+  return identity;
 }
 
 const withoutMarkdownPrefix = value => String(value ?? '').trimStart().replace(/^#{1,6}\s+/, '');
@@ -179,44 +337,80 @@ export function sessionLabel(session) {
 
 function toPlainSession(s) {
   const identity = resolveWorkspaceIdentity(s);
+  const title = titleDto({ nativeTitle: s.nativeTitle, metadataTitle: s.summary, firstUserMessage: firstEligibleUserRequirement(s.originalPath), nativeSessionId: s.nativeSessionId ?? s.id });
   return {
     id: s.id,
+    nativeSessionId: s.nativeSessionId ?? s.id,
+    rolloutId: s.rolloutId ?? null,
+    sourceId: s.sourceId ?? 'default',
+    agentType: s.agentType ?? 'codex',
+    canonicalId: s.canonicalId ?? `${s.agentType ?? 'codex'}:${s.sourceId ?? 'default'}:${s.nativeSessionId ?? s.id}`,
     cwd: s.cwd,
     branch: s.branch ?? null,
     gitSha: s.gitSha ?? null,
     summary: s.summary ?? null,
     createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null,
     updatedAt: s.updatedAt ? new Date(s.updatedAt).toISOString() : null,
+    executionStatus: s.executionStatus ?? 'unknown',
+    attentionStatus: 'none',
     originalPath: s.originalPath,
     ...identity,
-    label: sessionLabel(s),
+    ...title,
+    label: title.displayTitle,
   };
 }
 
-// V1 resumable-list eligibility. A session is hidden from the default list only when Margin
-// has positive structured evidence that it is a Codex-internal thread: thread_source present
-// and not "user" (guardian_review / subagent / memory_consolidation / a feature name). Absence
-// of the field, or metadata that failed to read, is "unknown" — never internal — and fails
-// open to visible. This is the same rule evidence.js applies once a session is captured.
-function isCodexInternalThread(threadSource) {
-  return Boolean(threadSource) && threadSource !== 'user';
-}
-
-// Build the default resumable Recent Sessions list from continues' discovered UnifiedSessions:
-// enrich each with its native thread_source metadata, then drop explicit internal threads.
-// Exported so tests drive the exact path discoverSessions() uses with fixture files instead of
-// the real codex home; not re-exported through src/core/handoff/index.js.
-export function resumableSessions(discovered) {
-  const sessions = [];
+// Build canonical foreground sessions from Codex rollouts. Exported so tests drive the exact
+// transform used by discoverSessions; threadSource is a source fact, never UI metadata.
+export function resumableSessions(discovered, { limit, sourceId = 'default', agentType = 'codex' } = {}) {
+  const byCanonicalId = new Map();
   for (const s of discovered) {
-    if (isCodexInternalThread(readThreadSourceFromPath(s.originalPath))) continue;
-    sessions.push(toPlainSession(s));
+    // Lifecycle is a source fact. Unknown legacy callers remain active for
+    // backwards-compatible direct helper use, but an explicit archived record
+    // can never consume a slot or win a collision.
+    if ((s.lifecycle ?? 'active') !== 'active') continue;
+    // Recency and live state are deliberately stricter than historical list visibility:
+    // only Codex's explicit foreground-user marker is trusted to belong to the main session.
+    // This prevents a guardian/subagent/control rollout sharing an id from advancing it.
+    if (s.threadSource !== 'user') continue;
+    const nativeSessionId = validNativeSessionId(s.nativeSessionId) ?? validNativeSessionId(s.id);
+    if (!nativeSessionId) continue;
+    const resolvedSourceId = s.sourceId ?? sourceId;
+    const resolvedAgentType = s.agentType ?? agentType;
+    const canonicalId = `${resolvedAgentType}:${resolvedSourceId}:${nativeSessionId}`;
+    const candidate = { ...s, id: nativeSessionId, nativeSessionId, sourceId: resolvedSourceId, agentType: resolvedAgentType, canonicalId };
+    const previous = byCanonicalId.get(canonicalId);
+    if (!previous) {
+      byCanonicalId.set(canonicalId, { ...candidate,
+        lifecycleEvents: candidate.lifecycleEvents ?? [] });
+      continue;
+    }
+    const createdTimes = [previous.createdAt, candidate.createdAt].map((value) => Number(value)).filter(Number.isFinite);
+    const createdAt = createdTimes.length ? new Date(Math.min(...createdTimes)) : null;
+    const candidateIsNewest = new Date(candidate.updatedAt ?? 0) > new Date(previous.updatedAt ?? 0);
+    byCanonicalId.set(canonicalId, {
+      ...(candidateIsNewest ? candidate : previous),
+      createdAt,
+      updatedAt: candidateIsNewest ? candidate.updatedAt : previous.updatedAt,
+      lifecycleEvents: [...(previous.lifecycleEvents ?? []), ...(candidate.lifecycleEvents ?? [])]
+        .sort((a, b) => Number(a.at ?? 0) - Number(b.at ?? 0)),
+    });
   }
-  return sessions;
+  const sessions = [...byCanonicalId.values()].map((session) => {
+    // Only foreground candidates reach this point, so an internal rollout cannot mutate the
+    // canonical runtime state even if it shares a native session id.
+    for (const event of session.lifecycleEvents ?? []) session.tracker?.executionStatus.set(session.canonicalId, event.executionStatus);
+    return { ...session, executionStatus: session.tracker?.executionStatus.get(session.canonicalId) ?? 'unknown', attentionStatus: 'none' };
+  })
+    .sort((a, b) => new Date(b.updatedAt ?? 0) - new Date(a.updatedAt ?? 0) || a.canonicalId.localeCompare(b.canonicalId))
+    .map(toPlainSession);
+  return limit ? sessions.slice(0, limit) : sessions;
 }
 
-// Capture a stable snapshot of one session. If a snapshot already exists at snapshotPath
-// with a matching hash, reuse it. Pass refreshSnapshot=true to force re-capture.
+// Capture a stable snapshot of one session. User-facing handoff generation passes
+// refreshSnapshot=true and therefore never treats a self-consistent old sidecar
+// as proof that the native source is current. Reuse remains opt-in for callers
+// that explicitly need a previously frozen checkpoint.
 // A snapshot without a readable, matching .capture.json (deleted, partial, or corrupt) is
 // treated as incomplete and re-captured rather than throwing — a normal rerun should never
 // crash on a half-residual cache from a previous interrupted run.
@@ -243,6 +437,10 @@ export function captureSession(sessionMeta, snapshotPath, { refreshSnapshot = fa
     sha256: sha256(prefix),
     omittedTrailingBytes: bytes.length - prefix.length,
     sessionId: sessionMeta.id,
+    canonicalId: sessionMeta.canonicalId ?? null,
+    sourceId: sessionMeta.sourceId ?? null,
+    agentType: sessionMeta.agentType ?? null,
+    nativeSessionId: sessionMeta.nativeSessionId ?? sessionMeta.id,
     cwd: sessionMeta.cwd,
   };
   fs.writeFileSync(snapshotPath + '.capture.json', JSON.stringify(capture, null, 2));

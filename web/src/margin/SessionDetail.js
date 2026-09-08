@@ -58,7 +58,7 @@ export function SessionDetail({ api, session }) {
   }
 
   return createElement('div', { className: 'margin-session-detail' },
-    createElement('h2', null, session.label ?? (session.summary ? session.summary.trim().slice(0, 80) : session.id)),
+    createElement('h2', null, session.displayTitle ?? session.label ?? (session.summary ? session.summary.trim().slice(0, 80) : session.id)),
     createElement('dl', { className: 'margin-session-facts' },
       fact('Agent', session.agent),
       fact('Workspace', session.cwd),

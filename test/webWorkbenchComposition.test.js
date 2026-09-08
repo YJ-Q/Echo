@@ -81,7 +81,7 @@ test('composition opens exactly one configured Core, uses terminal-safe Pi defau
     assert.equal(started.host, '127.0.0.1');
     assert.ok(started.port > 0);
     const health = await fetch(`${started.origin}/api/health`).then((response) => response.json());
-    assert.deepEqual(health, { ok: true, status: 'ready', contractVersion: '1.0' });
+    assert.deepEqual(health, { ok: true, status: 'ready', contractVersion: '1.1' });
 
     await f.workbench.close();
     await f.workbench.close();
@@ -110,7 +110,7 @@ test('development routes health, commands, queries, and events before the Vite S
       return { status: response.status, body: await response.json() };
     };
     const health = await api('/api/health');
-    assert.deepEqual(health, { status: 200, body: { ok: true, status: 'ready', contractVersion: '1.0' } });
+    assert.deepEqual(health, { status: 200, body: { ok: true, status: 'ready', contractVersion: '1.1' } });
 
     const query = await api('/api/queries', {
       method: 'POST', headers: { 'content-type': 'application/json' },

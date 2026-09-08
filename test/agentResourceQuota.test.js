@@ -53,3 +53,34 @@ test('missing source remains unavailable and Claude remains unavailable', (t) =>
   const status = getAgentResourceStatus({ readLatestSnapshot: () => null });
   assert.deepEqual(status.agents.map((agent) => [agent.agent, Boolean(agent.unavailable)]), [['codex', true], ['claude-code', true]]);
 });
+
+test('S7 quota normalization: remaining = 100 - used when the window is valid', () => {
+  const normalized = normalizeCodexQuotaSnapshot(
+    { timestamp: new Date('2026-09-07T12:00:00.000Z'), rateLimits: { primary: { used_percent: 72, window_minutes: 10080, resets_at: 1789198548 } } },
+    { now: Date.parse('2026-09-07T12:00:00.000Z') });
+  assert.deepEqual(normalized.map((w) => [w.percentUsed, w.remaining, w.stale]), [[72, 28, false]]);
+});
+
+test('S7 service quota: expired snapshot is stale/null, fresh snapshot restores remaining', () => {
+  const snapshot = { timestamp: new Date('2026-09-07T12:35:47.000Z'), rateLimits: {
+    primary: { used_percent: 22, window_minutes: 300, resets_at: 1788787981 },   // 2026-09-07T13:33:01Z
+    secondary: { used_percent: 72, window_minutes: 10080, resets_at: 1789198548 }, // 2026-09-12T07:35:48Z
+  } };
+  // 5h window already rolled (now 18:00Z > resets 13:33Z) and the newest snapshot predates the
+  // reset, so there is no trusted value for the CURRENT 5h window: never show the old 22% nor guess
+  // a fresh 100%. The 7d window is still inside its window -> remaining 100 - 72 = 28.
+  const expired = getAgentResourceStatus({ readLatestSnapshot: () => snapshot, revision: 'r1', now: Date.parse('2026-09-07T18:00:00.000Z') });
+  const windows = expired.agents.find((a) => a.agent === 'codex').resources;
+  assert.deepEqual(windows.map((w) => [w.windowDurationMinutes, w.remaining, w.stale]), [[300, null, true], [10080, 28, false]]);
+
+  // Provider emits a fresh post-reset 5h snapshot: remaining restored to 100, stale cleared.
+  const fresh = getAgentResourceStatus({ readLatestSnapshot: () => ({
+    timestamp: new Date('2026-09-07T14:00:00.000Z'),
+    rateLimits: {
+      primary: { used_percent: 0, window_minutes: 300, resets_at: 1788787981 },
+      secondary: { used_percent: 72, window_minutes: 10080, resets_at: 1789198548 },
+    },
+  }), revision: 'r2', now: Date.parse('2026-09-07T14:30:00.000Z') });
+  const freshWindows = fresh.agents.find((a) => a.agent === 'codex').resources;
+  assert.deepEqual(freshWindows.map((w) => [w.windowDurationMinutes, w.remaining, w.stale]), [[300, 100, false], [10080, 28, false]]);
+});
