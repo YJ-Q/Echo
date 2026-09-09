@@ -124,43 +124,60 @@ export function createHandoffHttpAdapter({
       ? [injectedCodexSource]
       : AGENT_TYPES.map((type) => resolveActiveSource(registry(), type, registryOptions)).filter(Boolean);
     let sourceReadFailed = false;
+    let readableSources = 0;
     const settled = await Promise.all(sources.map(async (source) => {
       const adapter = adapterResolver(source.type);
       if (!source.enabled || !adapter) return [];
-      const result = adapter.readSessionSnapshots
-        ? await adapter.readSessionSnapshots(source, { ...options, env, codexDiscoverSessions: discoverSessions, computeCodexRevision: computeSourceRevision })
-        : await (async () => { try { return { ok: true, snapshots: await adapter.collectSessionSnapshots(source, { ...options, env, codexDiscoverSessions: discoverSessions, computeCodexRevision: computeSourceRevision }) }; } catch (error) { return { ok: false, error }; } })();
+      // An adapter is an independent native-data source.  Preserve a thrown reader error as
+      // that source's failure envelope, rather than allowing Promise.all to reject the entire
+      // multi-agent snapshot.
+      let result;
+      try {
+        result = adapter.readSessionSnapshots
+          ? await adapter.readSessionSnapshots(source, { ...options, env, codexDiscoverSessions: discoverSessions, computeCodexRevision: computeSourceRevision })
+          : { ok: true, snapshots: await adapter.collectSessionSnapshots(source, { ...options, env, codexDiscoverSessions: discoverSessions, computeCodexRevision: computeSourceRevision }) };
+      } catch (error) {
+        result = { ok: false, error };
+      }
       if (result?.ok) {
         // A successful empty read is authoritative and therefore intentionally clears this
         // source's LKG.  Only an explicit failed result retains it.
         sourceLastKnownGood.set(source.id, result.snapshots ?? []);
         sourceReadStatus.set(source.id, { stale: false, unavailable: false, error: null });
+        readableSources += 1;
         return result.snapshots ?? [];
       }
       sourceReadFailed = true;
       sourceReadStatus.set(source.id, { stale: true, unavailable: !sourceLastKnownGood.has(source.id), error: result?.error ?? null });
       if (sourceLastKnownGood.has(source.id)) return sourceLastKnownGood.get(source.id);
-      const error = new Error(result?.error?.message ?? 'Unable to read agent source');
-      error.code = result?.error?.code ?? 'source_read_failed';
-      throw error;
+      // A first-read failure means this source is unavailable, not that another
+      // agent's successful snapshot is untrustworthy.  Never invent an empty
+      // archive truth for Claude: it is omitted until it has a real snapshot.
+      return [];
     }));
     const snapshots = settled.flat().sort((a, b) => new Date(b.updatedAt ?? 0) - new Date(a.updatedAt ?? 0));
     // Keep the established array contract for non-Board Core callers, while preserving whether
     // this aggregate is a trustworthy snapshot.  The HTTP Board path consumes this marker and
     // retains its own LKG rather than committing a partial read as current truth.
-    Object.defineProperty(snapshots, 'snapshotComplete', { value: !sourceReadFailed });
+    Object.defineProperty(snapshots, 'snapshotComplete', { value: readableSources > 0 });
+    Object.defineProperty(snapshots, 'sourceReadFailed', { value: sourceReadFailed });
     return snapshots;
   };
   // S2 live-sync aggregates adapter-owned source revisions. A revision is only a cheap re-read
   // signal: adapters remain the sole owners of session facts and lifecycle semantics.
   const currentRevision = () => {
     const sources = hasInjectedCodexDiscovery ? [injectedCodexSource] : enabledSources();
-    const signatures = sources.map((source) => {
+    const signatures = sources.flatMap((source) => {
       const adapter = adapterResolver(source.type);
-      if (!adapter?.getSessionRevision) throw new Error(`No revision reader for ${source.type}`);
-      const revision = adapter.getSessionRevision(source, { computeCodexRevision: computeSourceRevision });
-      if (!revision) throw new Error(`Unable to read revision for ${source.type}`);
-      return revision;
+      try {
+        if (!adapter?.getSessionRevision) throw new Error(`No revision reader for ${source.type}`);
+        const revision = adapter.getSessionRevision(source, { computeCodexRevision: computeSourceRevision });
+        if (!revision) throw new Error(`Unable to read revision for ${source.type}`);
+        return [revision];
+      } catch (error) {
+        sourceReadStatus.set(source.id, { stale: true, unavailable: !sourceLastKnownGood.has(source.id), error });
+        return [];
+      }
     });
     return signatures.length ? createHash('sha256').update(signatures.sort().join('\n')).digest('hex') : null;
   };

@@ -86,3 +86,53 @@ test('S8.5B rejects a snapshot whose source revision changed during its read', a
   const polled = await (await fetch(`${origin}/api/sessions/revision`)).json();
   assert.equal(recovered.data.revision, polled.data.revision, 'the committed aggregate revision describes this recovered snapshot');
 });
+
+test('S8.5B isolates an unavailable Claude archive source while preserving Codex and Pi snapshots', async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-s85-source-isolation-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const sources = ['codex', 'claude', 'pi'].map((type) => ({ id: `${type}-source`, sourceId: `${type}-source`, type, path: home, origin: 'manual', enabled: true }));
+  const adapterResolver = (type) => ({
+    getSessionRevision: () => {
+      if (type === 'claude') throw Object.assign(new Error('Claude archive state is not readable'), { code: 'source_read_failed' });
+      return `${type}-revision`;
+    },
+    readSessionSnapshots: async () => type === 'claude'
+      ? { ok: false, error: { code: 'source_read_failed', message: 'Claude archive state is not readable' } }
+      : { ok: true, snapshots: [{ ...session(`${type}-session`), agentType: type, sourceId: `${type}-source`, canonicalId: `${type}:${type}-source:${type}-session` }] },
+  });
+  const app = createHandoffHttpAdapter({ rootDir: home, readRegistry: () => ({ ok: true, version: 1, sources }), writeRegistry: (value) => value, adapterResolver });
+  const { server, origin } = await listen(app); t.after(() => server.close());
+  const response = await fetch(`${origin}/api/sessions`);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.data.sessions.map((item) => item.agentType).sort(), ['codex', 'pi']);
+  assert.doesNotMatch(JSON.stringify(body), /claude-session/);
+});
+
+test('S8.5B retains Claude LKG on archive failure and reconciles it after recovery', async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-s85-claude-lkg-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const sources = ['codex', 'claude', 'pi'].map((type) => ({ id: `${type}-source`, sourceId: `${type}-source`, type, path: home, origin: 'manual', enabled: true }));
+  const state = { claudeAvailable: true, claudeRevision: 'claude-r1' };
+  const adapterResolver = (type) => ({
+    getSessionRevision: () => {
+      if (type === 'claude' && !state.claudeAvailable) throw new Error('Claude archive state is not readable');
+      return type === 'claude' ? state.claudeRevision : `${type}-r1`;
+    },
+    readSessionSnapshots: async () => {
+      if (type === 'claude' && !state.claudeAvailable) throw new Error('Claude archive state is not readable');
+      const id = type === 'claude' ? state.claudeRevision : `${type}-r1`;
+      return { ok: true, snapshots: [{ ...session(id), agentType: type, sourceId: `${type}-source`, canonicalId: `${type}:${type}-source:${id}` }] };
+    },
+  });
+  const app = createHandoffHttpAdapter({ rootDir: home, readRegistry: () => ({ ok: true, version: 1, sources }), writeRegistry: (value) => value, adapterResolver });
+  const { server, origin } = await listen(app); t.after(() => server.close());
+  const listed = async () => (await (await fetch(`${origin}/api/sessions`)).json()).data.sessions;
+  assert.deepEqual((await listed()).map((item) => item.id).sort(), ['claude-r1', 'codex-r1', 'pi-r1']);
+  state.claudeAvailable = false;
+  assert.deepEqual((await listed()).map((item) => item.id).sort(), ['claude-r1', 'codex-r1', 'pi-r1'], 'a failed Claude read returns its trusted LKG, not fabricated archive visibility');
+  state.claudeAvailable = true;
+  state.claudeRevision = 'claude-r2';
+  assert.deepEqual((await listed()).map((item) => item.id).sort(), ['claude-r2', 'codex-r1', 'pi-r1'], 'a recovered Claude source replaces its stale LKG');
+});

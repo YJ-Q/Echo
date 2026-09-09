@@ -7,7 +7,12 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { adapterFor } from '../src/agents/adapters.js';
 import { discoverSessions as discoverCodexSessions } from '../src/core/handoff/session-source.js';
-import { readClaudeArchiveState } from '../src/agents/claude/claudeArchiveState.js';
+import { childRuntimeEnv, readClaudeArchiveState } from '../src/agents/claude/claudeArchiveState.js';
+
+test('Claude archive helper runs the bundled Electron executable in Node mode only when needed', () => {
+  assert.deepEqual(childRuntimeEnv({ env: { SAFE: 'value' }, electron: true }), { SAFE: 'value', ELECTRON_RUN_AS_NODE: '1' });
+  assert.deepEqual(childRuntimeEnv({ env: { SAFE: 'value' }, electron: false }), { SAFE: 'value' });
+});
 
 function fixture(t) { const root = fs.mkdtempSync(path.join(os.tmpdir(), 'margin-external-session-')); t.after(() => fs.rmSync(root, { recursive: true, force: true })); return root; }
 function jsonl(records, partial = '') { return `${records.map(JSON.stringify).join('\n')}\n${partial}`; }

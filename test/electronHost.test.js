@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { createElectronHost } from '../electron/main.js';
+import { createElectronHost, createStartupDiagnostics } from '../electron/main.js';
 
 class FakeWindow extends EventEmitter {
   constructor(options) { super(); this.options = options; this.visible = false; this.closed = false; this.alwaysOnTop = false; this.bounds = { x: 10, y: 20, width: options.width, height: options.height }; }
@@ -20,6 +20,22 @@ class FakeWindow extends EventEmitter {
   setMaximumSize(width, height) { this.maximumSize = { width, height }; }
   close() { const event = { prevented: false, preventDefault() { this.prevented = true; } }; this.emit('close', event); if (!event.prevented) this.closed = true; }
 }
+
+test('startup diagnostics record sanitized lifecycle events without making logging fatal', () => {
+  const writes = [];
+  const diagnostics = createStartupDiagnostics({
+    directory: 'C:\\Users\\Margin\\AppData\\Local\\margin\\logs', now: () => '2026-09-10T00:00:00.000Z',
+    mkdir: () => {}, append: (file, line, encoding) => writes.push({ file, line, encoding }),
+  });
+  diagnostics.write('surface-port-bound', { origin: 'http://127.0.0.1:43123', path: 'C:\\Users\\Margin\\AppData\\Local\\margin' });
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].encoding, 'utf8');
+  assert.match(writes[0].file, /startup\.log$/);
+  assert.deepEqual(JSON.parse(writes[0].line), {
+    at: '2026-09-10T00:00:00.000Z', stage: 'surface-port-bound',
+    details: { origin: 'http://127.0.0.1:43123', path: 'C:\\Users\\<user>\\AppData\\Local\\margin' },
+  });
+});
 
 test('Electron host owns one ephemeral loopback Surface and window/tray lifecycle only', async () => {
   const app = new EventEmitter();
