@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { titleDto } from '../../agents/sessionTitle.js';
+import { readLatestCodexTurnStatus } from '../../agents/codex/codexTurnStatus.js';
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
@@ -32,7 +33,9 @@ export async function discoverSessions(codexHome, { limit, env, homedir, sourceI
   const home = resolveCodexHome(codexHome, { env, homedir });
   // A discovery is one complete active-source snapshot.  Eligibility and
   // canonicalization deliberately happen before ordering and pagination.
-  return resumableSessions(parseCodexSessions(home), { limit, sourceId, agentType });
+  const sessions = resumableSessions(parseCodexSessions(home), { limit, sourceId, agentType });
+  const tracker = trackerFor(home);
+  return composeCodexTerminalStatuses(sessions, home, tracker);
 }
 
 function sessionFiles(dir) {
@@ -109,7 +112,7 @@ const runtimeTrackersByHome = new Map();
 function trackerFor(codexHome) {
   let tracker = runtimeTrackersByHome.get(codexHome);
   if (!tracker) {
-    tracker = { initialized: false, rollouts: new Map(), executionStatus: new Map() };
+    tracker = { initialized: false, rollouts: new Map(), executionStatus: new Map(), lifecycleWatermark: new Map(), terminalLkg: new Map() };
     runtimeTrackersByHome.set(codexHome, tracker);
   }
   return tracker;
@@ -163,7 +166,7 @@ function readRolloutFacts(originalPath, file, tracker) {
     ? records.filter(({ endOffset }) => !previous || endOffset > previousCompleteBytes)
       .flatMap(({ record }) => {
         const executionStatus = lifecycleExecutionStatus(record);
-        return executionStatus ? [{ executionStatus, at: validRecordTime(record.timestamp) }] : [];
+        return executionStatus ? [{ executionStatus, at: validRecordTime(record.timestamp), turnId: record.payload?.turn_id ?? null }] : [];
       })
     : [];
   const facts = {
@@ -399,12 +402,38 @@ export function resumableSessions(discovered, { limit, sourceId = 'default', age
   const sessions = [...byCanonicalId.values()].map((session) => {
     // Only foreground candidates reach this point, so an internal rollout cannot mutate the
     // canonical runtime state even if it shares a native session id.
-    for (const event of session.lifecycleEvents ?? []) session.tracker?.executionStatus.set(session.canonicalId, event.executionStatus);
+    for (const event of session.lifecycleEvents ?? []) {
+      session.tracker?.executionStatus.set(session.canonicalId, event.executionStatus);
+      session.tracker?.lifecycleWatermark.set(session.canonicalId, event.at);
+    }
     return { ...session, executionStatus: session.tracker?.executionStatus.get(session.canonicalId) ?? 'unknown', attentionStatus: 'none' };
   })
     .sort((a, b) => new Date(b.updatedAt ?? 0) - new Date(a.updatedAt ?? 0) || a.canonicalId.localeCompare(b.canonicalId))
     .map(toPlainSession);
   return limit ? sessions.slice(0, limit) : sessions;
+}
+
+async function composeCodexTerminalStatuses(sessions, home, tracker) {
+  const composed = [];
+  for (const session of sessions) {
+    const native = await readLatestCodexTurnStatus(home, session.nativeSessionId);
+    const liveAt = tracker.lifecycleWatermark.get(session.canonicalId);
+    const liveStatus = tracker.executionStatus.get(session.canonicalId);
+    let status = session.executionStatus;
+    if (native.ok && native.available) {
+      tracker.terminalLkg.set(session.canonicalId, native);
+      const terminalAt = native.terminal?.at ? new Date(native.terminal.at * 1000) : null;
+      const liveWins = Boolean(liveAt && terminalAt && liveAt >= terminalAt);
+      if (liveWins) status = liveStatus ?? status;
+      else if (native.executionStatus === 'error') status = 'error';
+    } else if (!native.ok) {
+      const lkg = tracker.terminalLkg.get(session.canonicalId);
+      if (lkg?.executionStatus === 'error' && !liveAt) status = 'error';
+      if (liveAt) status = liveStatus ?? status;
+    }
+    composed.push({ ...session, executionStatus: status });
+  }
+  return composed;
 }
 
 // Capture a stable snapshot of one session. User-facing handoff generation passes
