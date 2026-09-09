@@ -28,7 +28,7 @@ test('R3.3 window controls keep content expansion first and Quit at the far righ
   assert.equal(document.querySelectorAll('[data-agent="codex"]').length, 1);
   assert.match(document.querySelector('[data-agent="codex"]').textContent, /Codex · 5h 41% · 7d 49%/);
   assert.equal(document.querySelector('[data-agent="pi"]').textContent, 'Pi · API 126k');
-  assert.match(document.querySelector('[data-agent="claude-code"]').textContent, /^Claude —$/);
+  assert.match(document.querySelector('[data-agent="claude-code"]').textContent, /^Claude · —$/);
   assert.equal(document.body.textContent.includes('Today'), false);
   assert.equal(document.body.textContent.includes(' W'), false);
 });

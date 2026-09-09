@@ -141,7 +141,7 @@ test('S8.5D every agent stays present when its resource is unavailable (no layou
   const claude = dom.window.document.querySelector('[data-agent="claude-code"]').textContent;
   assert.match(codex, /Codex —/);
   assert.match(pi, /Pi —/);
-  assert.match(claude, /Claude —/);
+  assert.match(claude, /Claude · —/);
 });
 
 test('S8.5D Pi Today stays compact while unavailable agents keep their placeholder', async (t) => {
@@ -153,7 +153,7 @@ test('S8.5D Pi Today stays compact while unavailable agents keep their placehold
   const pi = dom.window.document.querySelector('[data-agent="pi"]').textContent;
   const claude = dom.window.document.querySelector('[data-agent="claude-code"]').textContent;
   assert.match(pi, /Pi · API 8\.7k/, 'Pi Today total renders compactly');
-  assert.match(claude, /Claude —/, 'Claude keeps its placeholder');
+  assert.match(claude, /Claude · —/, 'Claude keeps its placeholder');
 });
 
 test('S8.5D service maps over-budget used_percent to 0 remaining (exhausted truth), not an empty window', () => {
@@ -184,4 +184,23 @@ test('S8.6B Pi one visual unit: Go 5h/7d/M remaining + API Today, stale window o
   assert.match(expired, /5h —/);
   assert.doesNotMatch(expired, /0%/);
   assert.match(expired, /stale/);
+});
+
+test('S8.10A Claude Go quota is data-driven, preserves stale LKG, and renders fresh zero', async (t) => {
+  const { dom } = await renderBar(t, { agents: [{ agent: 'claude-code', provider: 'opencode-go', subscriptionQuota: true, resources: [
+    { resourceType: 'quota', accessMode: 'subscription', window: '5h', windowDurationMinutes: 300, remaining: 75 },
+    { resourceType: 'quota', accessMode: 'subscription', window: '7d', windowDurationMinutes: 10080, remaining: 89 },
+    { resourceType: 'quota', accessMode: 'subscription', window: 'M', windowDurationMinutes: 43200, remaining: 95 },
+  ] }] });
+  assert.equal(dom.window.document.querySelector('[data-agent="claude-code"]').textContent, 'Claude · Go 5h 75% · 7d 89% · M 95%');
+
+  const { dom: domStale } = await renderBar(t, { agents: [{ agent: 'claude-code', provider: 'opencode-go', stale: true, resources: [
+    { resourceType: 'quota', accessMode: 'subscription', windowDurationMinutes: 300, remaining: 75 },
+  ] }] });
+  assert.equal(domStale.window.document.querySelector('[data-agent="claude-code"]').textContent, 'Claude · Go 5h 75% · stale');
+
+  const { dom: domZero } = await renderBar(t, { agents: [{ agent: 'claude-code', provider: 'opencode-go', resources: [
+    { resourceType: 'quota', accessMode: 'subscription', windowDurationMinutes: 300, remaining: 0 },
+  ] }] });
+  assert.equal(domZero.window.document.querySelector('[data-agent="claude-code"]').textContent, 'Claude · Go 5h 0%');
 });

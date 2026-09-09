@@ -3,6 +3,7 @@ import { discoverSessions as discoverCodexSessions, computeSourceRevision as com
 import { discoverClaudeSessions, discoverPiSessions, computeExternalSessionRevision } from './externalSessionDiscovery.js';
 import { collectPiResourceSnapshot } from '../resources/piApiUsage.js';
 import { readGoQuotaResources } from '../resources/opencodeGoQuota.js';
+import { readActiveClaudeOpenCodeGoBinding } from '../resources/claudeOpenCodeGoBinding.js';
 import { resourceStatusOf } from '../resources/agentResourceService.js';
 import { captureSession as captureSessionCore } from '../core/handoff/session-source.js';
 import { generatePiHandoff } from './pi/piHandoff.js';
@@ -79,6 +80,56 @@ async function piResourceStatus(source, options = {}) {
   return { ok: true, status: resourceStatusOf(agents), revision: fallbackRevision, agents };
 }
 
+async function claudeResourceStatus(source, options = {}) {
+  const fallbackRevision = options.revision ?? null;
+  const unavailable = (stale = false) => ({
+    agent: 'claude-code', revision: fallbackRevision,
+    freshAt: null, stale, unavailable: true, resources: [],
+  });
+  if (!source?.path) {
+    const agent = unavailable();
+    return { ok: true, status: resourceStatusOf([agent]), revision: fallbackRevision, agents: [agent] };
+  }
+
+  let binding;
+  try {
+    const resolveProvider = options.resolveClaudeProvider ?? readActiveClaudeOpenCodeGoBinding;
+    binding = await resolveProvider({ env: options.env ?? process.env, claudeHome: source.path, ccSwitchHome: options.ccSwitchHome });
+  } catch {
+    binding = null;
+  }
+  // A Claude source is allowed to use this reader only after CC Switch proves that the active
+  // Claude route is OpenCode Go. In particular, never fall back to Pi's auth store here.
+  if (!binding?.available || binding.providerType !== 'opencode_go' || typeof binding.credential !== 'string') {
+    const agent = unavailable();
+    return { ok: true, status: resourceStatusOf([agent]), revision: fallbackRevision, agents: [agent] };
+  }
+
+  let goQuota;
+  try {
+    goQuota = await readGoQuotaResources({
+      home: source.path,
+      credential: binding.credential,
+      cacheKey: `claude:${source.sourceId ?? source.id ?? source.path}:${binding.configIdentity ?? 'binding'}`,
+      agent: 'claude-code',
+      provider: 'opencode-go',
+      now: options.now ?? Date.now(),
+      fetchFn: options.fetchGoQuota ?? undefined,
+    });
+  } catch {
+    goQuota = { resources: [], available: false, stale: false };
+  }
+  const resources = goQuota?.resources ?? [];
+  const hasQuota = goQuota?.available === true && resources.length > 0;
+  const agent = {
+    agent: 'claude-code', provider: 'opencode-go', revision: fallbackRevision,
+    freshAt: goQuota?.freshAt ?? null, stale: goQuota?.stale === true, resources,
+  };
+  if (hasQuota) agent.subscriptionQuota = true;
+  else agent.unavailable = true;
+  return { ok: true, status: resourceStatusOf([agent]), revision: fallbackRevision, agents: [agent] };
+}
+
 // Unified Pi agent record merging PI Today API usage and, when a structured Go quota is available,
 // the 5h/7d/M subscription remaining windows. Credential never appears in this record.
 function piAgent(revision, apiSnapshot, goQuota, stale, unavailable) {
@@ -116,7 +167,7 @@ const piRevision = (source) => computeExternalSessionRevision(source, ['agent', 
 
 export const agentAdapters = Object.freeze({
   codex: Object.freeze({ agentType: 'codex', detect: detectAgentSources, validateSource, collectSessionSnapshots: codexSnapshots, readSessionSnapshots: snapshotRead(codexSnapshots), getSessionRevision: codexRevision, discoverSessions: codexSnapshots, getResourceStatus: codexResourceStatus, collectResourceSnapshot: codexResourceStatus }),
-  claude: Object.freeze({ agentType: 'claude', detect: detectAgentSources, validateSource, collectSessionSnapshots: claudeSnapshots, readSessionSnapshots: snapshotRead(claudeSnapshots), getSessionRevision: claudeRevision, discoverSessions: claudeSnapshots, getResourceStatus: unsupportedResources, collectResourceSnapshot: unsupportedResources, captureSession: captureSessionCore, generateHandoff: generateClaudeHandoff }),
+  claude: Object.freeze({ agentType: 'claude', detect: detectAgentSources, validateSource, collectSessionSnapshots: claudeSnapshots, readSessionSnapshots: snapshotRead(claudeSnapshots), getSessionRevision: claudeRevision, discoverSessions: claudeSnapshots, getResourceStatus: claudeResourceStatus, collectResourceSnapshot: claudeResourceStatus, captureSession: captureSessionCore, generateHandoff: generateClaudeHandoff }),
   pi: Object.freeze({ agentType: 'pi', detect: detectAgentSources, validateSource, collectSessionSnapshots: piSnapshots, readSessionSnapshots: snapshotRead(piSnapshots), getSessionRevision: piRevision, discoverSessions: piSnapshots, getResourceStatus: piResourceStatus, collectResourceSnapshot: piResourceStatus, captureSession: captureSessionCore, generateHandoff: generatePiHandoff }),
 });
 

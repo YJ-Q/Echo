@@ -75,7 +75,7 @@ function anyWindowPastReset(body, now) {
 // record exposing REMAINING (100 - used), clamped to [0,100]. A window that has already rolled
 // (now >= resetsAt) while this snapshot predates the reset has no trusted value for the CURRENT
 // window: remaining is null and stale is true — never a guessed fresh 100%.
-function toResources(body, fetchMs, now) {
+function toResources(body, fetchMs, now, { agent = 'pi', provider = 'opencode-go' } = {}) {
   const usage = body?.usage;
   if (!usage || typeof usage !== 'object') return [];
   const records = [];
@@ -89,7 +89,7 @@ function toResources(body, fetchMs, now) {
     const expiredStale = now >= resetsMs && fetchMs < resetsMs;
     const remaining = expiredStale ? null : Math.max(0, Math.round(100 - percentUsed));
     records.push({
-      agent: 'pi', provider: 'opencode-go', accessMode: 'subscription', resourceType: 'quota',
+      agent, provider, accessMode: 'subscription', resourceType: 'quota',
       window: label, windowDurationMinutes: minutes, plan: 'opencode-go',
       percentUsed: Math.min(100, percentUsed), remaining, resetsAt: Math.floor(resetsMs / 1000),
       status: String(w.status ?? ''), timestamp: new Date(fetchMs).toISOString(),
@@ -105,33 +105,39 @@ function toResources(body, fetchMs, now) {
 // - success -> fresh snapshot.
 // - transient failure with LKG -> keep last trusted snapshot marked stale.
 // - transient failure with no LKG -> unavailable.
-export async function readGoQuotaResources({ home, now = Date.now(), fetchFn = null } = {}) {
-  if (typeof home !== 'string' || !home.trim()) return { resources: [], available: false, reason: 'no_home', freshAt: null, stale: false, failed: false };
-  const token = resolveOpenCodeGoCredential(home);
+export async function readGoQuotaResources({ home, credential = null, cacheKey = null, agent = 'pi', provider = 'opencode-go', now = Date.now(), fetchFn = null } = {}) {
+  const hasHome = typeof home === 'string' && home.trim();
+  const suppliedCredential = typeof credential === 'string' && credential.trim() ? credential.trim() : null;
+  if (!hasHome && !suppliedCredential) return { resources: [], available: false, reason: 'no_home', freshAt: null, stale: false, failed: false };
+  const token = suppliedCredential || resolveOpenCodeGoCredential(home);
   if (!token) return { resources: [], available: false, reason: 'no_credential', freshAt: null, stale: false, failed: false };
 
   const credentialSig = createHash('sha256').update(token).digest('hex');
-  const previous = cache.get(home);
+  const key = String(cacheKey || home || `credential:${credentialSig}`);
+  const previous = cache.get(key);
+  const sameCredential = previous?.credentialSig === credentialSig;
   const expired = previous?.body ? anyWindowPastReset(previous.body, now) : false;
   const needsRefresh = !previous || previous.credentialSig !== credentialSig || previous.readFailed
     || (now - (previous.at ?? 0)) >= REFRESH_MS || expired;
 
   if (!needsRefresh) {
-    return { resources: toResources(previous.body, previous.at, now), available: true, reason: 'ok',
+    return { resources: toResources(previous.body, previous.at, now, { agent, provider }), available: true, reason: 'ok',
       freshAt: new Date(previous.at).toISOString(), stale: false, failed: false, cached: true };
   }
 
   const fetch = fetchFn || injectedFetch || defaultFetch;
   const fetched = await fetch(token);
   if (!fetched.ok) {
-    if (previous?.body) {
-      cache.set(home, { ...previous, readFailed: true, at: now });
-      return { resources: toResources(previous.body, previous.at, now), available: true, reason: fetched.reason,
+    // A provider/credential switch invalidates the old LKG. Serving the previous account's quota
+    // after a failed refresh would be a cross-account display bug, not a safe stale value.
+    if (previous?.body && sameCredential) {
+      cache.set(key, { ...previous, readFailed: true, at: now });
+      return { resources: toResources(previous.body, previous.at, now, { agent, provider }), available: true, reason: fetched.reason,
         freshAt: new Date(previous.at).toISOString(), stale: true, failed: true };
     }
     return { resources: [], available: false, reason: fetched.reason ?? 'fetch_failed', freshAt: null, stale: false, failed: true };
   }
-  cache.set(home, { at: now, credentialSig, body: fetched.body, readFailed: false });
-  return { resources: toResources(fetched.body, now, now), available: true, reason: 'ok',
+  cache.set(key, { at: now, credentialSig, body: fetched.body, readFailed: false });
+  return { resources: toResources(fetched.body, now, now, { agent, provider }), available: true, reason: 'ok',
     freshAt: new Date(now).toISOString(), stale: false, failed: false };
 }

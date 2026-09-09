@@ -54,6 +54,12 @@ function isDirectory(value) {
   try { return fs.statSync(value).isDirectory(); } catch { return false; }
 }
 
+function resourceAgentName(type) { return type === 'claude' ? 'claude-code' : type; }
+function unavailableResourceAgent(type, revision) {
+  const provider = type === 'codex' ? 'openai' : type === 'pi' ? 'pi' : null;
+  return { agent: resourceAgentName(type), ...(provider ? { provider } : {}), revision, freshAt: null, stale: false, unavailable: true, resources: [] };
+}
+
 // Minimal, independent boundary: browser UI never touches the Codex filesystem
 // or the repo directly. It only reaches the handoff Core through these three
 // routes. Deliberately not wired into src/http/webGateway.js — that gateway is
@@ -168,34 +174,41 @@ export function createHandoffHttpAdapter({
   // represented as stale/unavailable by the domain and never takes down the board. The S3 live
   // reader is keyed to the same S2 source `revision` so an unchanged revision never triggers a
   // resource re-read; the reader carries last-known-good quota across archive/switch and token
-  // usage is kept separate. No per-provider special cases exist at this boundary.
+  // usage is kept separate. Provider-specific binding stays inside its adapter; this boundary
+  // only folds adapter envelopes and supplies an unavailable record when a source is absent.
   app.get('/api/resources/status', async (_request, response) => {
     const source = activeCodex();
     let revision = null;
     try { revision = currentRevision(); } catch { /* advisory; a failed revision read is never fatal */ }
     const fallback = {
       ok: true, status: 'unavailable', revision,
-      agents: [
-        { agent: 'codex', provider: 'openai', revision, freshAt: null, stale: true, unavailable: true, resources: [] },
-        { agent: 'claude-code', revision, freshAt: null, stale: false, unavailable: true },
-        { agent: 'pi', provider: 'pi', revision, freshAt: null, stale: false, unavailable: true, resources: [] },
-      ],
+      agents: AGENT_TYPES.map((type) => ({ ...unavailableResourceAgent(type, revision), ...(type === 'codex' ? { stale: true } : {}) })),
     };
     try {
       const codex = getAgentResourceStatus({ codexHome: source?.path, source, revision });
       const current = registry();
-      const piSource = resolveActiveSource(current, 'pi', registryOptions);
-      const piAdapter = piSource ? adapterFor('pi') : null;
-      let piRevision = null;
-      try { piRevision = piAdapter?.getSessionRevision ? piAdapter.getSessionRevision(piSource) : currentRevision(); } catch { /* advisory; never fatal */ }
-      const pi = piAdapter?.collectResourceSnapshot ? await piAdapter.collectResourceSnapshot(piSource, { revision: piRevision, env, now: Date.now() }) : null;
-      // Generic fold of adapter envelopes: every adapter contributes { ...agents } and the merged
-      // status/revision are re-derived from the folded truth. A source with no reader contributes
-      // an unavailable placeholder, exactly like a declared unavailable agent.
-      const agents = [...(codex?.agents ?? []), ...(pi?.agents ?? [])];
-      if (!agents.some((agent) => agent.agent === 'pi')) {
-        agents.push({ agent: 'pi', provider: 'pi', revision, freshAt: null, stale: false, unavailable: true, resources: [] });
+      const byAgent = new Map((codex?.agents ?? []).filter((agent) => agent.agent !== 'claude-code').map((agent) => [agent.agent, agent]));
+
+      // Claude and Pi are supplemental resource adapters. Each read is isolated so a provider
+      // binding/network failure produces only that agent's unavailable/LKG truth.
+      for (const type of ['claude', 'pi']) {
+        const sourceForType = resolveActiveSource(current, type, registryOptions);
+        const adapter = sourceForType ? adapterResolver(type) : null;
+        let result = null;
+        if (sourceForType?.enabled && adapter?.collectResourceSnapshot) {
+          let sourceRevision = null;
+          try { sourceRevision = adapter.getSessionRevision ? adapter.getSessionRevision(sourceForType) : null; } catch { /* advisory; never fatal */ }
+          try {
+            result = await adapter.collectResourceSnapshot(sourceForType, { revision: sourceRevision, env, now: Date.now() });
+          } catch { /* one provider's resource failure must not affect other agents */ }
+        }
+        const agent = result?.agents?.find((item) => item.agent === resourceAgentName(type));
+        byAgent.set(resourceAgentName(type), agent ?? unavailableResourceAgent(type, revision));
       }
+
+      // Keep a stable visual order and ensure every supported agent remains represented without
+      // hardcoding a Claude-specific placeholder in the HTTP contract.
+      const agents = AGENT_TYPES.map((type) => byAgent.get(resourceAgentName(type)) ?? unavailableResourceAgent(type, revision));
       response.json({ ok: true, status: resourceStatusOf(agents), revision: codex?.revision ?? revision ?? null, agents });
     }
     catch { response.json(fallback); }

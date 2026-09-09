@@ -29,6 +29,7 @@ function quotaStale(resource, remaining) { return remaining === null || resource
 export function UsageBar({ resourceStatus, expanded, onToggle, alwaysOnTop, onPin, onHide, onQuit }) {
   const codex = resourceStatus?.agents?.find((agent) => agent.agent === 'codex');
   const pi = resourceStatus?.agents?.find((agent) => agent.agent === 'pi');
+  const claude = resourceStatus?.agents?.find((agent) => agent.agent === 'claude-code');
   const resources = codex?.resources ?? [];
   const token = codex?.token ?? null;
   const stale = Boolean(codex?.stale);
@@ -53,6 +54,16 @@ export function UsageBar({ resourceStatus, expanded, onToggle, alwaysOnTop, onPi
   const piApiText = piUsage ? `API ${piTotal}${piMarkers.length ? ` · ${piMarkers.join(' · ')}` : ''}` : null;
   const piParts = [piQuotaText, piApiText].filter(Boolean);
   const piText = pi && pi.unavailable !== true ? (piParts.length ? `Pi · ${piParts.join(' · ')}` : 'Pi —') : 'Pi —';
+  const claudeQuota = (claude?.resources ?? []).filter((resource) => resource.accessMode === 'subscription' && resource.resourceType === 'quota');
+  const claudeQuotaParts = claudeQuota.map((resource) => {
+    const remaining = quotaRemaining(resource);
+    return `${windowLabel(resource.windowDurationMinutes)} ${remaining === null ? '—' : `${remaining}%`}${quotaStale(resource, remaining) ? ' · stale' : ''}`;
+  });
+  const claudeHasWindowStale = claudeQuota.some((resource) => quotaStale(resource, quotaRemaining(resource)));
+  const claudeStale = claude?.stale === true && !claudeHasWindowStale ? ' · stale' : '';
+  const claudeText = claude && claude.unavailable !== true && claudeQuotaParts.length
+    ? `Claude · Go ${claudeQuotaParts.join(' · ')}${claudeStale}`
+    : 'Claude · —';
   const baseParts = ['Codex', ...quotaParts, ...(tokenPart ? [tokenPart] : [])];
   const hasData = baseParts.length > 1;
   const baseText = (hasData || stale) ? baseParts.join(' · ') : 'Codex —';
@@ -73,7 +84,7 @@ export function UsageBar({ resourceStatus, expanded, onToggle, alwaysOnTop, onPi
     };
     setFade((previous) => (previous.left === next.left && previous.right === next.right ? previous : next));
   }, []);
-  useEffect(() => { updateFade(); }, [updateFade, baseText]);
+  useEffect(() => { updateFade(); }, [updateFade, baseText, piText, claudeText]);
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return undefined;
@@ -114,7 +125,7 @@ export function UsageBar({ resourceStatus, expanded, onToggle, alwaysOnTop, onPi
     : fade.right ? 'linear-gradient(to left, transparent, #000 24px)'
     : 'none';
   return createElement('header', { className: 'margin-usage-bar', 'data-window-drag-region': true },
-    createElement('span', { ref: viewportRef, className: 'margin-usage-viewport', style: { maskImage: mask, WebkitMaskImage: mask } }, createElement('span', { className: 'margin-usage-agent margin-usage-agent-codex', 'data-agent': 'codex' }, createElement('span', { className: 'margin-usage-agent-label' }, baseText, staleElem ? ' · ' : null, staleElem)), createElement('span', { className: 'margin-usage-agent', 'data-agent': 'pi' }, piText), createElement('span', { className: 'margin-usage-agent', 'data-agent': 'claude-code' }, 'Claude —')),
+    createElement('span', { ref: viewportRef, className: 'margin-usage-viewport', style: { maskImage: mask, WebkitMaskImage: mask } }, createElement('span', { className: 'margin-usage-agent margin-usage-agent-codex', 'data-agent': 'codex' }, createElement('span', { className: 'margin-usage-agent-label' }, baseText, staleElem ? ' · ' : null, staleElem)), createElement('span', { className: 'margin-usage-agent', 'data-agent': 'pi' }, piText), createElement('span', { className: 'margin-usage-agent', 'data-agent': 'claude-code' }, claudeText)),
     createElement('div', { className: 'margin-control-dock', 'data-window-drag-region': false },
       createElement('button', { type: 'button', className: 'margin-usage-toggle', onClick: onToggle, 'aria-expanded': expanded, 'aria-label': expanded ? 'Collapse sessions' : 'Expand sessions', title: expanded ? 'Collapse' : 'Expand' }, expanded ? createElement(IconChevronUp) : createElement(IconChevronDown)),
       createElement('button', { type: 'button', className: `margin-window-control ${alwaysOnTop ? 'is-active' : ''}`, onClick: onPin, title: 'Pin', 'aria-label': 'Pin', 'aria-pressed': alwaysOnTop }, createElement(IconPin)),

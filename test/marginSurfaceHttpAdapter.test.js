@@ -34,13 +34,42 @@ test('GET /api/resources/status is independent, read-only, and fail-soft', async
     const body = await response.json();
     assert.equal(body.ok, true);
     assert.equal(body.status, 'ok');
-    assert.deepEqual(body.agents, [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }] }, { agent: 'claude-code', unavailable: true }, { agent: 'pi', provider: 'pi', revision: null, freshAt: null, stale: false, unavailable: true, resources: [] }]);
+    assert.deepEqual(body.agents, [{ agent: 'codex', resources: [{ windowDurationMinutes: 300, percentUsed: 59, resetsAt: 1 }] }, { agent: 'claude-code', revision: null, freshAt: null, stale: false, unavailable: true, resources: [] }, { agent: 'pi', provider: 'pi', revision: null, freshAt: null, stale: false, unavailable: true, resources: [] }]);
   });
   const failed = createHandoffHttpAdapter({ rootDir: os.tmpdir(), readRegistry: () => ({ version: 1, sources: [] }), writeRegistry: (registry) => registry, getAgentResourceStatus: () => { throw new Error('source failed'); } });
   await withServer(failed, async (origin) => {
     const body = await (await fetch(`${origin}/api/resources/status`)).json();
     assert.equal(body.agents[0].unavailable, true);
     assert.equal(body.agents[1].agent, 'claude-code');
+  });
+});
+
+test('GET /api/resources/status folds an enabled Claude adapter result without exposing provider credentials', async () => {
+  const claudeSource = { type: 'claude', agentType: 'claude', path: 'synthetic-claude-home', sourceId: 'claude-source', id: 'claude-source', enabled: true };
+  let receivedSource;
+  const app = createHandoffHttpAdapter({
+    rootDir: os.tmpdir(),
+    readRegistry: () => ({ version: 1, sources: [claudeSource] }),
+    writeRegistry: (registry) => registry,
+    getAgentResourceStatus: () => ({ agents: [{ agent: 'codex', resources: [] }] }),
+    adapterResolver: (type) => type === 'claude' ? {
+      getSessionRevision: () => 'claude-revision',
+      collectResourceSnapshot: async (source) => {
+        receivedSource = source;
+        return { ok: true, status: 'ok', revision: 'claude-revision', agents: [{
+          agent: 'claude-code', provider: 'opencode-go', subscriptionQuota: true, stale: false, freshAt: '2026-09-09T08:00:00.000Z',
+          resources: [{ resourceType: 'quota', accessMode: 'subscription', window: '5h', windowDurationMinutes: 300, remaining: 86 }],
+        }] };
+      },
+    } : null,
+  });
+  await withServer(app, async (origin) => {
+    const body = await (await fetch(`${origin}/api/resources/status`)).json();
+    assert.equal(body.ok, true);
+    assert.equal(receivedSource.path, path.resolve(claudeSource.path));
+    assert.deepEqual(body.agents.map((agent) => agent.agent), ['codex', 'claude-code', 'pi']);
+    assert.deepEqual(body.agents.find((agent) => agent.agent === 'claude-code').resources.map((resource) => resource.remaining), [86]);
+    assert.doesNotMatch(JSON.stringify(body), /credential|api[_-]?key|secret/i);
   });
 });
 
