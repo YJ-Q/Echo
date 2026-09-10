@@ -21,6 +21,7 @@ export function MarginApp({ api: suppliedApi, pollMs = 500, refreshGapMs = 250 }
   const sessionRequest = useRef(null);
   const sessionRequestGeneration = useRef(0);
   const trailingReconciliation = useRef(false);
+  const resourceRequest = useRef(null);
   const mounted = useRef(true);
   const lastRefreshAt = useRef(0);
   const trailingTimer = useRef(null);
@@ -73,11 +74,23 @@ export function MarginApp({ api: suppliedApi, pollMs = 500, refreshGapMs = 250 }
   // bar does not re-render on every poll tick; a transport failure leaves the shown snapshot in
   // place. The UI never filters, re-derives, or silently keeps an old value against a response.
   const loadResources = useCallback(() => {
-    api.getResourceStatus?.().then((result) => {
+    // Resource reads can include native provider work.  All entry points (mount,
+    // focus, visibility, expand, and the regular poll) therefore share the one
+    // real request until it settles.  Returning that Promise is essential: the
+    // polling effect must not release its in-flight guard while a read is active.
+    if (resourceRequest.current) return resourceRequest.current;
+    let request;
+    try { request = api.getResourceStatus?.(); } catch { return Promise.resolve(); }
+    if (!request || typeof request.then !== 'function') return Promise.resolve();
+    const current = Promise.resolve(request).then((result) => {
       if (!result || !Array.isArray(result.agents)) return;
       const next = { revision: result.revision ?? null, agents: result.agents };
       setResourceStatus((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
     }).catch(() => { /* transient transport failure: keep the shown snapshot */ });
+    resourceRequest.current = current;
+    return current.finally(() => {
+      if (resourceRequest.current === current) resourceRequest.current = null;
+    });
   }, [api]);
   const toggleExpanded = useCallback(() => setExpanded((value) => { const next = !value; globalThis.marginShell?.setExpanded?.(next); if (next) { loadSessions({ quiet: true }); loadResources(); } return next; }), [loadResources, loadSessions]);
   useEffect(() => { loadSessions(); loadSources(); }, [loadSessions, loadSources]);

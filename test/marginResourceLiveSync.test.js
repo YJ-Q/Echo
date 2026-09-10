@@ -59,6 +59,35 @@ test('S3 resource live sync pauses while hidden and refreshes on return to visib
   assert.ok(counter.resource > atHide, 'return to visible refreshes immediately and resumes polling');
 });
 
+test('S9.2 focus bursts share one pending native resource read and resume after it settles', async (t) => {
+  const { dom, root } = setup();
+  t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  let calls = 0;
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  const api = {
+    listSessions: async () => ({ ok: true, data: { revision: 'R', sessions: [] } }),
+    listAgentSources: async () => ({ ok: true, data: { sources: [] } }),
+    getResourceStatus: () => {
+      calls += 1;
+      return pending;
+    },
+  };
+  await act(async () => { root.render(React.createElement(MarginApp, { api, pollMs: 10000 })); await wait(0); });
+  assert.equal(calls, 1, 'mount owns the first resource read');
+
+  await act(async () => {
+    for (let index = 0; index < 50; index += 1) window.dispatchEvent(new window.Event('focus'));
+    await wait(0);
+  });
+  assert.equal(calls, 1, '50 focus events cannot spawn concurrent resource reads');
+
+  release({ revision: 'R', agents: [{ agent: 'codex', resources: [] }, { agent: 'claude-code', unavailable: true }] });
+  await act(async () => { await wait(0); });
+  await act(async () => { window.dispatchEvent(new window.Event('focus')); await wait(0); });
+  assert.equal(calls, 2, 'the next focus refresh starts only after the first read settled');
+});
+
 // S7.4: telemetry remains in the resource DTO, but normal resource hover has no detail card.
 test('S7.4 UsageBar keeps the primary resource bar and removes normal hover details', async (t) => {
   const { dom, root } = setup();
