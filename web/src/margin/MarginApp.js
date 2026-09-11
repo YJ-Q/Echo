@@ -12,6 +12,7 @@ export function MarginApp({ api: suppliedApi, pollMs = 500, refreshGapMs = 250 }
   const [sourceState, setSourceState] = useState({ loading: true, sources: [] });
   const [resourceStatus, setResourceStatus] = useState({ agents: [{ agent: 'codex', unavailable: true }, { agent: 'claude-code', unavailable: true }] });
   const [expanded, setExpanded] = useState(false); const [settings, setSettings] = useState(readSettings); const [alwaysOnTop, setAlwaysOnTop] = useState(false); const [toast, setToast] = useState(null); const toastTimer = useRef();
+  const previousExecutionStatuses = useRef(null);
   // `observedRevision` is only a dirty hint from the cheap endpoint.  It must never advance the
   // revision of the Board by itself: `committedRevision` moves solely with a successful snapshot
   // commit.  One request owns the UI at a time; callers during it get that real Promise and leave
@@ -66,6 +67,21 @@ export function MarginApp({ api: suppliedApi, pollMs = 500, refreshGapMs = 250 }
   }, [api]);
   const loadSources = useCallback(() => { api.listAgentSources?.().then((result) => { if (result.ok) setSourceState({ loading: false, sources: result.data.sources }); }).catch(() => setSourceState({ loading: false, sources: [] })); }, [api]);
   const showToast = useCallback((message, kind = 'success') => { clearTimeout(toastTimer.current); setToast({ message, kind }); toastTimer.current = setTimeout(() => setToast(null), kind === 'error' ? 3500 : 1800); }, []);
+  // Status changes are presentation-only feedback. Keep one previous snapshot after the
+  // initial load, then replace the single overlay message when a session's execution truth
+  // changes. This deliberately does not debounce, rewrite, or infer status values.
+  useEffect(() => {
+    if (listState.loading || listState.error || !Array.isArray(listState.sessions)) return;
+    const next = new Map(listState.sessions.map((session) => [session.canonicalId ?? session.id, session.executionStatus ?? 'unknown']));
+    if (previousExecutionStatuses.current) {
+      const changed = listState.sessions.find((session) => {
+        const id = session.canonicalId ?? session.id;
+        return previousExecutionStatuses.current.has(id) && previousExecutionStatuses.current.get(id) !== next.get(id);
+      });
+      if (changed) showToast(`Status updated · ${changed.displayTitle ?? changed.label ?? changed.summary ?? changed.id}`);
+    }
+    previousExecutionStatuses.current = next;
+  }, [listState.loading, listState.error, listState.sessions, showToast]);
   const updateSettings = useCallback((patch) => setSettings((previous) => { const next = { ...previous, ...patch }; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {} return next; }), []);
   const togglePin = useCallback(async () => { const next = await globalThis.marginShell?.toggleAlwaysOnTop?.(); if (typeof next === 'boolean') setAlwaysOnTop(next); }, []);
   // Resource status refresh renders ONLY the service-declared truth: the resource domain owns
@@ -164,5 +180,5 @@ export function MarginApp({ api: suppliedApi, pollMs = 500, refreshGapMs = 250 }
     return () => { disposed = true; clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onFocus); };
   }, [api, pollMs, loadResources]);
   useEffect(() => () => { mounted.current = false; clearTimeout(toastTimer.current); }, []);
-  return createElement('main', { className: 'margin-shell' }, createElement(UsageBar, { resourceStatus, expanded, onToggle: toggleExpanded, settings, alwaysOnTop, onPin: togglePin, onHide: () => globalThis.marginShell?.hide?.(), onQuit: () => globalThis.marginShell?.quit?.() }), expanded ? createElement(SessionBoard, { api, sessions: listState.sessions, loading: listState.loading, error: listState.error, onRetry: loadSessions, sources: sourceState.sources, onSourcesChanged: () => { loadSources(); loadSessions({ quiet: true }); loadResources(); }, settings, onSettingsChange: updateSettings, onToast: showToast, alwaysOnTop, onPin: togglePin }) : null, toast ? createElement('div', { className: `margin-toast ${toast.kind === 'error' ? 'is-error' : ''}`, role: 'status', title: toast.message }, toast.message) : null);
+  return createElement('main', { className: 'margin-shell' }, createElement(UsageBar, { resourceStatus, expanded, onToggle: toggleExpanded, settings, alwaysOnTop, onPin: togglePin, onHide: () => globalThis.marginShell?.hide?.(), onQuit: () => globalThis.marginShell?.quit?.() }), expanded ? createElement(SessionBoard, { api, sessions: listState.sessions, loading: listState.loading, error: listState.error, onRetry: loadSessions, sources: sourceState.sources, onSourcesChanged: () => { loadSources(); loadSessions({ quiet: true }); loadResources(); }, settings, onSettingsChange: updateSettings, onToast: showToast, alwaysOnTop, onPin: togglePin }) : null, toast ? createElement('div', { className: `margin-toast ${toast.kind === 'error' ? 'is-error' : ''}`, role: 'status', 'aria-live': 'polite', 'data-toast-region': 'session-status', title: toast.message }, toast.message) : null);
 }

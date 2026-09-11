@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
@@ -193,6 +194,39 @@ test('S8.2.3 source revision renders unified execution and attention colors', as
   state.revision = 'R3';
   await act(async () => { await wait(100); });
   assert.ok(dot.classList.contains('is-error'));
+});
+
+test('S9.3 status feedback is one fixed overlay and stays geometry-stable under rapid updates', async (t) => {
+  const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://margin.test/' });
+  globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const state = { revision: 0, executionStatus: 'idle' };
+  const api = {
+    listSessions: async () => ({ ok: true, data: { revision: state.revision, sessions: [{ id: 'codex-1', agent: 'Codex', label: 'Live task', executionStatus: state.executionStatus, attentionStatus: 'none' }] } }),
+    getSessionsRevision: async () => ({ ok: true, data: { revision: state.revision } }),
+    listAgentSources: async () => ({ ok: true, data: { sources: [{ type: 'codex' }] } }),
+    getResourceStatus: async () => ({ agents: [{ agent: 'codex', unavailable: true }] }),
+  };
+  const root = createRoot(document.getElementById('root')); t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
+  await act(async () => { root.render(React.createElement(MarginApp, { api, pollMs: 5, refreshGapMs: 0 })); await wait(25); });
+  await act(async () => { document.querySelector('.margin-usage-toggle').click(); await wait(25); });
+  const board = document.querySelector('.margin-board');
+  const scroll = document.querySelector('.margin-board-scroll'); scroll.scrollTop = 37;
+
+  for (let index = 0; index < 50; index += 1) {
+    state.executionStatus = ['working', 'idle', 'error', 'working'][index % 4];
+    state.revision += 1;
+    await act(async () => { await wait(7); });
+  }
+  assert.equal(document.querySelectorAll('[data-toast-region="session-status"]').length, 1);
+  assert.equal(document.querySelector('.margin-board'), board, 'status feedback must not remount the Board');
+  assert.equal(document.querySelector('.margin-board-scroll').scrollTop, 37, 'status feedback must not change scrollTop');
+  assert.match(document.querySelector('[data-toast-region="session-status"]').textContent, /Status updated/);
+  assert.match(fs.readFileSync(new URL('../web/src/margin/margin.css', import.meta.url), 'utf8'), /\.margin-toast\s*\{[^}]*position:\s*fixed/);
+
+  await act(async () => { await wait(1900); });
+  assert.equal(document.querySelector('[data-toast-region="session-status"]'), null, 'toast auto-dismisses');
+  assert.equal(document.querySelector('.margin-board'), board, 'dismissal must not remount the Board');
 });
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
